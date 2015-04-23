@@ -1,3 +1,27 @@
+/*
+  Copyright (c) 2015 Genome Research Ltd.
+
+  Author: Jouni Siren <jouni.siren@iki.fi>
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
 #ifndef _GCSA_UTILS_H
 #define _GCSA_UTILS_H
 
@@ -184,6 +208,15 @@ sequentialSort(Iterator first, Iterator last)
 #endif
 }
 
+template<class Element>
+void
+removeDuplicates(std::vector<Element>& vec, bool parallel)
+{
+  if(parallel) { parallelQuickSort(vec.begin(), vec.end()); }
+  else         { sequentialSort(vec.begin(), vec.end()); }
+  vec.resize(std::unique(vec.begin(), vec.end()) - vec.begin());
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -234,28 +267,28 @@ LF(const BWTType& bwt, const AlphabetType& alpha, range_type range, char_type co
   Some SDSL extensions.
 */
 
-template<class element>
+template<class Element>
 size_type
-write_vector(const std::vector<element>& vec, std::ostream& out, structure_tree_node* v, std::string name)
+write_vector(const std::vector<Element>& vec, std::ostream& out, structure_tree_node* v, std::string name)
 {
   structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(vec));
   size_type written_bytes = 0;
   written_bytes += write_member(vec.size(), out, child, "size");
-  out.write((char*)(vec.data()), vec.size() * sizeof(element));
-  written_bytes += vec.size() * sizeof(element);
+  out.write((char*)(vec.data()), vec.size() * sizeof(Element));
+  written_bytes += vec.size() * sizeof(Element);
   structure_tree::add_size(v, written_bytes);
   return written_bytes;
 }
 
-template<class element>
+template<class Element>
 void
-read_vector(std::vector<element>& vec, std::istream& in)
+read_vector(std::vector<Element>& vec, std::istream& in)
 {
   util::clear(vec);
   size_type size = 0;
   read_member(size, in);
-  std::vector<element> temp(size);
-  in.read((char*)(temp.data()), temp.size() * sizeof(element));
+  std::vector<Element> temp(size);
+  in.read((char*)(temp.data()), temp.size() * sizeof(Element));
   vec.swap(temp);
 }
 
@@ -274,6 +307,24 @@ extractBits(const VectorType& source, range_type range, bit_vector& target)
     size_type len = std::min(WORD_BITS, target.size() - i);
     target.set_int(i, source.get_int(range.first + i, len), len);
   }
+}
+
+/*
+  Generic in-memory construction from int_vector_buffer<8> and size. Not very space-efficient, as it
+  duplicates the data.
+*/
+template<class Type>
+void
+directConstruct(Type& structure, const int_vector<8>& data)
+{
+  std::string ramfile = ram_file_name(util::to_string(&structure));
+  store_to_file(data, ramfile);
+  {
+    int_vector_buffer<8> buffer(ramfile); // Must remove the buffer before removing the ramfile.
+    Type temp(buffer, data.size());
+    structure.swap(temp);
+  }
+  ram_fs::remove(ramfile);
 }
 
 //------------------------------------------------------------------------------

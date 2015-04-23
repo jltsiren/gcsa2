@@ -1,3 +1,27 @@
+/*
+  Copyright (c) 2015 Genome Research Ltd.
+
+  Author: Jouni Siren <jouni.siren@iki.fi>
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
 #include "support.h"
 
 namespace gcsa
@@ -50,6 +74,16 @@ Alphabet::Alphabet(const Alphabet& a)
 Alphabet::Alphabet(Alphabet&& a)
 {
   *this = std::move(a);
+}
+
+Alphabet(const int_vector<64>& counts,
+    const int_vector<8>& _char2comp = DEFAULT_CHAR2COMP,
+    const int_vector<8>& _comp2char = DEFAULT_COMP2CHAR) :
+  char2comp(_char2comp), comp2char(_comp2char),
+  C(int_vector<64>(_comp2char.size() + 1, 0),
+  sigma(_comp2char.size())
+{
+  for(size_type i = 0; i < counts.size(); i++) { this->C[i + 1] = this->C[i] + counts[i]; }
 }
 
 Alphabet::~Alphabet()

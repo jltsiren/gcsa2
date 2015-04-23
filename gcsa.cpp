@@ -1,3 +1,27 @@
+/*
+  Copyright (c) 2015 Genome Research Ltd.
+
+  Author: Jouni Siren <jouni.siren@iki.fi>
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
 #include "gcsa.h"
 
 namespace gcsa
@@ -7,6 +31,7 @@ namespace gcsa
 
 GCSA::GCSA()
 {
+  this->node_count = 0;
 }
 
 GCSA::GCSA(const GCSA& g)
@@ -26,6 +51,8 @@ GCSA::~GCSA()
 void
 GCSA::copy(const GCSA& g)
 {
+  this->node_count = g.node_count;
+
   this->bwt = g.bwt;
   this->alpha = g.alpha;
 
@@ -52,6 +79,8 @@ GCSA::swap(GCSA& g)
 {
   if(this != &g)
   {
+    std::swap(this->node_count, g.node_count);
+
     this->bwt.swap(g.bwt);
     this->alpha.swap(g.alpha);
 
@@ -84,6 +113,8 @@ GCSA::operator=(GCSA&& g)
 {
   if(this != &g)
   {
+    this->node_count = std::move(g.node_count);
+
     this->bwt = std::move(g.bwt);
     this->alpha = std::move(g.alpha);
 
@@ -127,6 +158,8 @@ GCSA::serialize(std::ostream& out, structure_tree_node* s, std::string name) con
   structure_tree_node* child = structure_tree::add_child(s, name, util::class_name(*this));
   size_type written_bytes = 0;
 
+  written_bytes += write_member(this->node_count, out, child, "node_count");
+
   written_bytes += this->bwt.serialize(out, child, "bwt");
   written_bytes += this->alpha.serialize(out, child, "alpha");
 
@@ -152,6 +185,8 @@ GCSA::serialize(std::ostream& out, structure_tree_node* s, std::string name) con
 void
 GCSA::load(std::istream& in)
 {
+  read_member(&(this->node_count), in);
+
   this->bwt.load(in);
   this->alpha.load(in);
 
@@ -169,6 +204,111 @@ GCSA::load(std::istream& in)
   this->stored_samples.load(in);
   this->samples.load(in);
   this->sample_select.load(in, &(this->samples));
+}
+
+//------------------------------------------------------------------------------
+
+GCSA::GCSA(const std::vector<uint64_t>& kmers, const Alphabet& _alpha)
+{
+  this->node_count = kmers.size();
+
+  size_type total_edges = 0;
+  for(size_type i = 0; i < kmers.size(); i++) { total_edges += bits::lt_cnt[successors(kmers[i])]; }
+
+  int_vector<64> counts(_alpha.sigma, 0);
+  int_vector<8> buffer(total_edges, 0);
+  util::assign(this->nodes, bit_vector(total_edges, 0));
+  util::assign(this->edges, bit_vector(total_edges, 0));
+  for(size_type i = 0, bwt_pos = 0, edge_pos = 0; i < kmers.size(); i++)
+  {
+    uint8_t pred = predecessors(kmers[i]);
+    for(size_type j = 0; j < _alpha.sigma; j++)
+    {
+      if(pred & (((size_type)1) << j))
+      {
+        buffer[bwt_pos] = j; bwt_pos++;
+        counts[j]++;
+      }
+    }
+    this->nodes[bwt_pos - 1] = 1;
+    edge_pos += bits::lt_cnt[successors(kmers[i])];
+    this->edges[edge_pos - 1] = 1;
+  }
+  directConstruct(this->bwt, buffer);
+  this->alpha = Alphabet(counts, _alpha.char2comp, _alpha.comp2char);
+
+  util::init_support(this->node_rank, &(this->nodes));
+  util::init_support(this->node_select, &(this->nodes));
+  util::init_support(this->edge_rank, &(this->edges));
+  util::init_support(this->edge_select, &(this->edges));
+}
+
+//------------------------------------------------------------------------------
+
+range_type
+GCSA::find(const std::string& pattern) const
+{
+  if(pattern.length() == 0) { return range_type(0, this->size() - 1); }
+
+  auto iter = pattern.rbegin();
+  range_type range = this->nodeRange(gcsa::charRange(this->alpha, this->alpha.char2comp[*iter]));
+  --iter;
+
+  while(!isEmpty(range) && iter != pattern.rend())
+  {
+    range = this->LF(range, *iter);
+    --iter;
+  }
+
+  return range;
+}
+
+void
+GCSA::locate(size_type node, std::vector<size_type>& results, bool append, bool sort) const
+{
+  if(!append) { util::clear(results); }
+  if(node >= this->size())
+  {
+    if(sort) { removeDuplicates(results, false); }
+    return;
+  }
+
+  this->locateInternal(node, results);
+  if(sort) { removeDuplicates(results, false); }
+}
+
+void
+GCSA::locate(range_type range, std::vector<size_type>& results, bool append, bool sort) const
+{
+  if(!append) { util::clear(results); }
+  if(isEmpty(range) || range.second >= this->size())
+  {
+    if(sort) { removeDuplicates(results, false); }
+    return;
+  }
+
+  for(size_type i = range.first; i <= range.second; i++)
+  {
+    this->locateInternal(i, results);
+  }
+  if(sort) { removeDuplicates(results, false); }
+}
+
+void
+GCSA::locateInternal(size_type node, std::vector<size_type>& results) const
+{
+  size_type steps = 0;
+  while(this->sampled_nodes[node] == 0)
+  {
+    node = this->LF(node);
+    steps++;
+  }
+
+  range_type sample_range = this->sampleRange(node);
+  for(size_type i = sample_range.first; i <= sample_range.second; i++)
+  {
+    results.push_back(this->stored_samples[i] + steps);
+  }
 }
 
 //------------------------------------------------------------------------------
