@@ -65,8 +65,8 @@ public:
     at least one predecessor and one successor.
   */
 
-  inline static size_type encodeKMer(const Alphabet& alpha, const std::string& kmer,
-    uint8_t _predecessors, uint8_t _successors, bool parallel = true)
+  inline static size_type encode(const Alphabet& alpha, const std::string& kmer,
+    uint8_t _predecessors, uint8_t _successors)
   {
     size_type value = 0;
     for(size_type i = 0; i < kmer.size(); i++) { value = (value << 3) | alpha.char2comp[kmer[i]]; }
@@ -131,6 +131,12 @@ public:
   }
 
 //------------------------------------------------------------------------------
+
+  /*
+    We could have a bitvector for mapping between the node identifiers returned by locate()
+    and the original (node, offset) pairs. Alternatively, if the maximum length of a label
+    is reasonable, we can just use (node, offset) = (id / max_length, id % max_length).
+  */
 
   size_type                 node_count;
 
@@ -199,6 +205,122 @@ private:
     return sample_range;
   }
 };  // class GCSA
+
+//------------------------------------------------------------------------------
+
+/*
+  The node type used during doubling. As in the original GCSA, from and to are node
+  ids in the original graph, denoting a path as a semiopen range [from, to). If
+  from == to, the path will not be extended, because it already has a unique label.
+  rank_type is the integer type used to store ranks of the original kmers.
+  During edge generation, to will be used to store the number of outgoing edges.
+
+  FIXME Move to .cpp?
+*/
+
+template<class rank_type = uint32_t, size_type label_length = 8>
+struct DoublingNode
+{
+  size_type from, to;
+  rank_type label[label_length]:
+
+  inline bool operator< (const DoublingNode& another) const
+  {
+    if(this->from != another.from) { return (this->from < another.from); }
+    return (this->to < another.to);
+  }
+
+  inline bool sorted() const { return (this->from == this->to); }
+  inline size_type outdegree() const { return this->to; }
+
+  DoublingNode(size_type _from, size_type _to, size_type rank)
+  {
+    this->from = _from; this->to = _to;
+    this->label[0] = rank;
+    for(size_type i = 1; i < label_length; i++) { label[i] = 0; }
+  }
+
+  DoublingNode(const DoublingNode& left, const DoublingNode& right, size_type order)
+  {
+    this->from = left.from; this->to = right.to;
+    for(size_type i = 0; i < order; i++) { this->label[i] = left.label[i]; }
+    for(size_type i = order; i < 2 * order; i++) { this->label[i] = right.label[i - order]; }
+    for(size_type i = 2 * order; i < label_length; i++) { this->label[i] = 0; }
+  }
+
+  explicit DoublingNode(std::ifstream& in)
+  {
+    read_member(&(this->from), in); read_member(&(this->to, in);
+    in.read((char*)(this->label), label_length * sizeof(rank_type));
+  }
+
+  size_type serialize(std::ostream& out) const
+  {
+    write_member(this->from, out); write_member(this->to, out);
+    out.write((char*)(this->label), label_length * sizeof(rank_type));
+  }
+
+//------------------------------------------------------------------------------
+
+  DoublingNode() {}
+  DoublingNode(const DoublingNode& source) { this->copy(source); }
+  DoublingNode(DoublingNode&& source) { *this = std::move(source); }
+  ~DoublingNode() {}
+
+  void copy(const DoublingNode& source)
+  {
+    if(&source != this)
+    {
+      this->from = source.from; this->to = source.to;
+      for(size_type i = 0; i < label_length; i++) { this->label[i] = source.label[i]; }
+    }
+  }
+
+  void swap(DoublingNode& another)
+  {
+    if(&another != this)
+    {
+      std::swap(this->from, source.from); std::swap(this->to, source.to);
+      for(size_type i = 0; i < label_length; i++) { std::swap(this->label[i], source.label[i]); }
+    }
+  }
+
+  DoublingNode& operator= (const DoublingNode& source)
+  {
+    this->copy(source);
+    return *this;
+  }
+
+  DoublingNode& operator= (DoublingNode&& source)
+  {
+    if(&source != this)
+    {
+      this->from = std::move(source.from);
+      this->to = std::move(source.to);
+      for(size_type i = 0; i < label_length; i++) { this->label[i] = std::move(source.label[i]); }
+    }
+    return *this;
+  }
+};
+
+template<class rank_type = uint32_t, size_type label_length = 8>
+struct NodeLabelComparator
+{
+  typedef DoublingNode<rank_type, label_length> node_type;
+
+  size_type max_length;
+
+  NodeLabelComparator(size_type len = label_length) : max_length(len) {}
+
+  inline bool operator() (const node_type& a, const node_type& b) const
+  {
+    for(size_t i = 0; i < this->max_length; i++)
+    {
+      if(a.label[i] != b.label[i]) { return (a.label[i] < b.label[i]); }
+    }
+    return false;
+  }
+};
 
 //------------------------------------------------------------------------------
 
