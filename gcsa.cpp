@@ -185,7 +185,7 @@ GCSA::serialize(std::ostream& out, structure_tree_node* s, std::string name) con
 void
 GCSA::load(std::istream& in)
 {
-  read_member(&(this->node_count), in);
+  read_member(this->node_count, in);
 
   this->bwt.load(in);
   this->alpha.load(in);

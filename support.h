@@ -64,7 +64,7 @@ public:
     const int_vector<8>& _char2comp = DEFAULT_CHAR2COMP,
     const int_vector<8>& _comp2char = DEFAULT_COMP2CHAR) :
     char2comp(_char2comp), comp2char(_comp2char),
-    C(int_vector<64>(_comp2char.size() + 1, 0),
+    C(int_vector<64>(_comp2char.size() + 1, 0)),
     sigma(_comp2char.size())
   {
     if(sequence.size() == 0) { return; }

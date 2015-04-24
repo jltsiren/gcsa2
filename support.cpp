@@ -76,11 +76,10 @@ Alphabet::Alphabet(Alphabet&& a)
   *this = std::move(a);
 }
 
-Alphabet(const int_vector<64>& counts,
-    const int_vector<8>& _char2comp = DEFAULT_CHAR2COMP,
-    const int_vector<8>& _comp2char = DEFAULT_COMP2CHAR) :
+Alphabet::Alphabet(const int_vector<64>& counts,
+  const int_vector<8>& _char2comp, const int_vector<8>& _comp2char) :
   char2comp(_char2comp), comp2char(_comp2char),
-  C(int_vector<64>(_comp2char.size() + 1, 0),
+  C(int_vector<64>(_comp2char.size() + 1, 0)),
   sigma(_comp2char.size())
 {
   for(size_type i = 0; i < counts.size(); i++) { this->C[i + 1] = this->C[i] + counts[i]; }

@@ -184,19 +184,19 @@ private:
 
   inline range_type bwtRange(range_type node_range) const
   {
-    range.first = this->startPos(range.first);
-    range.second = this->endPos(range.second);
-    return range;
+    node_range.first = this->startPos(node_range.first);
+    node_range.second = this->endPos(node_range.second);
+    return node_range;
   }
 
   inline range_type nodeRange(range_type incoming_range) const
   {
-    range.first = this->edge_rank(range.first);
-    range.second = this->edge_rank(range.second);
-    return range;
+    incoming_range.first = this->edge_rank(incoming_range.first);
+    incoming_range.second = this->edge_rank(incoming_range.second);
+    return incoming_range;
   }
 
-  inline size_type sampleRange(size_type node) const
+  inline range_type sampleRange(size_type node) const
   {
     node = this->sampled_node_rank(node);
     range_type sample_range;
@@ -222,7 +222,7 @@ template<class rank_type = uint32_t, size_type label_length = 8>
 struct DoublingNode
 {
   size_type from, to;
-  rank_type label[label_length]:
+  rank_type label[label_length];
 
   inline bool operator< (const DoublingNode& another) const
   {
@@ -250,14 +250,17 @@ struct DoublingNode
 
   explicit DoublingNode(std::ifstream& in)
   {
-    read_member(&(this->from), in); read_member(&(this->to, in);
+    read_member(&(this->from), in); read_member(&(this->to), in);
     in.read((char*)(this->label), label_length * sizeof(rank_type));
   }
 
   size_type serialize(std::ostream& out) const
   {
-    write_member(this->from, out); write_member(this->to, out);
+    size_type bytes = 0;
+    bytes += write_member(this->from, out); bytes += write_member(this->to, out);
     out.write((char*)(this->label), label_length * sizeof(rank_type));
+    bytes += label_length * sizeof(rank_type);
+    return bytes;
   }
 
 //------------------------------------------------------------------------------
@@ -280,8 +283,8 @@ struct DoublingNode
   {
     if(&another != this)
     {
-      std::swap(this->from, source.from); std::swap(this->to, source.to);
-      for(size_type i = 0; i < label_length; i++) { std::swap(this->label[i], source.label[i]); }
+      std::swap(this->from, another.from); std::swap(this->to, another.to);
+      for(size_type i = 0; i < label_length; i++) { std::swap(this->label[i], another.label[i]); }
     }
   }
 
