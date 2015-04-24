@@ -79,7 +79,9 @@ public:
   inline static uint8_t predecessors(size_type code) { return (code >> 8) & 0xFF; }
   inline static uint8_t successors(size_type code) { return code & 0xFF; }
 
-  GCSA(const std::vector<uint64_t>& kmers, const Alphabet& _alpha);
+  inline static size_type merge(size_type code1, size_type code2) { return code1 | (code2 & 0xFFFF); }
+
+  explicit GCSA(const std::vector<uint64_t>& kmers, const Alphabet& _alpha = Alphabet());
 
 //------------------------------------------------------------------------------
 

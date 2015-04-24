@@ -61,9 +61,11 @@ const int_vector<8> Alphabet::DEFAULT_COMP2CHAR = { '$', 'A', 'C', 'G', 'T', 'N'
 
 //------------------------------------------------------------------------------
 
-Alphabet::Alphabet()
+Alphabet::Alphabet() :
+  char2comp(DEFAULT_CHAR2COMP), comp2char(DEFAULT_COMP2CHAR),
+  C(int_vector<64>(DEFAULT_COMP2CHAR.size() + 1, 0)),
+  sigma(DEFAULT_COMP2CHAR.size())
 {
-  this->sigma = 0;
 }
 
 Alphabet::Alphabet(const Alphabet& a)
