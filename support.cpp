@@ -30,15 +30,15 @@ namespace gcsa
 //------------------------------------------------------------------------------
 
 /*
-  The default alphabet interprets \0 and $ as endmarkers 0, ACGT and acgt as ACGT,
-  and the remaining characters as N.
+  The default alphabet interprets \0 and $ as endmarkers, ACGT and acgt as ACGT,
+  # as a the label of the source node, and the and the remaining characters as N.
 */
 
 const int_vector<8> Alphabet::DEFAULT_CHAR2COMP =
 {
   0, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
   5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  0, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 6,  0, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
   5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
 
   5, 1, 5, 2,  5, 5, 5, 3,  5, 5, 5, 5,  5, 5, 5, 5,
@@ -57,7 +57,7 @@ const int_vector<8> Alphabet::DEFAULT_CHAR2COMP =
   5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5
 };
 
-const int_vector<8> Alphabet::DEFAULT_COMP2CHAR = { '$', 'A', 'C', 'G', 'T', 'N' };
+const int_vector<8> Alphabet::DEFAULT_COMP2CHAR = { '$', 'A', 'C', 'G', 'T', 'N', '#' };
 
 //------------------------------------------------------------------------------
 

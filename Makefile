@@ -18,7 +18,7 @@ HEADERS=$(wildcard *.h)
 OBJS=$(SOURCES:.cpp=.o)
 LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
 LIBRARY=gcsa.a
-PROGRAMS=
+PROGRAMS=build_gcsa
 
 all: $(LIBRARY) $(PROGRAMS)
 
@@ -27,6 +27,9 @@ all: $(LIBRARY) $(PROGRAMS)
 
 gcsa.a:$(LIBOBJS)
 	ar rcs $@ $(LIBOBJS)
+
+build_gcsa:build_gcsa.o $(LIBRARY)
+	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
 clean:
 	rm -f $(PROGRAMS) $(OBJS) $(LIBRARY)

@@ -52,6 +52,8 @@ public:
   size_type serialize(std::ostream& out, structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
 
+  const static std::string EXTENSION;  // .gcsa
+
 //------------------------------------------------------------------------------
 
   /*
@@ -65,17 +67,17 @@ public:
     at least one predecessor and one successor.
   */
 
-  inline static size_type encode(const Alphabet& alpha, const std::string& kmer,
-    uint8_t _predecessors, uint8_t _successors)
+  inline static size_type encode(const Alphabet& alpha, const std::string& label,
+    uint8_t pred, uint8_t succ)
   {
     size_type value = 0;
-    for(size_type i = 0; i < kmer.size(); i++) { value = (value << 3) | alpha.char2comp[kmer[i]]; }
-    value = (value << 8) | _predecessors;
-    value = (value << 8) | _successors;
+    for(size_type i = 0; i < label.length(); i++) { value = (value << 3) | alpha.char2comp[label[i]]; }
+    value = (value << 8) | pred;
+    value = (value << 8) | succ;
     return value;
   }
 
-  inline static size_type kMer(size_type code) { return (code >> 16); }
+  inline static size_type kmer(size_type code) { return (code >> 16); }
   inline static uint8_t predecessors(size_type code) { return (code >> 8) & 0xFF; }
   inline static uint8_t successors(size_type code) { return code & 0xFF; }
 

@@ -29,6 +29,8 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+const std::string GCSA::EXTENSION = ".gcsa";
+
 GCSA::GCSA()
 {
   this->node_count = 0;
