@@ -214,8 +214,9 @@ GCSA::GCSA(const std::vector<uint64_t>& kmers, const Alphabet& _alpha)
 {
   this->node_count = kmers.size();
 
-  size_type total_edges = 0;
-  for(size_type i = 0; i < kmers.size(); i++) { total_edges += bits::lt_cnt[successors(kmers[i])]; }
+  size_type total_edges = 0, alt_edges = 0;
+  for(size_type i = 0; i < kmers.size(); i++) { total_edges += bits::lt_cnt[predecessors(kmers[i])];
+  alt_edges += bits::lt_cnt[successors(kmers[i])]; }
 
   int_vector<64> counts(_alpha.sigma, 0);
   int_vector<8> buffer(total_edges, 0);
@@ -245,6 +246,22 @@ GCSA::GCSA(const std::vector<uint64_t>& kmers, const Alphabet& _alpha)
   util::init_support(this->edge_select, &(this->edges));
 }
 
+std::string
+GCSA::decode(const Alphabet& alpha, size_type code, size_type kmer_length)
+{
+  code = kmer(code);
+  kmer_length = std::min(kmer_length, (size_type)16);
+
+  std::string res(kmer_length, '\0');
+  for(size_type i = 1; i <= kmer_length; i++)
+  {
+    res[kmer_length - i] = alpha.comp2char[code & 0x7];
+    code >>= 3;
+  }
+
+  return res;
+}
+
 //------------------------------------------------------------------------------
 
 range_type
@@ -254,12 +271,12 @@ GCSA::find(const std::string& pattern) const
 
   auto iter = pattern.rbegin();
   range_type range = this->nodeRange(gcsa::charRange(this->alpha, this->alpha.char2comp[*iter]));
-  --iter;
+  ++iter;
 
   while(!isEmpty(range) && iter != pattern.rend())
   {
-    range = this->LF(range, *iter);
-    --iter;
+    range = this->LF(range, this->alpha.char2comp[*iter]);
+    ++iter;
   }
 
   return range;

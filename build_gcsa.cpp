@@ -22,6 +22,7 @@
   SOFTWARE.
 */
 
+#include <map>
 #include <sstream>
 #include <string>
 
@@ -31,10 +32,17 @@ using namespace gcsa;
 
 //------------------------------------------------------------------------------
 
+#define VERIFY_GRAPH
+#define VERIFY_INDEX
+
 struct KMer;
 
-size_type readKMers(const std::string& base_name, std::vector<size_type>& keys, std::vector<KMer>& kmers);
-void filterKMers(std::vector<size_type>& kmers);
+size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers, std::vector<size_type>& keys);
+void filterKeys(std::vector<size_type>& keys);
+void sortKMers(std::vector<KMer>& kmers, const std::vector<size_type>& keys);
+
+bool verifyGraph(const std::string& base_name);
+bool verifyIndex(const GCSA& index, const std::vector<size_type>& keys, size_type kmer_length);
 
 //------------------------------------------------------------------------------
 
@@ -54,23 +62,26 @@ main(int argc, char** argv)
   std::cout << "Input: " << base_name << std::endl;
   std::cout << std::endl;
 
+#ifdef VERIFY_GRAPH
+  if(!(verifyGraph(base_name))) { return 2; }
+#endif
+
   std::vector<size_type> keys;
   std::vector<KMer> kmers;
-  readKMers(base_name, keys, kmers);
-  filterKMers(keys);
+  size_type kmer_length = readKMers(base_name, kmers, keys);
+  filterKeys(keys);
+  sortKMers(kmers, keys);
   GCSA index(keys);
   store_to_file(index, base_name + GCSA::EXTENSION);
-
-  /*
-    FIXME Sort the kmers and replace the keys with ranks based on the kmer part of the old key.
-    Then verify that everything went fine:
-      - unpack the kmer from 'keys'
-      - search for it in the GCSA
-      - the returned range should contain only the index of the kmer in 'keys'
-  */
-
   std::cout << "Nodes: " << index.size() << ", edges: " << index.edge_count() << std::endl;
   std::cout << "GCSA size: " << size_in_bytes(index) << " bytes" << std::endl;
+  std::cout << std::endl;
+
+#ifdef VERIFY_INDEX
+  verifyIndex(index, keys, kmer_length);
+#endif
+
+  std::cout << "Memory usage: " << inMegabytes(memoryUsage()) << " MB" << std::endl;
   std::cout << std::endl;
 
   return 0;
@@ -186,10 +197,16 @@ operator<< (std::ostream& out, const KMer& kmer)
   return out;
 }
 
+inline bool
+operator< (size_type key, const KMer& kmer)
+{
+  return (GCSA::kmer(key) < GCSA::kmer(kmer.key));
+}
+
 //------------------------------------------------------------------------------
 
 size_type
-readKMers(const std::string& base_name, std::vector<size_type>& keys, std::vector<KMer>& kmers)
+readKMers(const std::string& base_name, std::vector<KMer>& kmers, std::vector<size_type>& keys)
 {
   std::string filename = base_name + ".gcsa2";
   std::ifstream input(filename.c_str(), std::ios_base::binary);
@@ -240,32 +257,174 @@ readKMers(const std::string& base_name, std::vector<size_type>& keys, std::vecto
   }
 
   std::cout << "Read " << kmers.size() << " kmers of length " << kmer_length << std::endl;
-  std::cout << std::endl;
   return kmer_length;
 }
 
 //------------------------------------------------------------------------------
 
 void
-filterKMers(std::vector<size_type>& kmers)
+filterKeys(std::vector<size_type>& keys)
+{
+  if(keys.empty()) { return; }
+  parallelQuickSort(keys.begin(), keys.end());
+
+  size_type tail = 0;
+  for(size_type i = 1; i < keys.size(); i++)
+  {
+    if(GCSA::kmer(keys[i]) == GCSA::kmer(keys[tail]))
+    {
+      keys[tail] = GCSA::merge(keys[tail], keys[i]);
+    }
+    else
+    {
+      tail++; keys[tail] = keys[i];
+    }
+  }
+  keys.resize(tail + 1);
+
+  std::cout << "Unique keys: " << keys.size() << std::endl;
+}
+
+//------------------------------------------------------------------------------
+
+void
+sortKMers(std::vector<KMer>& kmers, const std::vector<size_type>& keys)
 {
   if(kmers.empty()) { return; }
   parallelQuickSort(kmers.begin(), kmers.end());
 
-  size_type size = 0;
-  for(size_type i = 1; i < kmers.size(); i++)
+  // Replace the keys with ranks in the sorted key array.
+  for(size_type kmer = 0, key = 0; kmer < kmers.size(); kmer++)
   {
-    if(GCSA::kmer(kmers[size]) == GCSA::kmer(kmers[i]))
-    {
-      kmers[size] = GCSA::merge(kmers[size], kmers[i]);
-    }
-    else { size++; }
+    while(keys[key] < kmers[kmer]) { key++; }
+    kmers[kmer].key = key;
   }
-  size++;
-  kmers.resize(size);
+}
 
-  std::cout << "Unique kmers: " << kmers.size() << std::endl;
+//------------------------------------------------------------------------------
+
+bool
+verifyGraph(const std::string& base_name)
+{
+  std::string filename = base_name + ".gcsa2";
+  std::ifstream input(filename.c_str(), std::ios_base::binary);
+  if(!input)
+  {
+    std::cerr << "build_gcsa: verifyGraph(): Cannot open input file " << filename << std::endl;
+    return false;
+  }
+
+  Alphabet alpha;
+  std::map<std::string, std::pair<uint8_t, uint8_t>> graph;
+  size_type kmer_length = 0;
+  bool ok = true;
+  while(input)
+  {
+    std::string line;
+    std::getline(input, line);
+    if(line.length() == 0) { continue; }
+
+    std::vector<std::string> tokens;
+    if(!(KMer::tokenize(line, tokens))) { continue; }
+    if(kmer_length > 0 && tokens[0].length() != kmer_length)
+    {
+      std::cerr << "build_gcsa: verifyGraph(): kmer length changed from " << kmer_length
+                << " to " << tokens[0].length() << std::endl;
+    }
+    kmer_length = tokens[0].length();
+
+    // We don't verify the edge from the sink to the source.
+    uint8_t pred = (tokens[0][kmer_length - 1] == '#' ? 0 : KMer::chars(tokens[2], alpha));
+    uint8_t succ = (tokens[0][0] == '$' ? 0 : KMer::chars(tokens[3], alpha));
+    if(graph.find(tokens[0]) == graph.end())
+    {
+      graph[tokens[0]] = std::make_pair(pred, succ);
+    }
+    else
+    {
+      graph[tokens[0]].first |= pred;
+      graph[tokens[0]].second |= succ;
+    }
+  }
+  input.close();
+
+  for(auto iter = graph.begin(); iter != graph.end(); ++iter)
+  {
+    for(size_type i = 1; i < alpha.sigma; i++)
+    {
+      if(iter->second.first & (1 << i))
+      {
+        std::string backward_pattern = std::string(1, (char)(alpha.comp2char[i])) + iter->first.substr(0, kmer_length - 1);
+        if(graph.find(backward_pattern) == graph.end())
+        {
+          std::cerr << "Node " << iter->first << " is missing predecessor("
+                    << (char)(alpha.comp2char[i]) << "): "
+                    << backward_pattern << std::endl;
+          ok = false;
+        }
+        else
+        {
+          char_type last = alpha.char2comp[iter->first[kmer_length - 1]];
+          if((graph[backward_pattern].second & (1 << last)) == 0)
+          {
+            std::cerr << "Reverse: Node " << backward_pattern << " is missing successor("
+                      << (char)(alpha.comp2char[last]) << "): "
+                      << iter->first << std::endl;
+            ok = false;
+          }
+        }
+      }
+      if(iter->second.second & (1 << i))
+      {
+        std::string forward_pattern = iter->first.substr(1) + (char)(alpha.comp2char[i]);
+        if(graph.find(forward_pattern) == graph.end())
+        {
+          std::cerr << "Node " << iter->first << " is missing successor("
+                    << (char)(alpha.comp2char[i]) << "): "
+                    << forward_pattern << std::endl;
+          ok = false;
+        }
+        else
+        {
+          char_type first = alpha.char2comp[iter->first[0]];
+          if((graph[forward_pattern].first & (1 << first)) == 0)
+          {
+            std::cerr << "Reverse: Node " << forward_pattern << " is missing predecessor("
+                      << (char)(alpha.comp2char[first]) << "): "
+                      << iter->first << std::endl;
+            ok = false;
+          }
+        }
+      }
+    }
+  }
+
+  std::cout << "Verification " << (ok ? "completed." : "failed.") << std::endl;
   std::cout << std::endl;
+  return ok;
+}
+
+//------------------------------------------------------------------------------
+
+bool
+verifyIndex(const GCSA& index, const std::vector<size_type>& keys, size_type kmer_length)
+{
+  bool ok = true;
+  for(size_type i = 0; i < keys.size(); i++)
+  {
+    std::string kmer = GCSA::decode(index.alpha, keys[i], kmer_length);
+    range_type range = index.find(kmer);
+    if(range != range_type(i, i))
+    {
+      std::cerr << "build_gcsa: find(" << kmer << ") = " << range
+                << ", expected " << range_type(i, i) << std::endl;
+      ok = false;
+    }
+    std::cout << kmer << std::endl;
+  }
+  std::cout << "Verification " << (ok ? "completed." : "failed.") << std::endl;
+  std::cout << std::endl;
+  return ok;
 }
 
 //------------------------------------------------------------------------------

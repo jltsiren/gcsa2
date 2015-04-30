@@ -77,11 +77,13 @@ public:
     return value;
   }
 
+  static std::string decode(const Alphabet& alpha, size_type code, size_type kmer_length);
+
   inline static size_type kmer(size_type code) { return (code >> 16); }
   inline static uint8_t predecessors(size_type code) { return (code >> 8) & 0xFF; }
   inline static uint8_t successors(size_type code) { return code & 0xFF; }
 
-  inline static size_type merge(size_type code1, size_type code2) { return code1 | (code2 & 0xFFFF); }
+  inline static size_type merge(size_type code1, size_type code2) { return (code1 | (code2 & 0xFFFF)); }
 
   explicit GCSA(const std::vector<uint64_t>& kmers, const Alphabet& _alpha = Alphabet());
 
