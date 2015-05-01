@@ -34,6 +34,7 @@ const std::string GCSA::EXTENSION = ".gcsa";
 GCSA::GCSA()
 {
   this->node_count = 0;
+  this->max_query_length = 0;
 }
 
 GCSA::GCSA(const GCSA& g)
@@ -54,6 +55,7 @@ void
 GCSA::copy(const GCSA& g)
 {
   this->node_count = g.node_count;
+  this->max_query_length = g.max_query_length;
 
   this->bwt = g.bwt;
   this->alpha = g.alpha;
@@ -82,24 +84,25 @@ GCSA::swap(GCSA& g)
   if(this != &g)
   {
     std::swap(this->node_count, g.node_count);
+    std::swap(this->max_query_length, g.max_query_length);
 
     this->bwt.swap(g.bwt);
     this->alpha.swap(g.alpha);
 
     this->nodes.swap(g.nodes);
-    util::swap_support(this->node_rank, g.node_rank, &(this->nodes), &(g.nodes));
-    util::swap_support(this->node_select, g.node_select, &(this->nodes), &(g.nodes));
+    sdsl::util::swap_support(this->node_rank, g.node_rank, &(this->nodes), &(g.nodes));
+    sdsl::util::swap_support(this->node_select, g.node_select, &(this->nodes), &(g.nodes));
 
     this->edges.swap(g.edges);
-    util::swap_support(this->edge_rank, g.edge_rank, &(this->edges), &(g.edges));
-    util::swap_support(this->edge_select, g.edge_select, &(this->edges), &(g.edges));
+    sdsl::util::swap_support(this->edge_rank, g.edge_rank, &(this->edges), &(g.edges));
+    sdsl::util::swap_support(this->edge_select, g.edge_select, &(this->edges), &(g.edges));
 
     this->sampled_nodes.swap(g.sampled_nodes);
-    util::swap_support(this->sampled_node_rank, g.sampled_node_rank, &(this->sampled_nodes), &(g.sampled_nodes));
+    sdsl::util::swap_support(this->sampled_node_rank, g.sampled_node_rank, &(this->sampled_nodes), &(g.sampled_nodes));
 
     this->stored_samples.swap(g.stored_samples);
     this->samples.swap(g.samples);
-    util::swap_support(this->sample_select, g.sample_select, &(this->samples), &(g.samples));
+    sdsl::util::swap_support(this->sample_select, g.sample_select, &(this->samples), &(g.samples));
   }
 }
 
@@ -116,6 +119,7 @@ GCSA::operator=(GCSA&& g)
   if(this != &g)
   {
     this->node_count = std::move(g.node_count);
+    this->max_query_length = std::move(g.max_query_length);
 
     this->bwt = std::move(g.bwt);
     this->alpha = std::move(g.alpha);
@@ -155,12 +159,13 @@ GCSA::setVectors()
 }
 
 GCSA::size_type
-GCSA::serialize(std::ostream& out, structure_tree_node* s, std::string name) const
+GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* s, std::string name) const
 {
-  structure_tree_node* child = structure_tree::add_child(s, name, util::class_name(*this));
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(s, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
 
-  written_bytes += write_member(this->node_count, out, child, "node_count");
+  written_bytes += sdsl::write_member(this->node_count, out, child, "node_count");
+  written_bytes += sdsl::write_member(this->max_query_length, out, child, "max_query_length");
 
   written_bytes += this->bwt.serialize(out, child, "bwt");
   written_bytes += this->alpha.serialize(out, child, "alpha");
@@ -180,14 +185,15 @@ GCSA::serialize(std::ostream& out, structure_tree_node* s, std::string name) con
   written_bytes += this->samples.serialize(out, child, "samples");
   written_bytes += this->sample_select.serialize(out, child, "sample_select");
 
-  structure_tree::add_size(child, written_bytes);
+  sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
 }
 
 void
 GCSA::load(std::istream& in)
 {
-  read_member(this->node_count, in);
+  sdsl::read_member(this->node_count, in);
+  sdsl::read_member(this->max_query_length, in);
 
   this->bwt.load(in);
   this->alpha.load(in);
@@ -210,21 +216,22 @@ GCSA::load(std::istream& in)
 
 //------------------------------------------------------------------------------
 
-GCSA::GCSA(const std::vector<uint64_t>& kmers, const Alphabet& _alpha)
+GCSA::GCSA(const std::vector<size_type>& kmers, size_type kmer_length, const Alphabet& _alpha)
 {
   this->node_count = kmers.size();
+  this->max_query_length = kmer_length;
 
   size_type total_edges = 0, alt_edges = 0;
-  for(size_type i = 0; i < kmers.size(); i++) { total_edges += bits::lt_cnt[predecessors(kmers[i])];
-  alt_edges += bits::lt_cnt[successors(kmers[i])]; }
+  for(size_type i = 0; i < kmers.size(); i++) { total_edges += sdsl::bits::lt_cnt[predecessors(kmers[i])];
+  alt_edges += sdsl::bits::lt_cnt[successors(kmers[i])]; }
 
-  int_vector<64> counts(_alpha.sigma, 0);
-  int_vector<8> buffer(total_edges, 0);
-  util::assign(this->nodes, bit_vector(total_edges, 0));
-  util::assign(this->edges, bit_vector(total_edges, 0));
+  sdsl::int_vector<64> counts(_alpha.sigma, 0);
+  sdsl::int_vector<8> buffer(total_edges, 0);
+  this->nodes = bit_vector(total_edges, 0);
+  this->edges = bit_vector(total_edges, 0);
   for(size_type i = 0, bwt_pos = 0, edge_pos = 0; i < kmers.size(); i++)
   {
-    uint8_t pred = predecessors(kmers[i]);
+    byte_type pred = predecessors(kmers[i]);
     for(size_type j = 0; j < _alpha.sigma; j++)
     {
       if(pred & (((size_type)1) << j))
@@ -234,16 +241,16 @@ GCSA::GCSA(const std::vector<uint64_t>& kmers, const Alphabet& _alpha)
       }
     }
     this->nodes[bwt_pos - 1] = 1;
-    edge_pos += bits::lt_cnt[successors(kmers[i])];
+    edge_pos += sdsl::bits::lt_cnt[successors(kmers[i])];
     this->edges[edge_pos - 1] = 1;
   }
   directConstruct(this->bwt, buffer);
   this->alpha = Alphabet(counts, _alpha.char2comp, _alpha.comp2char);
 
-  util::init_support(this->node_rank, &(this->nodes));
-  util::init_support(this->node_select, &(this->nodes));
-  util::init_support(this->edge_rank, &(this->edges));
-  util::init_support(this->edge_select, &(this->edges));
+  sdsl::util::init_support(this->node_rank, &(this->nodes));
+  sdsl::util::init_support(this->node_select, &(this->nodes));
+  sdsl::util::init_support(this->edge_rank, &(this->edges));
+  sdsl::util::init_support(this->edge_select, &(this->edges));
 }
 
 std::string
@@ -268,6 +275,11 @@ range_type
 GCSA::find(const std::string& pattern) const
 {
   if(pattern.length() == 0) { return range_type(0, this->size() - 1); }
+  if(pattern.length() > this->order())
+  {
+    std::cerr << "GCSA::find(): Query length exceeds " << this->order() << std::endl;
+    return range_type(1, 0);
+  }
 
   auto iter = pattern.rbegin();
   range_type range = this->nodeRange(gcsa::charRange(this->alpha, this->alpha.char2comp[*iter]));
@@ -285,7 +297,7 @@ GCSA::find(const std::string& pattern) const
 void
 GCSA::locate(size_type node, std::vector<size_type>& results, bool append, bool sort) const
 {
-  if(!append) { util::clear(results); }
+  if(!append) { sdsl::util::clear(results); }
   if(node >= this->size())
   {
     if(sort) { removeDuplicates(results, false); }
@@ -299,7 +311,7 @@ GCSA::locate(size_type node, std::vector<size_type>& results, bool append, bool 
 void
 GCSA::locate(range_type range, std::vector<size_type>& results, bool append, bool sort) const
 {
-  if(!append) { util::clear(results); }
+  if(!append) { sdsl::util::clear(results); }
   if(isEmpty(range) || range.second >= this->size())
   {
     if(sort) { removeDuplicates(results, false); }

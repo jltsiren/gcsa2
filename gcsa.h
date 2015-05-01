@@ -35,8 +35,9 @@ namespace gcsa
 class GCSA
 {
 public:
-  typedef gcsa::size_type size_type;
-  typedef wt_huff<>       bwt_type;
+  typedef gcsa::size_type  size_type;
+  typedef sdsl::wt_huff<>  bwt_type;
+  typedef sdsl::bit_vector bit_vector;
 
 //------------------------------------------------------------------------------
 
@@ -49,7 +50,7 @@ public:
   GCSA& operator=(const GCSA& g);
   GCSA& operator=(GCSA&& g);
 
-  size_type serialize(std::ostream& out, structure_tree_node* v = nullptr, std::string name = "") const;
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
 
   const static std::string EXTENSION;  // .gcsa
@@ -68,7 +69,7 @@ public:
   */
 
   inline static size_type encode(const Alphabet& alpha, const std::string& label,
-    uint8_t pred, uint8_t succ)
+    byte_type pred, byte_type succ)
   {
     size_type value = 0;
     for(size_type i = 0; i < label.length(); i++) { value = (value << 3) | alpha.char2comp[label[i]]; }
@@ -80,12 +81,12 @@ public:
   static std::string decode(const Alphabet& alpha, size_type code, size_type kmer_length);
 
   inline static size_type kmer(size_type code) { return (code >> 16); }
-  inline static uint8_t predecessors(size_type code) { return (code >> 8) & 0xFF; }
-  inline static uint8_t successors(size_type code) { return code & 0xFF; }
+  inline static byte_type predecessors(size_type code) { return (code >> 8) & 0xFF; }
+  inline static byte_type successors(size_type code) { return code & 0xFF; }
 
   inline static size_type merge(size_type code1, size_type code2) { return (code1 | (code2 & 0xFFFF)); }
 
-  explicit GCSA(const std::vector<uint64_t>& kmers, const Alphabet& _alpha = Alphabet());
+  GCSA(const std::vector<size_type>& kmers, size_type kmer_length, const Alphabet& _alpha = Alphabet());
 
 //------------------------------------------------------------------------------
 
@@ -110,6 +111,7 @@ public:
 
   inline size_type size() const { return this->node_count; }
   inline size_type edge_count() const { return this->bwt.size(); }
+  inline size_type order() const { return this->max_query_length; }
 
   inline bool has_samples() const { return (this->stored_samples.size() > 0); }
 
@@ -145,6 +147,7 @@ public:
   */
 
   size_type                 node_count;
+  size_type                 max_query_length;
 
   bwt_type                  bwt;
   Alphabet                  alpha;
@@ -164,7 +167,7 @@ public:
   bit_vector::rank_1_type   sampled_node_rank;
 
   // The last sample belonging to the same node is marked with an 1-bit.
-  int_vector<0>             stored_samples;
+  sdsl::int_vector<0>       stored_samples;
   bit_vector                samples;
   bit_vector::select_1_type sample_select;
 
@@ -224,7 +227,7 @@ private:
   FIXME Move to .cpp?
 */
 
-template<class rank_type = uint32_t, size_type label_length = 8>
+template<class rank_type = std::uint32_t, size_type label_length = 8>
 struct DoublingNode
 {
   size_type from, to;
@@ -263,7 +266,7 @@ struct DoublingNode
   size_type serialize(std::ostream& out) const
   {
     size_type bytes = 0;
-    bytes += write_member(this->from, out); bytes += write_member(this->to, out);
+    bytes += sdsl::write_member(this->from, out); bytes += sdsl::write_member(this->to, out);
     out.write((char*)(this->label), label_length * sizeof(rank_type));
     bytes += label_length * sizeof(rank_type);
     return bytes;
@@ -312,7 +315,7 @@ struct DoublingNode
   }
 };
 
-template<class rank_type = uint32_t, size_type label_length = 8>
+template<class rank_type = std::uint32_t, size_type label_length = 8>
 struct NodeLabelComparator
 {
   typedef DoublingNode<rank_type, label_length> node_type;

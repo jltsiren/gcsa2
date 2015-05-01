@@ -71,10 +71,10 @@ main(int argc, char** argv)
   size_type kmer_length = readKMers(base_name, kmers, keys);
   filterKeys(keys);
   sortKMers(kmers, keys);
-  GCSA index(keys);
-  store_to_file(index, base_name + GCSA::EXTENSION);
+  GCSA index(keys, kmer_length);
+  sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
   std::cout << "Nodes: " << index.size() << ", edges: " << index.edge_count() << std::endl;
-  std::cout << "GCSA size: " << size_in_bytes(index) << " bytes" << std::endl;
+  std::cout << "GCSA size: " << sdsl::size_in_bytes(index) << " bytes" << std::endl;
   std::cout << std::endl;
 
 #ifdef VERIFY_INDEX
@@ -101,8 +101,8 @@ struct KMer
 
   KMer(const std::vector<std::string>& tokens, const Alphabet& alpha, size_type successor)
   {
-    uint8_t predecessors = chars(tokens[2], alpha);
-    uint8_t successors = chars(tokens[3], alpha);
+    byte_type predecessors = chars(tokens[2], alpha);
+    byte_type successors = chars(tokens[3], alpha);
     this->key = GCSA::encode(alpha, tokens[0], predecessors, successors);
 
     this->from = encodePosition(tokens[1]);
@@ -177,10 +177,10 @@ struct KMer
     return (_node << 6) | _offset;
   }
 
-  static uint8_t
+  static byte_type
   chars(const std::string& token, const Alphabet& alpha)
   {
-    uint8_t val = 0;
+    byte_type val = 0;
     for(size_type i = 0; i < token.length(); i += 2) { val |= 1 << alpha.char2comp[token[i]]; }
     return val;
   }
@@ -315,7 +315,7 @@ verifyGraph(const std::string& base_name)
   }
 
   Alphabet alpha;
-  std::map<std::string, std::pair<uint8_t, uint8_t>> graph;
+  std::map<std::string, std::pair<byte_type, byte_type>> graph;
   size_type kmer_length = 0;
   bool ok = true;
   while(input)
@@ -334,8 +334,8 @@ verifyGraph(const std::string& base_name)
     kmer_length = tokens[0].length();
 
     // We don't verify the edge from the sink to the source.
-    uint8_t pred = (tokens[0][kmer_length - 1] == '#' ? 0 : KMer::chars(tokens[2], alpha));
-    uint8_t succ = (tokens[0][0] == '$' ? 0 : KMer::chars(tokens[3], alpha));
+    byte_type pred = (tokens[0][kmer_length - 1] == '#' ? 0 : KMer::chars(tokens[2], alpha));
+    byte_type succ = (tokens[0][0] == '$' ? 0 : KMer::chars(tokens[3], alpha));
     if(graph.find(tokens[0]) == graph.end())
     {
       graph[tokens[0]] = std::make_pair(pred, succ);

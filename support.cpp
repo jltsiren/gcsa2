@@ -34,7 +34,7 @@ namespace gcsa
   # as a the label of the source node, and the and the remaining characters as N.
 */
 
-const int_vector<8> Alphabet::DEFAULT_CHAR2COMP =
+const sdsl::int_vector<8> Alphabet::DEFAULT_CHAR2COMP =
 {
   0, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
   5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
@@ -57,13 +57,13 @@ const int_vector<8> Alphabet::DEFAULT_CHAR2COMP =
   5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5
 };
 
-const int_vector<8> Alphabet::DEFAULT_COMP2CHAR = { '$', 'A', 'C', 'G', 'T', 'N', '#' };
+const sdsl::int_vector<8> Alphabet::DEFAULT_COMP2CHAR = { '$', 'A', 'C', 'G', 'T', 'N', '#' };
 
 //------------------------------------------------------------------------------
 
 Alphabet::Alphabet() :
   char2comp(DEFAULT_CHAR2COMP), comp2char(DEFAULT_COMP2CHAR),
-  C(int_vector<64>(DEFAULT_COMP2CHAR.size() + 1, 0)),
+  C(sdsl::int_vector<64>(DEFAULT_COMP2CHAR.size() + 1, 0)),
   sigma(DEFAULT_COMP2CHAR.size())
 {
 }
@@ -78,10 +78,10 @@ Alphabet::Alphabet(Alphabet&& a)
   *this = std::move(a);
 }
 
-Alphabet::Alphabet(const int_vector<64>& counts,
-  const int_vector<8>& _char2comp, const int_vector<8>& _comp2char) :
+Alphabet::Alphabet(const sdsl::int_vector<64>& counts,
+  const sdsl::int_vector<8>& _char2comp, const sdsl::int_vector<8>& _comp2char) :
   char2comp(_char2comp), comp2char(_comp2char),
-  C(int_vector<64>(_comp2char.size() + 1, 0)),
+  C(sdsl::int_vector<64>(_comp2char.size() + 1, 0)),
   sigma(_comp2char.size())
 {
   for(size_type i = 0; i < counts.size(); i++) { this->C[i + 1] = this->C[i] + counts[i]; }
@@ -133,15 +133,15 @@ Alphabet::operator=(Alphabet&& a)
 }
 
 Alphabet::size_type
-Alphabet::serialize(std::ostream& out, structure_tree_node* s, std::string name) const
+Alphabet::serialize(std::ostream& out, sdsl::structure_tree_node* s, std::string name) const
 {
-  structure_tree_node* child = structure_tree::add_child(s, name, util::class_name(*this));
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(s, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
   written_bytes += this->char2comp.serialize(out, child, "char2comp");
   written_bytes += this->comp2char.serialize(out, child, "comp2char");
   written_bytes += this->C.serialize(out, child, "C");
-  written_bytes += write_member(this->sigma, out, child, "sigma");
-  structure_tree::add_size(child, written_bytes);
+  written_bytes += sdsl::write_member(this->sigma, out, child, "sigma");
+  sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
 }
 
@@ -151,7 +151,7 @@ Alphabet::load(std::istream& in)
   this->char2comp.load(in);
   this->comp2char.load(in);
   this->C.load(in);
-  read_member(this->sigma, in);
+  sdsl::read_member(this->sigma, in);
 }
 
 //------------------------------------------------------------------------------

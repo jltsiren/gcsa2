@@ -26,6 +26,7 @@
 #define _GCSA_UTILS_H
 
 #include <algorithm>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 
@@ -33,15 +34,14 @@
 
 #include <omp.h>
 
-using namespace sdsl;
-
 namespace gcsa
 {
 
 //------------------------------------------------------------------------------
 
-typedef uint64_t size_type;
-typedef uint8_t  char_type;
+typedef std::uint64_t size_type;
+typedef std::uint8_t  char_type;
+typedef std::uint8_t  byte_type;
 
 const size_type WORD_BITS = 64;
 
@@ -91,7 +91,7 @@ template<class IntegerType>
 inline size_type
 bitlength(IntegerType val)
 {
-  return bits::hi(val) + 1;
+  return sdsl::bits::hi(val) + 1;
 }
 
 //------------------------------------------------------------------------------
@@ -269,14 +269,14 @@ LF(const BWTType& bwt, const AlphabetType& alpha, range_type range, char_type co
 
 template<class Element>
 size_type
-write_vector(const std::vector<Element>& vec, std::ostream& out, structure_tree_node* v, std::string name)
+write_vector(const std::vector<Element>& vec, std::ostream& out, sdsl::structure_tree_node* v, std::string name)
 {
-  structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(vec));
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(vec));
   size_type written_bytes = 0;
-  written_bytes += write_member(vec.size(), out, child, "size");
+  written_bytes += sdsl::write_member(vec.size(), out, child, "size");
   out.write((char*)(vec.data()), vec.size() * sizeof(Element));
   written_bytes += vec.size() * sizeof(Element);
-  structure_tree::add_size(v, written_bytes);
+  sdsl::structure_tree::add_size(v, written_bytes);
   return written_bytes;
 }
 
@@ -284,9 +284,9 @@ template<class Element>
 void
 read_vector(std::vector<Element>& vec, std::istream& in)
 {
-  util::clear(vec);
+  sdsl::util::clear(vec);
   size_type size = 0;
-  read_member(size, in);
+  sdsl::read_member(size, in);
   std::vector<Element> temp(size);
   in.read((char*)(temp.data()), temp.size() * sizeof(Element));
   vec.swap(temp);
@@ -297,11 +297,11 @@ read_vector(std::vector<Element>& vec, std::istream& in)
 */
 template<class VectorType>
 void
-extractBits(const VectorType& source, range_type range, bit_vector& target)
+extractBits(const VectorType& source, range_type range, sdsl::bit_vector& target)
 {
   if(isEmpty(range) || range.second >= source.size()) { return; }
 
-  util::assign(target, bit_vector(length(range), 0));
+  target = sdsl::bit_vector(length(range), 0);
   for(size_type i = 0; i < target.size(); i += WORD_BITS)
   {
     size_type len = std::min(WORD_BITS, target.size() - i);
@@ -315,16 +315,16 @@ extractBits(const VectorType& source, range_type range, bit_vector& target)
 */
 template<class Type>
 void
-directConstruct(Type& structure, const int_vector<8>& data)
+directConstruct(Type& structure, const sdsl::int_vector<8>& data)
 {
-  std::string ramfile = ram_file_name(util::to_string(&structure));
-  store_to_file(data, ramfile);
+  std::string ramfile = sdsl::ram_file_name(sdsl::util::to_string(&structure));
+  sdsl::store_to_file(data, ramfile);
   {
-    int_vector_buffer<8> buffer(ramfile); // Must remove the buffer before removing the ramfile.
+    sdsl::int_vector_buffer<8> buffer(ramfile); // Must remove the buffer before removing the ramfile.
     Type temp(buffer, data.size());
     structure.swap(temp);
   }
-  ram_fs::remove(ramfile);
+  sdsl::ram_fs::remove(ramfile);
 }
 
 //------------------------------------------------------------------------------
