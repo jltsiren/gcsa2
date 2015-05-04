@@ -126,6 +126,7 @@ public:
   {
     range = this->bwtRange(range);
     range = gcsa::LF(this->bwt, this->alpha, range, comp);
+    if(isEmpty(range)) { return range; }
     return this->nodeRange(range);
   }
 

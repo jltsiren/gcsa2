@@ -413,6 +413,8 @@ verifyIndex(const GCSA& index, const std::vector<size_type>& keys, size_type kme
   for(size_type i = 0; i < keys.size(); i++)
   {
     std::string kmer = GCSA::decode(index.alpha, keys[i], kmer_length);
+    size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
+    if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
     range_type range = index.find(kmer);
     if(range != range_type(i, i))
     {
@@ -420,7 +422,6 @@ verifyIndex(const GCSA& index, const std::vector<size_type>& keys, size_type kme
                 << ", expected " << range_type(i, i) << std::endl;
       ok = false;
     }
-    std::cout << kmer << std::endl;
   }
   std::cout << "Verification " << (ok ? "completed." : "failed.") << std::endl;
   std::cout << std::endl;
