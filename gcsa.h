@@ -78,11 +78,32 @@ public:
     locate() stores the node identifiers in the given vector in sorted order.
     If append is true, the results are appended to the existing vector.
     If sort is true, the results are sorted and the duplicates are removed.
-
-    FIXME find() based on iterators?
   */
 
+  template<class Iterator>
+  range_type find(Iterator begin, Iterator end) const
+  {
+    if(begin == end) { return range_type(0, this->size() - 1); }
+    if((size_type)(end - begin) > this->order())
+    {
+      std::cerr << "GCSA::find(): Query length exceeds " << this->order() << std::endl;
+      return range_type(1, 0);
+    }
+
+    --end;
+    range_type range = this->nodeRange(gcsa::charRange(this->alpha, this->alpha.char2comp[*end]));
+    while(!isEmpty(range) && end != begin)
+    {
+      --end;
+      range = this->LF(range, this->alpha.char2comp[*end]);
+    }
+
+    return range;
+  }
+
   range_type find(const std::string& pattern) const;
+  range_type find(const char* pattern, size_type length) const;
+
   void locate(size_type node, std::vector<node_type>& results, bool append = false, bool sort = true) const;
   void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;
 

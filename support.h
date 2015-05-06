@@ -243,10 +243,10 @@ struct DoublingNode
 
   inline size_type outdegree() const { return this->to; }
 
-  DoublingNode(node_type _from, node_type _to, rank_type rank)
+  DoublingNode(const KMer& kmer)
   {
-    this->from = _from; this->to = _to;
-    this->label[0] = rank;
+    this->from = kmer.from; this->to = kmer.to;
+    this->label[0] = Key::kmer(kmer.key);
     for(size_type i = 1; i < label_length; i++) { label[i] = 0; }
   }
 

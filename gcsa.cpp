@@ -264,8 +264,11 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alp
   // FIXME implement
 
   /*
+    Transform the KMers into DoublingNodes.
+    FIXME Later: save memory by not having both KMers and DoublingNodes  in memory
+
     A single doubling step (out of three):
-    - sort the previous generation (KMer/DoublingNode) by from
+    - sort the previous generation by from
     - build an index structure to find paths quickly by from value
     - scan the previous generation, build the next generation
       * next = DoublingNode(left, right) if left to == right.from
@@ -303,7 +306,7 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alp
       * use mapper, predecessor field in keys, and last_chars to find the predecessors
       * increment the to field of the predecessor
 
-    FIXME Later: parallelize
+    FIXME Later: parallelize; load KMers from disk before proceeding
   */
 
   /*
@@ -319,24 +322,13 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alp
 range_type
 GCSA::find(const std::string& pattern) const
 {
-  if(pattern.length() == 0) { return range_type(0, this->size() - 1); }
-  if(pattern.length() > this->order())
-  {
-    std::cerr << "GCSA::find(): Query length exceeds " << this->order() << std::endl;
-    return range_type(1, 0);
-  }
+  return this->find(pattern.begin(), pattern.end());
+}
 
-  auto iter = pattern.rbegin();
-  range_type range = this->nodeRange(gcsa::charRange(this->alpha, this->alpha.char2comp[*iter]));
-  ++iter;
-
-  while(!isEmpty(range) && iter != pattern.rend())
-  {
-    range = this->LF(range, this->alpha.char2comp[*iter]);
-    ++iter;
-  }
-
-  return range;
+range_type
+GCSA::find(const char* pattern, size_type length) const
+{
+  return this->find(pattern, pattern + length);
 }
 
 void
