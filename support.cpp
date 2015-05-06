@@ -23,7 +23,6 @@
 */
 
 #include <sstream>
-#include <vector>
 
 #include "support.h"
 
@@ -163,13 +162,13 @@ std::string
 Key::decode(const Alphabet& alpha, key_type key, size_type kmer_length)
 {
   key = kmer(key);
-  kmer_length = std::min(kmer_length, (size_type)16);
+  kmer_length = std::min(kmer_length, MAX_LENGTH);
 
   std::string res(kmer_length, '\0');
   for(size_type i = 1; i <= kmer_length; i++)
   {
-    res[kmer_length - i] = alpha.comp2char[key & 0x7];
-    key >>= 3;
+    res[kmer_length - i] = alpha.comp2char[key & CHAR_MASK];
+    key >>= CHAR_WIDTH;
   }
 
   return res;
@@ -276,6 +275,44 @@ operator<< (std::ostream& out, const KMer& kmer)
       << ", from " << Node::decode(kmer.from)
       << ", to " << Node::decode(kmer.to) << ")";
   return out;
+}
+
+void
+uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_chars)
+{
+  if(kmers.empty()) { return; }
+  parallelQuickSort(kmers.begin(), kmers.end());
+
+  // Pass 1: Count the number of unique keys.
+  size_type total_keys = 1;
+  for(size_type i = 1; i < kmers.size(); i++)
+  {
+    if(Key::kmer(kmers[i].key) != Key::kmer(kmers[i - 1].key)) { total_keys++; }
+  }
+  std::cout << "Unique keys: " << total_keys << std::endl;
+
+  // Pass 2: Create the merged key array and the last character array for edge generation.
+  keys = std::vector<key_type>(total_keys, 0);
+  last_chars = sdsl::int_vector<0>(total_keys, 0, Key::CHAR_WIDTH);
+  keys[0] = kmers[0].key; last_chars[0] = Key::last(kmers[0].key);
+  for(size_type kmer = 1, key = 0; kmer < kmers.size(); kmer++)
+  {
+    if(Key::kmer(kmers[kmer].key) == Key::kmer(keys[key]))
+    {
+      keys[key] = Key::merge(keys[key], kmers[kmer].key);
+    }
+    else
+    {
+      key++; keys[key] = kmers[kmer].key; last_chars[key] = Key::last(kmers[kmer].key);
+    }
+  }
+
+  // Pass 3: Replace kmer values with ranks in the key array.
+  for(size_type kmer = 0, key = 0; kmer < kmers.size(); kmer++)
+  {
+    while(keys[key] < kmers[kmer]) { key++; }
+    kmers[kmer].key = Key::replace(kmers[kmer].key, key);
+  }
 }
 
 //------------------------------------------------------------------------------

@@ -252,6 +252,67 @@ GCSA::GCSA(const std::vector<key_type>& keys, size_type kmer_length, const Alpha
   sdsl::util::init_support(this->edge_rank, &(this->edges));
   sdsl::util::init_support(this->edge_select, &(this->edges));
 }
+//------------------------------------------------------------------------------
+
+GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alpha)
+{
+  std::vector<key_type> keys;
+  sdsl::int_vector<0> last_chars;
+  uniqueKeys(kmers, keys, last_chars);
+  GCSA mapper(keys, kmer_length, _alpha);
+
+  // FIXME implement
+
+  /*
+    A single doubling step (out of three):
+    - sort the previous generation (KMer/DoublingNode) by from
+    - build an index structure to find paths quickly by from value
+    - scan the previous generation, build the next generation
+      * next = DoublingNode(left, right) if left to == right.from
+      * if left.sorted(), output it directly instead
+    - delete the previous generation
+    - sort the next generation by labels
+    - merge sorted ranges of size > 1
+      * a range is either a single path or multiple adjacent label values with all paths
+        having the same from node
+      * set to = from
+    - stop if fully sorted
+    - after all steps set max_query_length
+
+    FIXME Later: parallelize, save memory by writing the next generation to disk
+  */
+
+  /*
+    Merging and sampling:
+      - scan the paths
+        * sample if multiple predecessors, is source, or if offset == 0 for at least one node
+      - set node count
+      - set sampled_nodes, sampled_node_rank, stored_samples, samples, sample_rank
+
+    FIXME Later: alternate sampling scheme not based on (id, offset) pairs. Sample a node,
+    if it has multiple predecessors, it is a source node, or if
+    { from(node) } != { from(predecessor(node)) } + 1. Also some samples if distance to
+    the next sample is too large.
+  */
+
+  /*
+    Edge generation:
+    - set the to fields of the last generation to 0,
+    - build an index structure to find paths quickly by labels
+    - scan the paths in the last generation, writing the number of outgoing edges to the to field
+      * use mapper, predecessor field in keys, and last_chars to find the predecessors
+      * increment the to field of the predecessor
+
+    FIXME Later: parallelize
+  */
+
+  /*
+    GCSA construction:
+    - count character occurrences
+    - set bwt, alpha
+    - set nodes, node_rank, node_select, edges, edge_rank, edge_select
+  */
+}
 
 //------------------------------------------------------------------------------
 

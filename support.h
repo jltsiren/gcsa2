@@ -120,11 +120,18 @@ typedef std::uint64_t key_type;
 
 struct Key
 {
+  const static size_type CHAR_WIDTH = 3;
+  const static size_type CHAR_MASK = 0x7;
+  const static size_type MAX_LENGTH = 16;
+
   inline static key_type encode(const Alphabet& alpha, const std::string& label,
     byte_type pred, byte_type succ)
   {
     key_type value = 0;
-    for(size_type i = 0; i < label.length(); i++) { value = (value << 3) | alpha.char2comp[label[i]]; }
+    for(size_type i = 0; i < label.length(); i++)
+    {
+      value = (value << CHAR_WIDTH) | alpha.char2comp[label[i]];
+    }
     value = (value << 8) | pred;
     value = (value << 8) | succ;
     return value;
@@ -135,6 +142,7 @@ struct Key
   inline static size_type kmer(key_type key) { return (key >> 16); }
   inline static byte_type predecessors(key_type key) { return (key >> 8) & 0xFF; }
   inline static byte_type successors(key_type key) { return key & 0xFF; }
+  inline static char_type last(key_type key) { return (key >> 16) & CHAR_MASK; }
 
   inline static key_type merge(key_type key1, key_type key2) { return (key1 | (key2 & 0xFFFF)); }
   inline static key_type replace(key_type key, size_type kmer_val)
@@ -180,6 +188,9 @@ struct KMer
     return (Key::kmer(this->key) < Key::kmer(another.key));
   }
 
+  inline bool sorted() const { return (this->from == this->to); }
+  inline void makeSorted() { this->to = this->from; }
+
   static bool tokenize(const std::string& line, std::vector<std::string>& tokens);
   static byte_type chars(const std::string& token, const Alphabet& alpha);
 };
@@ -191,6 +202,17 @@ operator< (key_type key, const KMer& kmer)
 {
   return (Key::kmer(key) < Key::kmer(kmer.key));
 }
+
+/*
+  This function does several things:
+
+  1. Sorts the kmer array by the kmer labels encoded in the key
+  2. Builds an array of unique kmer labels, with the predecessor and successor
+     fields merged from the original kmers.
+  3. Stores the last character of each unique kmer label in an array.
+  4. Replaces the kmer labels in the keys by their ranks.
+*/
+void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_chars);
 
 //------------------------------------------------------------------------------
 
@@ -217,6 +239,8 @@ struct DoublingNode
   }
 
   inline bool sorted() const { return (this->from == this->to); }
+  inline void makeSorted() { this->to = this->from; }
+
   inline size_type outdegree() const { return this->to; }
 
   DoublingNode(node_type _from, node_type _to, rank_type rank)

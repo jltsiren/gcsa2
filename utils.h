@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 #include <sdsl/wavelet_trees.hpp>
 

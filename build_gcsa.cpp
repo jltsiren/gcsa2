@@ -35,7 +35,6 @@ using namespace gcsa;
 #define VERIFY_INDEX
 
 size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers);
-void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys);
 
 bool verifyGraph(const std::string& base_name);
 bool verifyIndex(const GCSA& index, const std::vector<key_type>& keys, size_type kmer_length);
@@ -64,8 +63,9 @@ main(int argc, char** argv)
 
   std::vector<KMer> kmers;
   std::vector<key_type> keys;
+  sdsl::int_vector<0> last_chars;
   size_type kmer_length = readKMers(base_name, kmers);
-  uniqueKeys(kmers, keys);
+  uniqueKeys(kmers, keys, last_chars);
   GCSA index(keys, kmer_length);
   sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
   std::cout << "Nodes: " << index.size() << ", edges: " << index.edge_count() << std::endl;
@@ -117,64 +117,25 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers)
       KMer kmer(tokens, alpha, successor); kmers.push_back(kmer);
       if(successor == 4)
       {
-        if(kmer.from == kmer.to) { sink_node = Node::id(kmer.from); }
+        if(kmer.sorted()) { sink_node = Node::id(kmer.from); }
       }
     }
   }
   input.close();
 
   // If the kmer includes one or more endmarkers, the successor position is past
-  // the GCSA sink node. We set to = from for such nodes to denote that the kmer
-  // does not have successors.
+  // the GCSA sink node. Those kmers are marked as sorted, as they cannot be
+  // extended.
   for(size_type i = 0; i < kmers.size(); i++)
   {
     if(Node::id(kmers[i].to) == sink_node && Node::offset(kmers[i].to) > 0)
     {
-      kmers[i].to = kmers[i].from;
+      kmers[i].makeSorted();
     }
   }
 
   std::cout << "Read " << kmers.size() << " kmers of length " << kmer_length << std::endl;
   return kmer_length;
-}
-
-//------------------------------------------------------------------------------
-
-void
-uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys)
-{
-  if(kmers.empty()) { return; }
-  parallelQuickSort(kmers.begin(), kmers.end());
-
-  // Pass 1: Count the number of unique keys.
-  size_type total_keys = 1;
-  for(size_type i = 1; i < kmers.size(); i++)
-  {
-    if(Key::kmer(kmers[i].key) != Key::kmer(kmers[i - 1].key)) { total_keys++; }
-  }
-  std::cout << "Unique keys: " << total_keys << std::endl;
-
-  // Pass 2: Create the merged key array for GCSA.
-  keys = std::vector<key_type>(total_keys, 0);
-  size_type tail = 0; keys[0] = kmers[0].key;
-  for(size_type i = 1; i < kmers.size(); i++)
-  {
-    if(Key::kmer(kmers[i].key) == Key::kmer(keys[tail]))
-    {
-      keys[tail] = Key::merge(keys[tail], kmers[i].key);
-    }
-    else
-    {
-      tail++; keys[tail] = kmers[i].key;
-    }
-  }
-
-  // Pass 3: Replace kmer values with ranks in the key array.
-  for(size_type kmer = 0, key = 0; kmer < kmers.size(); kmer++)
-  {
-    while(keys[key] < kmers[kmer]) { key++; }
-    kmers[kmer].key = Key::replace(kmers[kmer].key, key);
-  }
 }
 
 //------------------------------------------------------------------------------

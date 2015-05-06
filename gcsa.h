@@ -65,15 +65,11 @@ public:
 
   /*
     This is the main constructor. We build GCSA from the kmers, doubling the path length
-    doubling_step times. The mapper should have been constructed by the above constructor.
-    It will be used to generate the edges after doubling has finished.
+    three times. The kmer array will be used as working space during the construction.
 
-    FIXME implement
-    FIXME move mapper construction from build_gcsa.cpp to gcsa.cpp
-    FIXME remove const from kmers to allow swapping to disk when not needed
-    FIXME we need the array of last characters of each unique kmer (int_vector<0>) for mapping
+    FIXME option to change the number of doubling steps
   */
-  GCSA(const std::vector<KMer>& kmers, const GCSA& mapper, size_type doubling_steps);
+  GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alpha = Alphabet());
 
 //------------------------------------------------------------------------------
 
