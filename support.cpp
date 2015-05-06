@@ -22,6 +22,9 @@
   SOFTWARE.
 */
 
+#include <sstream>
+#include <vector>
+
 #include "support.h"
 
 namespace gcsa
@@ -152,6 +155,127 @@ Alphabet::load(std::istream& in)
   this->comp2char.load(in);
   this->C.load(in);
   sdsl::read_member(this->sigma, in);
+}
+
+//------------------------------------------------------------------------------
+
+std::string
+Key::decode(const Alphabet& alpha, key_type key, size_type kmer_length)
+{
+  key = kmer(key);
+  kmer_length = std::min(kmer_length, (size_type)16);
+
+  std::string res(kmer_length, '\0');
+  for(size_type i = 1; i <= kmer_length; i++)
+  {
+    res[kmer_length - i] = alpha.comp2char[key & 0x7];
+    key >>= 3;
+  }
+
+  return res;
+}
+
+//------------------------------------------------------------------------------
+
+node_type
+Node::encode(const std::string& token)
+{
+  size_t separator = 0;
+  size_type node = std::stoul(token, &separator);
+  if(separator >= token.length())
+  {
+    std::cerr << "Node::encode(): Invalid position token " << token << std::endl;
+    return 0;
+  }
+
+  std::string temp = token.substr(separator + 1);
+  size_type offset = std::stoul(temp);
+  if(offset > OFFSET_MASK)
+  {
+    std::cerr << "Node::encode(): Offset " << offset << " too large!" << std::endl;
+    return 0;
+  }
+
+  return encode(node, offset);
+}
+
+std::string
+Node::decode(node_type node)
+{
+  std::ostringstream ss;
+  ss << id(node) << ':' << offset(node);
+  return ss.str();
+}
+
+//------------------------------------------------------------------------------
+
+KMer::KMer()
+{
+}
+
+KMer::KMer(const std::vector<std::string>& tokens, const Alphabet& alpha, size_type successor)
+{
+  byte_type predecessors = chars(tokens[2], alpha);
+  byte_type successors = chars(tokens[3], alpha);
+  this->key = Key::encode(alpha, tokens[0], predecessors, successors);
+  this->from = Node::encode(tokens[1]);
+  this->to = Node::encode(tokens[successor]);
+}
+
+bool
+KMer::tokenize(const std::string& line, std::vector<std::string>& tokens)
+{
+  {
+    std::string token;
+    std::istringstream ss(line);
+    while(std::getline(ss, token, '\t'))
+    {
+      tokens.push_back(token);
+    }
+    if(tokens.size() < 4 || tokens.size() > 5)
+    {
+      std::cerr << "KMer::tokenize(): The kmer line must contain 4 or 5 tokens." << std::endl;
+      std::cerr << "KMer::tokenize(): The line was: " << line << std::endl;
+      return false;
+    }
+  }
+
+  // Split the list of successor positions into separate tokens.
+  if(tokens.size() == 5)
+  {
+    std::string destinations = tokens[4], token;
+    std::istringstream ss(destinations);
+    tokens.resize(4);
+    while(std::getline(ss, token, ','))
+    {
+      tokens.push_back(token);
+    }
+  }
+  else  // Use the source node as the destination.
+  {
+    tokens.push_back(tokens[1]);
+  }
+
+  return true;
+}
+
+byte_type
+KMer::chars(const std::string& token, const Alphabet& alpha)
+{
+  byte_type val = 0;
+  for(size_type i = 0; i < token.length(); i += 2) { val |= 1 << alpha.char2comp[token[i]]; }
+  return val;
+}
+
+std::ostream&
+operator<< (std::ostream& out, const KMer& kmer)
+{
+  out << "(key " << Key::kmer(kmer.key)
+      << ", in " << (size_type)(Key::predecessors(kmer.key))
+      << ", out " << (size_type)(Key::successors(kmer.key))
+      << ", from " << Node::decode(kmer.from)
+      << ", to " << Node::decode(kmer.to) << ")";
+  return out;
 }
 
 //------------------------------------------------------------------------------

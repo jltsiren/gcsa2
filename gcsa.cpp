@@ -216,22 +216,22 @@ GCSA::load(std::istream& in)
 
 //------------------------------------------------------------------------------
 
-GCSA::GCSA(const std::vector<size_type>& kmers, size_type kmer_length, const Alphabet& _alpha)
+GCSA::GCSA(const std::vector<key_type>& keys, size_type kmer_length, const Alphabet& _alpha)
 {
-  this->node_count = kmers.size();
+  this->node_count = keys.size();
   this->max_query_length = kmer_length;
 
   size_type total_edges = 0, alt_edges = 0;
-  for(size_type i = 0; i < kmers.size(); i++) { total_edges += sdsl::bits::lt_cnt[predecessors(kmers[i])];
-  alt_edges += sdsl::bits::lt_cnt[successors(kmers[i])]; }
+  for(size_type i = 0; i < keys.size(); i++) { total_edges += sdsl::bits::lt_cnt[Key::predecessors(keys[i])];
+  alt_edges += sdsl::bits::lt_cnt[Key::successors(keys[i])]; }
 
   sdsl::int_vector<64> counts(_alpha.sigma, 0);
   sdsl::int_vector<8> buffer(total_edges, 0);
   this->nodes = bit_vector(total_edges, 0);
   this->edges = bit_vector(total_edges, 0);
-  for(size_type i = 0, bwt_pos = 0, edge_pos = 0; i < kmers.size(); i++)
+  for(size_type i = 0, bwt_pos = 0, edge_pos = 0; i < keys.size(); i++)
   {
-    byte_type pred = predecessors(kmers[i]);
+    byte_type pred = Key::predecessors(keys[i]);
     for(size_type j = 0; j < _alpha.sigma; j++)
     {
       if(pred & (((size_type)1) << j))
@@ -241,7 +241,7 @@ GCSA::GCSA(const std::vector<size_type>& kmers, size_type kmer_length, const Alp
       }
     }
     this->nodes[bwt_pos - 1] = 1;
-    edge_pos += sdsl::bits::lt_cnt[successors(kmers[i])];
+    edge_pos += sdsl::bits::lt_cnt[Key::successors(keys[i])];
     this->edges[edge_pos - 1] = 1;
   }
   directConstruct(this->bwt, buffer);
@@ -251,22 +251,6 @@ GCSA::GCSA(const std::vector<size_type>& kmers, size_type kmer_length, const Alp
   sdsl::util::init_support(this->node_select, &(this->nodes));
   sdsl::util::init_support(this->edge_rank, &(this->edges));
   sdsl::util::init_support(this->edge_select, &(this->edges));
-}
-
-std::string
-GCSA::decode(const Alphabet& alpha, size_type code, size_type kmer_length)
-{
-  code = kmer(code);
-  kmer_length = std::min(kmer_length, (size_type)16);
-
-  std::string res(kmer_length, '\0');
-  for(size_type i = 1; i <= kmer_length; i++)
-  {
-    res[kmer_length - i] = alpha.comp2char[code & 0x7];
-    code >>= 3;
-  }
-
-  return res;
 }
 
 //------------------------------------------------------------------------------
@@ -295,7 +279,7 @@ GCSA::find(const std::string& pattern) const
 }
 
 void
-GCSA::locate(size_type node, std::vector<size_type>& results, bool append, bool sort) const
+GCSA::locate(size_type node, std::vector<node_type>& results, bool append, bool sort) const
 {
   if(!append) { sdsl::util::clear(results); }
   if(node >= this->size())
@@ -309,7 +293,7 @@ GCSA::locate(size_type node, std::vector<size_type>& results, bool append, bool 
 }
 
 void
-GCSA::locate(range_type range, std::vector<size_type>& results, bool append, bool sort) const
+GCSA::locate(range_type range, std::vector<node_type>& results, bool append, bool sort) const
 {
   if(!append) { sdsl::util::clear(results); }
   if(isEmpty(range) || range.second >= this->size())
@@ -326,7 +310,7 @@ GCSA::locate(range_type range, std::vector<size_type>& results, bool append, boo
 }
 
 void
-GCSA::locateInternal(size_type node, std::vector<size_type>& results) const
+GCSA::locateInternal(size_type node, std::vector<node_type>& results) const
 {
   size_type steps = 0;
   while(this->sampled_nodes[node] == 0)

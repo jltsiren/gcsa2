@@ -23,7 +23,6 @@
 */
 
 #include <map>
-#include <sstream>
 #include <string>
 
 #include "gcsa.h"
@@ -35,14 +34,11 @@ using namespace gcsa;
 #define VERIFY_GRAPH
 #define VERIFY_INDEX
 
-struct KMer;
-
-size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers, std::vector<size_type>& keys);
-void filterKeys(std::vector<size_type>& keys);
-void sortKMers(std::vector<KMer>& kmers, const std::vector<size_type>& keys);
+size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers);
+void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys);
 
 bool verifyGraph(const std::string& base_name);
-bool verifyIndex(const GCSA& index, const std::vector<size_type>& keys, size_type kmer_length);
+bool verifyIndex(const GCSA& index, const std::vector<key_type>& keys, size_type kmer_length);
 
 //------------------------------------------------------------------------------
 
@@ -66,11 +62,10 @@ main(int argc, char** argv)
   if(!(verifyGraph(base_name))) { return 2; }
 #endif
 
-  std::vector<size_type> keys;
   std::vector<KMer> kmers;
-  size_type kmer_length = readKMers(base_name, kmers, keys);
-  filterKeys(keys);
-  sortKMers(kmers, keys);
+  std::vector<key_type> keys;
+  size_type kmer_length = readKMers(base_name, kmers);
+  uniqueKeys(kmers, keys);
   GCSA index(keys, kmer_length);
   sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
   std::cout << "Nodes: " << index.size() << ", edges: " << index.edge_count() << std::endl;
@@ -89,124 +84,8 @@ main(int argc, char** argv)
 
 //------------------------------------------------------------------------------
 
-struct KMer
-{
-  size_type key;
-  size_type from, to;
-
-  const static size_type OFFSET_BITS = 6;
-  const static size_type OFFSET_MASK = 63;
-
-  KMer() {}
-
-  KMer(const std::vector<std::string>& tokens, const Alphabet& alpha, size_type successor)
-  {
-    byte_type predecessors = chars(tokens[2], alpha);
-    byte_type successors = chars(tokens[3], alpha);
-    this->key = GCSA::encode(alpha, tokens[0], predecessors, successors);
-
-    this->from = encodePosition(tokens[1]);
-    this->to = encodePosition(tokens[successor]);
-  }
-
-  inline bool
-  operator< (const KMer& another) const
-  {
-    return (GCSA::kmer(this->key) < GCSA::kmer(another.key));
-  }
-
-  inline static size_type node(size_type value) { return value >> OFFSET_BITS; }
-  inline static size_type offset(size_type value) { return value & OFFSET_MASK; }
-
-  static bool
-  tokenize(const std::string& line, std::vector<std::string>& tokens)
-  {
-    {
-      std::string token;
-      std::istringstream ss(line);
-      while(std::getline(ss, token, '\t'))
-      {
-        tokens.push_back(token);
-      }
-      if(tokens.size() < 4 || tokens.size() > 5)
-      {
-        std::cerr << "KMer::tokenize(): The kmer line must contain 4 or 5 tokens." << std::endl;
-        std::cerr << "KMer::tokenize(): The line was: " << line << std::endl;
-        return false;
-      }
-    }
-
-    // Split the list of successor positions into separate tokens.
-    if(tokens.size() == 5)
-    {
-      std::string destinations = tokens[4], token;
-      std::istringstream ss(destinations);
-      tokens.resize(4);
-      while(std::getline(ss, token, ','))
-      {
-        tokens.push_back(token);
-      }
-    }
-    else  // Use the source node as the destination.
-    {
-      tokens.push_back(tokens[1]);
-    }
-
-    return true;
-  }
-
-  static size_type
-  encodePosition(const std::string& token)
-  {
-    size_t separator = 0;
-    size_type _node = std::stoul(token, &separator);
-    if(separator >= token.length())
-    {
-      std::cerr << "KMer::encodePosition(): Invalid position token " << token << std::endl;
-      return 0;
-    }
-
-    std::string temp = token.substr(separator + 1);
-    size_type _offset = std::stoul(temp);
-    if(_offset > OFFSET_MASK)
-    {
-      std::cerr << "KMer::encodePosition(): Offset " << _offset << " too large!" << std::endl;
-      return 0;
-    }
-
-    return (_node << 6) | _offset;
-  }
-
-  static byte_type
-  chars(const std::string& token, const Alphabet& alpha)
-  {
-    byte_type val = 0;
-    for(size_type i = 0; i < token.length(); i += 2) { val |= 1 << alpha.char2comp[token[i]]; }
-    return val;
-  }
-};
-
-std::ostream&
-operator<< (std::ostream& out, const KMer& kmer)
-{
-  out << "(key " << GCSA::kmer(kmer.key)
-      << ", in " << (size_type)(GCSA::predecessors(kmer.key))
-      << ", out " << (size_type)(GCSA::successors(kmer.key))
-      << ", from " << range_type(KMer::node(kmer.from), KMer::offset(kmer.from))
-      << ", to " << range_type(KMer::node(kmer.to), KMer::offset(kmer.to)) << ")";
-  return out;
-}
-
-inline bool
-operator< (size_type key, const KMer& kmer)
-{
-  return (GCSA::kmer(key) < GCSA::kmer(kmer.key));
-}
-
-//------------------------------------------------------------------------------
-
 size_type
-readKMers(const std::string& base_name, std::vector<KMer>& kmers, std::vector<size_type>& keys)
+readKMers(const std::string& base_name, std::vector<KMer>& kmers)
 {
   std::string filename = base_name + ".gcsa2";
   std::ifstream input(filename.c_str(), std::ios_base::binary);
@@ -238,8 +117,7 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers, std::vector<si
       KMer kmer(tokens, alpha, successor); kmers.push_back(kmer);
       if(successor == 4)
       {
-        if(kmer.from == kmer.to) { sink_node = KMer::node(kmer.from); }
-        keys.push_back(kmer.key);
+        if(kmer.from == kmer.to) { sink_node = Node::id(kmer.from); }
       }
     }
   }
@@ -250,7 +128,7 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers, std::vector<si
   // does not have successors.
   for(size_type i = 0; i < kmers.size(); i++)
   {
-    if(KMer::node(kmers[i].to) == sink_node && KMer::offset(kmers[i].to) > 0)
+    if(Node::id(kmers[i].to) == sink_node && Node::offset(kmers[i].to) > 0)
     {
       kmers[i].to = kmers[i].from;
     }
@@ -263,41 +141,39 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers, std::vector<si
 //------------------------------------------------------------------------------
 
 void
-filterKeys(std::vector<size_type>& keys)
-{
-  if(keys.empty()) { return; }
-  parallelQuickSort(keys.begin(), keys.end());
-
-  size_type tail = 0;
-  for(size_type i = 1; i < keys.size(); i++)
-  {
-    if(GCSA::kmer(keys[i]) == GCSA::kmer(keys[tail]))
-    {
-      keys[tail] = GCSA::merge(keys[tail], keys[i]);
-    }
-    else
-    {
-      tail++; keys[tail] = keys[i];
-    }
-  }
-  keys.resize(tail + 1);
-
-  std::cout << "Unique keys: " << keys.size() << std::endl;
-}
-
-//------------------------------------------------------------------------------
-
-void
-sortKMers(std::vector<KMer>& kmers, const std::vector<size_type>& keys)
+uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys)
 {
   if(kmers.empty()) { return; }
   parallelQuickSort(kmers.begin(), kmers.end());
 
-  // Replace the keys with ranks in the sorted key array.
+  // Pass 1: Count the number of unique keys.
+  size_type total_keys = 1;
+  for(size_type i = 1; i < kmers.size(); i++)
+  {
+    if(Key::kmer(kmers[i].key) != Key::kmer(kmers[i - 1].key)) { total_keys++; }
+  }
+  std::cout << "Unique keys: " << total_keys << std::endl;
+
+  // Pass 2: Create the merged key array for GCSA.
+  keys = std::vector<key_type>(total_keys, 0);
+  size_type tail = 0; keys[0] = kmers[0].key;
+  for(size_type i = 1; i < kmers.size(); i++)
+  {
+    if(Key::kmer(kmers[i].key) == Key::kmer(keys[tail]))
+    {
+      keys[tail] = Key::merge(keys[tail], kmers[i].key);
+    }
+    else
+    {
+      tail++; keys[tail] = kmers[i].key;
+    }
+  }
+
+  // Pass 3: Replace kmer values with ranks in the key array.
   for(size_type kmer = 0, key = 0; kmer < kmers.size(); kmer++)
   {
     while(keys[key] < kmers[kmer]) { key++; }
-    kmers[kmer].key = key;
+    kmers[kmer].key = Key::replace(kmers[kmer].key, key);
   }
 }
 
@@ -399,7 +275,7 @@ verifyGraph(const std::string& base_name)
     }
   }
 
-  std::cout << "Verification " << (ok ? "completed." : "failed.") << std::endl;
+  std::cout << "Graph verification " << (ok ? "completed." : "failed.") << std::endl;
   std::cout << std::endl;
   return ok;
 }
@@ -407,12 +283,12 @@ verifyGraph(const std::string& base_name)
 //------------------------------------------------------------------------------
 
 bool
-verifyIndex(const GCSA& index, const std::vector<size_type>& keys, size_type kmer_length)
+verifyIndex(const GCSA& index, const std::vector<key_type>& keys, size_type kmer_length)
 {
   bool ok = true;
   for(size_type i = 0; i < keys.size(); i++)
   {
-    std::string kmer = GCSA::decode(index.alpha, keys[i], kmer_length);
+    std::string kmer = Key::decode(index.alpha, keys[i], kmer_length);
     size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
     if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
     range_type range = index.find(kmer);
@@ -423,7 +299,7 @@ verifyIndex(const GCSA& index, const std::vector<size_type>& keys, size_type kme
       ok = false;
     }
   }
-  std::cout << "Verification " << (ok ? "completed." : "failed.") << std::endl;
+  std::cout << "Index verification " << (ok ? "completed." : "failed.") << std::endl;
   std::cout << std::endl;
   return ok;
 }
