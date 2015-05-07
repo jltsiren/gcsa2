@@ -32,12 +32,13 @@ using namespace gcsa;
 //------------------------------------------------------------------------------
 
 #define VERIFY_GRAPH
+#define VERIFY_MAPPER
 #define VERIFY_INDEX
 
-size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers);
+size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print = false);
 
-bool verifyGraph(const std::string& base_name);
-bool verifyIndex(const GCSA& index, const std::vector<key_type>& keys, size_type kmer_length);
+bool verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length);
+bool verifyMapper(const GCSA& mapper, const std::vector<key_type>& keys, size_type kmer_length);
 
 //------------------------------------------------------------------------------
 
@@ -58,22 +59,34 @@ main(int argc, char** argv)
   std::cout << std::endl;
 
 #ifdef VERIFY_GRAPH
-  if(!(verifyGraph(base_name))) { return 2; }
+  {
+    std::vector<KMer> kmers;
+    size_type kmer_length = readKMers(base_name, kmers, true);
+    if(!(verifyGraph(kmers, kmer_length))) { return 2; }
+  }
+#endif
+
+
+#ifdef VERIFY_MAPPER
+  {
+    std::vector<KMer> kmers;
+    std::vector<key_type> keys;
+    sdsl::int_vector<0> last_chars;
+    size_type kmer_length = readKMers(base_name, kmers, true);
+    uniqueKeys(kmers, keys, last_chars, true);
+    GCSA mapper(keys, kmer_length);
+    std::cout << "Nodes: " << mapper.size() << ", edges: " << mapper.edge_count() << std::endl;
+    std::cout << "GCSA size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
+    verifyMapper(mapper, keys, kmer_length);
+  }
 #endif
 
   std::vector<KMer> kmers;
-  std::vector<key_type> keys;
-  sdsl::int_vector<0> last_chars;
   size_type kmer_length = readKMers(base_name, kmers);
-  uniqueKeys(kmers, keys, last_chars);
-  GCSA index(keys, kmer_length);
+  GCSA index(kmers, kmer_length);
   sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
-  std::cout << "Nodes: " << index.size() << ", edges: " << index.edge_count() << std::endl;
-  std::cout << "GCSA size: " << sdsl::size_in_bytes(index) << " bytes" << std::endl;
-  std::cout << std::endl;
 
 #ifdef VERIFY_INDEX
-  verifyIndex(index, keys, kmer_length);
 #endif
 
   std::cout << "Memory usage: " << inMegabytes(memoryUsage()) << " MB" << std::endl;
@@ -85,7 +98,7 @@ main(int argc, char** argv)
 //------------------------------------------------------------------------------
 
 size_type
-readKMers(const std::string& base_name, std::vector<KMer>& kmers)
+readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print)
 {
   std::string filename = base_name + ".gcsa2";
   std::ifstream input(filename.c_str(), std::ios_base::binary);
@@ -97,6 +110,7 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers)
 
   Alphabet alpha;
   size_type kmer_length = 0, sink_node = 0;
+  sdsl::util::clear(kmers);
   while(input)
   {
     std::string line;
@@ -134,56 +148,37 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers)
     }
   }
 
-  std::cout << "Read " << kmers.size() << " kmers of length " << kmer_length << std::endl;
+  if(print)
+  {
+    std::cout << "Read " << kmers.size() << " kmers of length " << kmer_length << std::endl;
+  }
   return kmer_length;
 }
 
 //------------------------------------------------------------------------------
 
 bool
-verifyGraph(const std::string& base_name)
+verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length)
 {
-  std::string filename = base_name + ".gcsa2";
-  std::ifstream input(filename.c_str(), std::ios_base::binary);
-  if(!input)
-  {
-    std::cerr << "build_gcsa: verifyGraph(): Cannot open input file " << filename << std::endl;
-    return false;
-  }
-
   Alphabet alpha;
   std::map<std::string, std::pair<byte_type, byte_type>> graph;
-  size_type kmer_length = 0;
   bool ok = true;
-  while(input)
+  for(size_type i = 0; i < kmers.size(); i++)
   {
-    std::string line;
-    std::getline(input, line);
-    if(line.length() == 0) { continue; }
-
-    std::vector<std::string> tokens;
-    if(!(KMer::tokenize(line, tokens))) { continue; }
-    if(kmer_length > 0 && tokens[0].length() != kmer_length)
-    {
-      std::cerr << "build_gcsa: verifyGraph(): kmer length changed from " << kmer_length
-                << " to " << tokens[0].length() << std::endl;
-    }
-    kmer_length = tokens[0].length();
-
     // We don't verify the edge from the sink to the source.
-    byte_type pred = (tokens[0][kmer_length - 1] == '#' ? 0 : KMer::chars(tokens[2], alpha));
-    byte_type succ = (tokens[0][0] == '$' ? 0 : KMer::chars(tokens[3], alpha));
-    if(graph.find(tokens[0]) == graph.end())
+    std::string kmer = Key::decode(alpha, kmers[i].key, kmer_length);
+    byte_type pred = (kmer[kmer_length - 1] == '#' ? 0 : Key::predecessors(kmers[i].key));
+    byte_type succ = (kmer[0] == '$' ? 0 : Key::successors(kmers[i].key));
+    if(graph.find(kmer) == graph.end())
     {
-      graph[tokens[0]] = std::make_pair(pred, succ);
+      graph[kmer] = std::make_pair(pred, succ);
     }
     else
     {
-      graph[tokens[0]].first |= pred;
-      graph[tokens[0]].second |= succ;
+      graph[kmer].first |= pred;
+      graph[kmer].second |= succ;
     }
   }
-  input.close();
 
   for(auto iter = graph.begin(); iter != graph.end(); ++iter)
   {
@@ -191,7 +186,8 @@ verifyGraph(const std::string& base_name)
     {
       if(iter->second.first & (1 << i))
       {
-        std::string backward_pattern = std::string(1, (char)(alpha.comp2char[i])) + iter->first.substr(0, kmer_length - 1);
+        std::string backward_pattern =
+          std::string(1, (char)(alpha.comp2char[i])) + iter->first.substr(0, kmer_length - 1);
         if(graph.find(backward_pattern) == graph.end())
         {
           std::cerr << "Node " << iter->first << " is missing predecessor("
@@ -236,7 +232,7 @@ verifyGraph(const std::string& base_name)
     }
   }
 
-  std::cout << "Graph verification " << (ok ? "completed." : "failed.") << std::endl;
+  std::cout << "Graph verification " << (ok ? "complete." : "failed.") << std::endl;
   std::cout << std::endl;
   return ok;
 }
@@ -244,15 +240,15 @@ verifyGraph(const std::string& base_name)
 //------------------------------------------------------------------------------
 
 bool
-verifyIndex(const GCSA& index, const std::vector<key_type>& keys, size_type kmer_length)
+verifyMapper(const GCSA& mapper, const std::vector<key_type>& keys, size_type kmer_length)
 {
   bool ok = true;
   for(size_type i = 0; i < keys.size(); i++)
   {
-    std::string kmer = Key::decode(index.alpha, keys[i], kmer_length);
+    std::string kmer = Key::decode(mapper.alpha, keys[i], kmer_length);
     size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
     if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
-    range_type range = index.find(kmer);
+    range_type range = mapper.find(kmer);
     if(range != range_type(i, i))
     {
       std::cerr << "build_gcsa: find(" << kmer << ") = " << range
@@ -260,7 +256,7 @@ verifyIndex(const GCSA& index, const std::vector<key_type>& keys, size_type kmer
       ok = false;
     }
   }
-  std::cout << "Index verification " << (ok ? "completed." : "failed.") << std::endl;
+  std::cout << "Mapper verification " << (ok ? "complete." : "failed.") << std::endl;
   std::cout << std::endl;
   return ok;
 }

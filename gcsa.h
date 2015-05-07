@@ -55,6 +55,8 @@ public:
 
   const static std::string EXTENSION;  // .gcsa
 
+  const static size_type DOUBLING_STEPS = 3;
+
 //------------------------------------------------------------------------------
 
   /*
@@ -65,7 +67,7 @@ public:
 
   /*
     This is the main constructor. We build GCSA from the kmers, doubling the path length
-    three times. The kmer array will be used as working space during the construction.
+    three times. The kmer array will be cleared during the construction.
 
     FIXME option to change the number of doubling steps
   */
@@ -78,6 +80,9 @@ public:
     locate() stores the node identifiers in the given vector in sorted order.
     If append is true, the results are appended to the existing vector.
     If sort is true, the results are sorted and the duplicates are removed.
+
+    The implementation of find() is based on random access iterators. Bidirectional
+    iterators would be enough without the query length check.
   */
 
   template<class Iterator>
@@ -92,7 +97,7 @@ public:
 
     --end;
     range_type range = this->nodeRange(gcsa::charRange(this->alpha, this->alpha.char2comp[*end]));
-    while(!isEmpty(range) && end != begin)
+    while(!Range::empty(range) && end != begin)
     {
       --end;
       range = this->LF(range, this->alpha.char2comp[*end]);
@@ -101,8 +106,13 @@ public:
     return range;
   }
 
-  range_type find(const std::string& pattern) const;
-  range_type find(const char* pattern, size_type length) const;
+  template<class Container>
+  range_type find(const Container& pattern) const
+  {
+    return this->find(pattern.begin(), pattern.end());
+  }
+
+  range_type find(const char_type* pattern, size_type length) const;
 
   void locate(size_type node, std::vector<node_type>& results, bool append = false, bool sort = true) const;
   void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;
@@ -130,7 +140,7 @@ public:
   {
     range = this->bwtRange(range);
     range = gcsa::LF(this->bwt, this->alpha, range, comp);
-    if(isEmpty(range)) { return range; }
+    if(Range::empty(range)) { return range; }
     return this->nodeRange(range);
   }
 

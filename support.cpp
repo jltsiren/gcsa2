@@ -278,7 +278,7 @@ operator<< (std::ostream& out, const KMer& kmer)
 }
 
 void
-uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_chars)
+uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_chars, bool print)
 {
   if(kmers.empty()) { return; }
   parallelQuickSort(kmers.begin(), kmers.end());
@@ -289,7 +289,10 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
   {
     if(Key::kmer(kmers[i].key) != Key::kmer(kmers[i - 1].key)) { total_keys++; }
   }
-  std::cout << "Unique keys: " << total_keys << std::endl;
+  if(print)
+  {
+    std::cout << "Unique keys: " << total_keys << std::endl;
+  }
 
   // Pass 2: Create the merged key array and the last character array for edge generation.
   keys = std::vector<key_type>(total_keys, 0);
@@ -307,12 +310,15 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
     }
   }
 
-  // Pass 3: Replace kmer values with ranks in the key array.
+  // Pass 3: Replace kmer values with ranks in the key array and mark kmers with unique keys sorted.
+  size_type key_start = 0;
   for(size_type kmer = 0, key = 0; kmer < kmers.size(); kmer++)
   {
     while(keys[key] < kmers[kmer]) { key++; }
+    if(key_start + 1 == kmer) { kmers[key_start].makeSorted(); key_start = kmer; }
     kmers[kmer].key = Key::replace(kmers[kmer].key, key);
   }
+  if(key_start == kmers.size() - 1) { kmers[key_start].makeSorted(); }
 }
 
 //------------------------------------------------------------------------------

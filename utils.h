@@ -66,7 +66,18 @@ const double GIGABYTE_DOUBLE = KILOBYTE_DOUBLE * MEGABYTE_DOUBLE;
 
 typedef std::pair<size_type, size_type> range_type;
 
-const range_type EMPTY_RANGE(1, 0);
+struct Range
+{
+  inline static size_type length(range_type range)
+  {
+    return range.second + 1 - range.first;
+  }
+
+  inline static bool empty(range_type range)
+  {
+    return (range.first + 1 > range.second + 1);
+  }
+};
 
 template<class A, class B>
 std::ostream& operator<<(std::ostream& stream, const std::pair<A, B>& data)
@@ -74,23 +85,11 @@ std::ostream& operator<<(std::ostream& stream, const std::pair<A, B>& data)
   return stream << "(" << data.first << ", " << data.second << ")";
 }
 
-inline size_type
-length(range_type range)
-{
-  return range.second + 1 - range.first;
-}
-
-inline bool
-isEmpty(range_type range)
-{
-  return (range.first + 1 > range.second + 1);
-}
-
 //------------------------------------------------------------------------------
 
 template<class IntegerType>
 inline size_type
-bitlength(IntegerType val)
+bit_length(IntegerType val)
 {
   return sdsl::bits::hi(val) + 1;
 }
@@ -300,9 +299,9 @@ template<class VectorType>
 void
 extractBits(const VectorType& source, range_type range, sdsl::bit_vector& target)
 {
-  if(isEmpty(range) || range.second >= source.size()) { return; }
+  if(Range::empty(range) || range.second >= source.size()) { return; }
 
-  target = sdsl::bit_vector(length(range), 0);
+  target = sdsl::bit_vector(Range::length(range), 0);
   for(size_type i = 0; i < target.size(); i += WORD_BITS)
   {
     size_type len = std::min(WORD_BITS, target.size() - i);

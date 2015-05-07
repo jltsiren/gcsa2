@@ -254,40 +254,180 @@ GCSA::GCSA(const std::vector<key_type>& keys, size_type kmer_length, const Alpha
 }
 //------------------------------------------------------------------------------
 
+struct FromIndex
+{
+  sdsl::bit_vector from_values; // Marks the from values that are present.
+  sdsl::bit_vector::rank_1_type from_rank;
+
+  sdsl::bit_vector first_occ;   // Marks the first occurrence of each rank.
+  sdsl::bit_vector::select_1_type first_select;
+
+  FromIndex(const std::vector<PathNode<>>& paths)
+  {
+    this->from_values = sdsl::bit_vector(paths[paths.size() - 1].from + 1, 0);
+    this->first_occ = sdsl::bit_vector(paths.size(), 0);
+
+    node_type prev = this->from_values.size();
+    for(size_type i = 0; i < paths.size(); i++)
+    {
+      node_type curr = paths[i].from;
+      if(curr != prev)
+      {
+        this->from_values[curr] = 1;
+        this->first_occ[i] = 1;
+        prev = curr;
+      }
+    }
+
+    sdsl::util::init_support(this->from_rank, &(this->from_values));
+    sdsl::util::init_support(this->first_select, &(this->first_occ));
+  }
+
+  // Finds the first occurrence of the node in the from fields.
+  size_type find(node_type node) const
+  {
+    if(this->from_values[node] == 0) { return this->first_occ.size(); }
+    return this->first_select(this->from_rank(node) + 1);
+  }
+};
+
+/*
+  Join paths by left.to == right.from.
+  FIXME Later: Predict the size of the next generation or write it to disk.
+  FIXME Later: parallelize
+*/
+void
+joinPaths(std::vector<PathNode<>>& paths, size_type& path_order)
+{
+  FromIndex from_index(paths);
+
+  std::vector<PathNode<>> next;
+  for(size_type i = 0; i < paths.size(); i++)
+  {
+    if(paths[i].sorted()) { next.push_back(paths[i]); continue; }
+    size_type first = from_index.find(paths[i].to);
+    for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
+    {
+      next.push_back(PathNode<>(paths[i], paths[j], path_order));
+    }
+  }
+  paths.swap(next);
+
+  path_order *= 2;
+}
+
+/*
+  Iterates through ranges of paths with the same label. Empty range means start from
+  the beginning, while range.first >= paths.size() means the end. Returns true if
+  the range contains only nodes with the same label. In that case the range may cover
+  multiple adjacent labels.
+*/
+bool
+nextRange(range_type& range, const std::vector<PathNode<>>& paths,
+  const PathLabelComparator<>& plc)
+{
+  if(Range::empty(range)) { range.first = 0; range.second = 0; }
+  else { range.first = range.second + 1; range.second = range.first; }
+  if(range.first >= paths.size()) { return true; }
+
+  bool same_from = true;
+  size_type rank_start = range.first, next = range.first + 1;
+  while(next < paths.size())
+  {
+    if(plc(paths[rank_start], paths[next])) // A range ends at next - 1.
+    {
+      range.second = next - 1; rank_start = next;
+      if(!same_from) { return false; }  // Found a range with different from nodes.
+    }
+    if(paths[next].from != paths[range.first].from)
+    {
+      if(rank_start != range.first) { return same_from; } // Already found at least one range.
+      same_from = false;
+    }
+    next++;
+  }
+  range.second = paths.size() - 1;
+
+  return same_from;
+}
+
+/*
+  Merges paths with adjacent labels and the same from node. Marks paths with unique
+  labels sorted.
+*/
+size_type
+mergePaths(std::vector<PathNode<>>& paths, size_type path_order)
+{
+  PathLabelComparator<> plc(path_order);
+  parallelQuickSort(paths.begin(), paths.end(), plc); // Sort paths by labels.
+
+  size_type tail = 0, unique = 0;
+  range_type range(1, 0);
+  while(true)
+  {
+    bool same_from = nextRange(range, paths, plc);
+    if(range.first >= paths.size()) { break; }
+    if(same_from)
+    {
+      paths[tail] = paths[range.first];
+      paths[tail].makeSorted();
+      tail++; unique++;
+    }
+    else
+    {
+      for(size_type i = range.first; i <= range.second; i++)
+      {
+        paths[tail] = paths[i]; tail++;
+      }
+    }
+  }
+  paths.resize(tail);
+
+  return unique;
+}
+
 GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alpha)
 {
+  if(kmers.size() == 0) { return; }
+
+  // Sort the kmers, build the mapper GCSA for generating the edges.
   std::vector<key_type> keys;
   sdsl::int_vector<0> last_chars;
   uniqueKeys(kmers, keys, last_chars);
   GCSA mapper(keys, kmer_length, _alpha);
+  sdsl::util::clear(keys);
 
-  // FIXME implement
+  // Transform the kmers into PathNodes.
+  // FIXME Later: Save memory by not having both KMers and PathNodes in memory.
+  std::vector<PathNode<>> current(kmers.size());
+  for(size_type i = 0; i < kmers.size(); i++) { current[i] = PathNode<>(kmers[i]); }
+  sdsl::util::clear(kmers);
 
-  /*
-    Transform the KMers into DoublingNodes.
-    FIXME Later: save memory by not having both KMers and DoublingNodes  in memory
+  // Use prefix-doubling to increase path length.
+  bool fully_sorted = false;
+  for(size_type step = 1, path_order = 1; step <= DOUBLING_STEPS; step++)
+  {
+    size_type old_paths = current.size();
+    std::cout << "Doubling step " << step << " (path length " << (path_order * kmer_length) << " -> "
+              << (2 * path_order * kmer_length) << ")" << std::endl;
+    PathFromComparator<> pfc; // Sort the previous generation by from.
+    parallelQuickSort(current.begin(), current.end(), pfc);
 
-    A single doubling step (out of three):
-    - sort the previous generation by from
-    - build an index structure to find paths quickly by from value
-    - scan the previous generation, build the next generation
-      * next = DoublingNode(left, right) if left to == right.from
-      * if left.sorted(), output it directly instead
-    - delete the previous generation
-    - sort the next generation by labels
-    - merge sorted ranges of size > 1
-      * a range is either a single path or multiple adjacent label values with all paths
-        having the same from node
-      * set to = from
-    - stop if fully sorted
-    - after all steps set max_query_length
+    joinPaths(current, path_order);
+    size_type joined_paths = current.size();
 
-    FIXME Later: parallelize, save memory by writing the next generation to disk
-  */
+    size_type unique = mergePaths(current, path_order);
+    std::cout << "  " << old_paths << " -> " << joined_paths << " -> "
+              << current.size() << " paths (" << unique << " with unique labels)" << std::endl;
+    if(unique == current.size()) { fully_sorted = true; break; }
+  }
+  this->max_query_length = (fully_sorted ? ~(size_type)0 : kmer_length << DOUBLING_STEPS);
+  std::cout << "Max query length: " << this->order() << std::endl;
 
   /*
     Merging and sampling:
       - scan the paths
+        * merge paths with the same label
         * sample if multiple predecessors, is source, or if offset == 0 for at least one node
       - set node count
       - set sampled_nodes, sampled_node_rank, stored_samples, samples, sample_rank
@@ -315,18 +455,14 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alp
     - set bwt, alpha
     - set nodes, node_rank, node_select, edges, edge_rank, edge_select
   */
+
+  std::cout << std::endl;
 }
 
 //------------------------------------------------------------------------------
 
 range_type
-GCSA::find(const std::string& pattern) const
-{
-  return this->find(pattern.begin(), pattern.end());
-}
-
-range_type
-GCSA::find(const char* pattern, size_type length) const
+GCSA::find(const char_type* pattern, size_type length) const
 {
   return this->find(pattern, pattern + length);
 }
@@ -349,7 +485,7 @@ void
 GCSA::locate(range_type range, std::vector<node_type>& results, bool append, bool sort) const
 {
   if(!append) { sdsl::util::clear(results); }
-  if(isEmpty(range) || range.second >= this->size())
+  if(Range::empty(range) || range.second >= this->size())
   {
     if(sort) { removeDuplicates(results, false); }
     return;

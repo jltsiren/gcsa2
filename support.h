@@ -211,8 +211,10 @@ operator< (key_type key, const KMer& kmer)
      fields merged from the original kmers.
   3. Stores the last character of each unique kmer label in an array.
   4. Replaces the kmer labels in the keys by their ranks.
+  5. Marks the kmers sorted if they have unique labels.
 */
-void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_chars);
+void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_chars,
+  bool print = false);
 
 //------------------------------------------------------------------------------
 
@@ -227,41 +229,40 @@ void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int
 */
 
 template<class rank_type = std::uint32_t, size_type label_length = 8>
-struct DoublingNode
+struct PathNode
 {
   node_type from, to;
   rank_type label[label_length];
-
-  inline bool operator< (const DoublingNode& another) const
-  {
-    if(this->from != another.from) { return (this->from < another.from); }
-    return (this->to < another.to);
-  }
+  byte_type predecessors;
 
   inline bool sorted() const { return (this->from == this->to); }
   inline void makeSorted() { this->to = this->from; }
 
   inline size_type outdegree() const { return this->to; }
 
-  DoublingNode(const KMer& kmer)
+  PathNode(const KMer& kmer)
   {
     this->from = kmer.from; this->to = kmer.to;
     this->label[0] = Key::kmer(kmer.key);
     for(size_type i = 1; i < label_length; i++) { label[i] = 0; }
+    this->predecessors = Key::predecessors(kmer.key);
   }
 
-  DoublingNode(const DoublingNode& left, const DoublingNode& right, size_type old_order)
+  PathNode(const PathNode& left, const PathNode& right, size_type old_order)
   {
-    this->from = left.from; this->to = right.to;
+    this->from = left.from;
+    this->to = (right.sorted() ? this->from : right.to);
     for(size_type i = 0; i < old_order; i++) { this->label[i] = left.label[i]; }
     for(size_type i = old_order; i < 2 * old_order; i++) { this->label[i] = right.label[i - old_order]; }
     for(size_type i = 2 * old_order; i < label_length; i++) { this->label[i] = 0; }
+    this->predecessors = left.predecessors;
   }
 
-  explicit DoublingNode(std::ifstream& in)
+  explicit PathNode(std::ifstream& in)
   {
     sdsl::read_member(&(this->from), in); sdsl::read_member(&(this->to), in);
     in.read((char*)(this->label), label_length * sizeof(rank_type));
+    sdsl::read_member(&(this->predecessors), in);
   }
 
   size_type serialize(std::ostream& out) const
@@ -270,66 +271,81 @@ struct DoublingNode
     bytes += sdsl::write_member(this->from, out); bytes += sdsl::write_member(this->to, out);
     out.write((char*)(this->label), label_length * sizeof(rank_type));
     bytes += label_length * sizeof(rank_type);
+    bytes += sdsl::write_member(this->predecessors);
     return bytes;
   }
 
-  DoublingNode() {}
-  DoublingNode(const DoublingNode& source) { this->copy(source); }
-  DoublingNode(DoublingNode&& source) { *this = std::move(source); }
-  ~DoublingNode() {}
+  PathNode() {}
+  PathNode(const PathNode& source) { this->copy(source); }
+  PathNode(PathNode&& source) { *this = std::move(source); }
+  ~PathNode() {}
 
-  void copy(const DoublingNode& source)
+  void copy(const PathNode& source)
   {
     if(&source != this)
     {
       this->from = source.from; this->to = source.to;
       for(size_type i = 0; i < label_length; i++) { this->label[i] = source.label[i]; }
+      this->predecessors = source.predecessors;
     }
   }
 
-  void swap(DoublingNode& another)
+  void swap(PathNode& another)
   {
     if(&another != this)
     {
       std::swap(this->from, another.from); std::swap(this->to, another.to);
       for(size_type i = 0; i < label_length; i++) { std::swap(this->label[i], another.label[i]); }
+      std::swap(this->predecessors, another.predecessors);
     }
   }
 
-  DoublingNode& operator= (const DoublingNode& source)
+  PathNode& operator= (const PathNode& source)
   {
     this->copy(source);
     return *this;
   }
 
-  DoublingNode& operator= (DoublingNode&& source)
+  PathNode& operator= (PathNode&& source)
   {
     if(&source != this)
     {
       this->from = std::move(source.from);
       this->to = std::move(source.to);
       for(size_type i = 0; i < label_length; i++) { this->label[i] = std::move(source.label[i]); }
+      this-> predecessors = std::move(source.predecessors);
     }
     return *this;
   }
 };
 
 template<class rank_type = std::uint32_t, size_type label_length = 8>
-struct NodeLabelComparator
+struct PathLabelComparator
 {
-  typedef DoublingNode<rank_type, label_length> dn_type;
+  typedef PathNode<rank_type, label_length> pn_type;
 
   size_type max_length;
 
-  NodeLabelComparator(size_type len = label_length) : max_length(len) {}
+  PathLabelComparator(size_type len = label_length) : max_length(len) {}
 
-  inline bool operator() (const dn_type& a, const dn_type& b) const
+  inline bool operator() (const pn_type& a, const pn_type& b) const
   {
     for(size_t i = 0; i < this->max_length; i++)
     {
       if(a.label[i] != b.label[i]) { return (a.label[i] < b.label[i]); }
     }
     return false;
+  }
+};
+
+template<class rank_type = std::uint32_t, size_type label_length = 8>
+struct PathFromComparator
+{
+  typedef PathNode<rank_type, label_length> pn_type;
+
+  inline bool operator() (const pn_type& a, const pn_type& b) const
+  {
+    return (a.from < b.from);
   }
 };
 
