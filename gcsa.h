@@ -57,6 +57,10 @@ public:
 
   const static size_type DOUBLING_STEPS = 3;
 
+  const static char_type ENDMARKER = '$';
+  const static char_type ENDMARKER_COMP = 0;
+  const static char_type SOURCE_MARKER = '#';
+
 //------------------------------------------------------------------------------
 
   /*
@@ -191,6 +195,27 @@ public:
 private:
   void copy(const GCSA& g);
   void setVectors();
+
+  /*
+    Increase path length to 2^DOUBLING_STEPS times the original and set max_query_length.
+    Return the actual path length multiplier.
+  */
+  size_type prefixDoubling(std::vector<PathNode<>>& paths, size_type kmer_length);
+
+  /*
+    Merge paths having the same label and build the samples. Sets node_count and all
+    structures related to samples.
+
+    We sample a path node, if it a) has multiple predecessors; b) is the source node;
+    or c) has offset 0 for at least one from node.
+
+    FIXME Later: An alternate sampling scheme for graphs where nodes are not (id, offset)
+    pairs. We sample a path node, if it a) has multiple predecessors; b) is the source
+    node; or c) its node value is anything other than the value of the predecessor + 1
+    (for one or more nodes). We may also add samples, if the distance to the next sample
+    is too large.
+  */
+  void sample(std::vector<PathNode<>>& paths, size_type path_order);
 
   void locateInternal(size_type node, std::vector<node_type>& results) const;
 

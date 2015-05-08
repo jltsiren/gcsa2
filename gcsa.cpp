@@ -252,6 +252,48 @@ GCSA::GCSA(const std::vector<key_type>& keys, size_type kmer_length, const Alpha
   sdsl::util::init_support(this->edge_rank, &(this->edges));
   sdsl::util::init_support(this->edge_select, &(this->edges));
 }
+
+GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alpha)
+{
+  if(kmers.size() == 0) { return; }
+
+  // Sort the kmers, build the mapper GCSA for generating the edges.
+  std::vector<key_type> keys;
+  sdsl::int_vector<0> last_chars;
+  uniqueKeys(kmers, keys, last_chars);
+  GCSA mapper(keys, kmer_length, _alpha);
+  sdsl::util::clear(keys);
+
+  // Transform the kmers into PathNodes.
+  // FIXME Later: Save memory by not having both KMers and PathNodes in memory.
+  std::vector<PathNode<>> paths(kmers.size());
+  for(size_type i = 0; i < kmers.size(); i++) { paths[i] = PathNode<>(kmers[i]); }
+  sdsl::util::clear(kmers);
+
+  size_type path_order = this->prefixDoubling(paths, kmer_length);
+  this->sample(paths, path_order);
+
+  /*
+    Edge generation:
+    - set the to fields of the last generation to 0,
+    - build an index structure to find paths quickly by labels
+    - scan the paths in the last generation, writing the number of outgoing edges to the to field
+      * use mapper, predecessor field in keys, and last_chars to find the predecessors
+      * increment the to field of the predecessor
+
+    FIXME Later: parallelize
+  */
+
+  /*
+    GCSA construction:
+    - count character occurrences
+    - set bwt, alpha
+    - set nodes, node_rank, node_select, edges, edge_rank, edge_select
+  */
+
+  std::cout << std::endl;
+}
+
 //------------------------------------------------------------------------------
 
 struct FromIndex
@@ -386,77 +428,86 @@ mergePaths(std::vector<PathNode<>>& paths, size_type path_order)
   return unique;
 }
 
-GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alpha)
+//------------------------------------------------------------------------------
+
+size_type
+GCSA::prefixDoubling(std::vector<PathNode<>>& paths, size_type kmer_length)
 {
-  if(kmers.size() == 0) { return; }
-
-  // Sort the kmers, build the mapper GCSA for generating the edges.
-  std::vector<key_type> keys;
-  sdsl::int_vector<0> last_chars;
-  uniqueKeys(kmers, keys, last_chars);
-  GCSA mapper(keys, kmer_length, _alpha);
-  sdsl::util::clear(keys);
-
-  // Transform the kmers into PathNodes.
-  // FIXME Later: Save memory by not having both KMers and PathNodes in memory.
-  std::vector<PathNode<>> current(kmers.size());
-  for(size_type i = 0; i < kmers.size(); i++) { current[i] = PathNode<>(kmers[i]); }
-  sdsl::util::clear(kmers);
-
-  // Use prefix-doubling to increase path length.
   bool fully_sorted = false;
-  for(size_type step = 1, path_order = 1; step <= DOUBLING_STEPS; step++)
+  size_type path_order = 1;
+  for(size_type step = 1; step <= DOUBLING_STEPS; step++)
   {
-    size_type old_paths = current.size();
+    size_type old_paths = paths.size();
     std::cout << "Doubling step " << step << " (path length " << (path_order * kmer_length) << " -> "
               << (2 * path_order * kmer_length) << ")" << std::endl;
     PathFromComparator<> pfc; // Sort the previous generation by from.
-    parallelQuickSort(current.begin(), current.end(), pfc);
+    parallelQuickSort(paths.begin(), paths.end(), pfc);
 
-    joinPaths(current, path_order);
-    size_type joined_paths = current.size();
+    joinPaths(paths, path_order);
+    size_type joined_paths = paths.size();
 
-    size_type unique = mergePaths(current, path_order);
+    size_type unique = mergePaths(paths, path_order);
     std::cout << "  " << old_paths << " -> " << joined_paths << " -> "
-              << current.size() << " paths (" << unique << " with unique labels)" << std::endl;
-    if(unique == current.size()) { fully_sorted = true; break; }
+              << paths.size() << " paths (" << unique << " with unique labels)" << std::endl;
+    if(unique == paths.size()) { fully_sorted = true; break; }
   }
   this->max_query_length = (fully_sorted ? ~(size_type)0 : kmer_length << DOUBLING_STEPS);
   std::cout << "Max query length: " << this->order() << std::endl;
 
-  /*
-    Merging and sampling:
-      - scan the paths
-        * merge paths with the same label
-        * sample if multiple predecessors, is source, or if offset == 0 for at least one node
-      - set node count
-      - set sampled_nodes, sampled_node_rank, stored_samples, samples, sample_rank
+  return path_order;
+}
 
-    FIXME Later: alternate sampling scheme not based on (id, offset) pairs. Sample a node,
-    if it has multiple predecessors, it is a source node, or if
-    { from(node) } != { from(predecessor(node)) } + 1. Also some samples if distance to
-    the next sample is too large.
-  */
+void
+GCSA::sample(std::vector<PathNode<>>& paths, size_type path_order)
+{
+  this->node_count = 0;
+  this->sampled_nodes = bit_vector(paths.size(), 0);
+  this->samples = bit_vector(paths.size(), 0);
 
-  /*
-    Edge generation:
-    - set the to fields of the last generation to 0,
-    - build an index structure to find paths quickly by labels
-    - scan the paths in the last generation, writing the number of outgoing edges to the to field
-      * use mapper, predecessor field in keys, and last_chars to find the predecessors
-      * increment the to field of the predecessor
+  range_type range(1, 0);
+  size_type sample_bits = 0;
+  std::vector<node_type> sample_buffer;
+  PathLabelComparator<> plc(path_order);
+  while(true)
+  {
+    nextRange(range, paths, plc);
+    if(range.first >= paths.size()) { break; }
+    paths[this->node_count] = paths[range.first];
+    bool sample_this = false;
+    for(size_type i = range.first; i <= range.second; i++)
+    {
+      paths[this->node_count].addPredecessors(paths[i]);
+      if(Node::offset(paths[i].from) == 0) { sample_this = true; }
+    }
+    if(paths[this->node_count].hasPredecessor(ENDMARKER_COMP)) { sample_this = true; }
+    if(sdsl::bits::lt_cnt[paths[this->node_count].predecessors] > 1) { sample_this = true; }
+    if(sample_this)
+    {
+      this->sampled_nodes[this->node_count] = 1;
+      for(size_type i = range.first; i <= range.second; i++)
+      {
+        sample_bits = std::max(sample_bits, bit_length(paths[i].from));
+        sample_buffer.push_back(paths[i].from);
+      }
+      this->samples[sample_buffer.size() - 1] = 1;
+    }
+    this->node_count++;
+  }
+  paths.resize(this->node_count);
 
-    FIXME Later: parallelize; load KMers from disk before proceeding
-  */
+  this->sampled_nodes.resize(this->node_count);
+  sdsl::util::init_support(this->sampled_node_rank, &(this->sampled_nodes));
 
-  /*
-    GCSA construction:
-    - count character occurrences
-    - set bwt, alpha
-    - set nodes, node_rank, node_select, edges, edge_rank, edge_select
-  */
+  this->samples.resize(sample_buffer.size());
+  sdsl::util::init_support(this->sample_select, &(this->samples));
 
-  std::cout << std::endl;
+  this->stored_samples = sdsl::int_vector<0>(sample_buffer.size(), 0, sample_bits);
+  for(size_type i = 0; i < sample_buffer.size(); i++) { this->stored_samples[i] = sample_buffer[i]; }
+  sdsl::util::clear(sample_buffer);
+
+  std::cout << "Path nodes: " << this->node_count << std::endl;
+  std::cout << "Samples: " << this->stored_samples.size() << " values ("
+            << (size_type)(this->stored_samples.width()) << " bits each)" << std::endl;
 }
 
 //------------------------------------------------------------------------------

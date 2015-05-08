@@ -240,6 +240,16 @@ struct PathNode
 
   inline size_type outdegree() const { return this->to; }
 
+  inline void addPredecessors(const PathNode& another)
+  {
+    this->predecessors |= another.predecessors;
+  }
+
+  inline bool hasPredecessor(char_type comp) const
+  {
+    return (this->predecessors & (1 << comp));
+  }
+
   PathNode(const KMer& kmer)
   {
     this->from = kmer.from; this->to = kmer.to;
