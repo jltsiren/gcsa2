@@ -221,43 +221,6 @@ KMer::KMer(const std::vector<std::string>& tokens, const Alphabet& alpha, size_t
   this->to = Node::encode(tokens[successor]);
 }
 
-bool
-KMer::tokenize(const std::string& line, std::vector<std::string>& tokens)
-{
-  {
-    std::string token;
-    std::istringstream ss(line);
-    while(std::getline(ss, token, '\t'))
-    {
-      tokens.push_back(token);
-    }
-    if(tokens.size() < 4 || tokens.size() > 5)
-    {
-      std::cerr << "KMer::tokenize(): The kmer line must contain 4 or 5 tokens." << std::endl;
-      std::cerr << "KMer::tokenize(): The line was: " << line << std::endl;
-      return false;
-    }
-  }
-
-  // Split the list of successor positions into separate tokens.
-  if(tokens.size() == 5)
-  {
-    std::string destinations = tokens[4], token;
-    std::istringstream ss(destinations);
-    tokens.resize(4);
-    while(std::getline(ss, token, ','))
-    {
-      tokens.push_back(token);
-    }
-  }
-  else  // Use the source node as the destination.
-  {
-    tokens.push_back(tokens[1]);
-  }
-
-  return true;
-}
-
 byte_type
 KMer::chars(const std::string& token, const Alphabet& alpha)
 {
@@ -278,7 +241,7 @@ operator<< (std::ostream& out, const KMer& kmer)
 }
 
 void
-uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_chars, bool print)
+uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_char, bool print)
 {
   if(kmers.empty()) { return; }
   parallelQuickSort(kmers.begin(), kmers.end());
@@ -296,8 +259,8 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
 
   // Pass 2: Create the merged key array and the last character array for edge generation.
   keys = std::vector<key_type>(total_keys, 0);
-  last_chars = sdsl::int_vector<0>(total_keys, 0, Key::CHAR_WIDTH);
-  keys[0] = kmers[0].key; last_chars[0] = Key::last(kmers[0].key);
+  last_char = sdsl::int_vector<0>(total_keys, 0, Key::CHAR_WIDTH);
+  keys[0] = kmers[0].key; last_char[0] = Key::last(kmers[0].key);
   for(size_type kmer = 1, key = 0; kmer < kmers.size(); kmer++)
   {
     if(Key::kmer(kmers[kmer].key) == Key::kmer(keys[key]))
@@ -306,7 +269,7 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
     }
     else
     {
-      key++; keys[key] = kmers[kmer].key; last_chars[key] = Key::last(kmers[kmer].key);
+      key++; keys[key] = kmers[kmer].key; last_char[key] = Key::last(kmers[kmer].key);
     }
   }
 
@@ -319,6 +282,110 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
     kmers[kmer].key = Key::replace(kmers[kmer].key, key);
   }
   if(key_start == kmers.size() - 1) { kmers[key_start].makeSorted(); }
+}
+
+//------------------------------------------------------------------------------
+
+PathNode::PathNode(const KMer& kmer)
+{
+  this->from = kmer.from; this->to = kmer.to;
+  this->label[0] = Key::kmer(kmer.key);
+  for(size_type i = 1; i < LABEL_LENGTH; i++) { label[i] = 0; }
+  this->setPredecessors(Key::predecessors(kmer.key));
+  this->setOrder(1);
+}
+
+PathNode::PathNode(const PathNode& left, const PathNode& right)
+{
+  this->from = left.from;
+  this->to = (right.sorted() ? this->from : right.to);
+
+  size_type left_order = left.order();
+  size_type new_order = left_order + right.order();
+  for(size_type i = 0; i < left_order; i++) { this->label[i] = left.label[i]; }
+  for(size_type i = left_order; i < new_order; i++) { this->label[i] = right.label[i - left_order]; }
+  for(size_type i = new_order; i < LABEL_LENGTH; i++) { this->label[i] = 0; }
+
+  this->setPredecessors(left.predecessors());
+  this->setOrder(new_order);
+}
+
+PathNode::PathNode(std::ifstream& in)
+{
+  sdsl::read_member(this->from, in); sdsl::read_member(this->to, in);
+  in.read((char*)(this->label), LABEL_LENGTH * sizeof(rank_type));
+  sdsl::read_member(this->fields, in);
+}
+
+size_type
+PathNode::serialize(std::ostream& out) const
+{
+  size_type bytes = 0;
+  bytes += sdsl::write_member(this->from, out); bytes += sdsl::write_member(this->to, out);
+  out.write((char*)(this->label), LABEL_LENGTH * sizeof(rank_type));
+  bytes += LABEL_LENGTH * sizeof(rank_type);
+  bytes += sdsl::write_member(this->fields, out);
+  return bytes;
+}
+
+PathNode::PathNode()
+{
+}
+
+PathNode::PathNode(const PathNode& source)
+{
+  this->copy(source);
+}
+
+PathNode::PathNode(PathNode&& source)
+{
+  *this = std::move(source);
+}
+
+PathNode::~PathNode()
+{
+}
+
+void
+PathNode::copy(const PathNode& source)
+{
+  if(&source != this)
+  {
+    this->from = source.from; this->to = source.to;
+    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->label[i] = source.label[i]; }
+    this->fields = source.fields;
+  }
+}
+
+void
+PathNode::swap(PathNode& another)
+{
+  if(&another != this)
+  {
+    std::swap(this->from, another.from); std::swap(this->to, another.to);
+    for(size_type i = 0; i < LABEL_LENGTH; i++) { std::swap(this->label[i], another.label[i]); }
+    std::swap(this->fields, another.fields);
+  }
+}
+
+PathNode&
+PathNode::operator= (const PathNode& source)
+{
+  this->copy(source);
+  return *this;
+}
+
+PathNode&
+PathNode::operator= (PathNode&& source)
+{
+  if(&source != this)
+  {
+    this->from = std::move(source.from);
+    this->to = std::move(source.to);
+    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->label[i] = std::move(source.label[i]); }
+    this-> fields = std::move(source.fields);
+  }
+  return *this;
 }
 
 //------------------------------------------------------------------------------

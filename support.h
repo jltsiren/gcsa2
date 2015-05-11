@@ -191,7 +191,6 @@ struct KMer
   inline bool sorted() const { return (this->from == this->to); }
   inline void makeSorted() { this->to = this->from; }
 
-  static bool tokenize(const std::string& line, std::vector<std::string>& tokens);
   static byte_type chars(const std::string& token, const Alphabet& alpha);
 };
 
@@ -213,7 +212,7 @@ operator< (key_type key, const KMer& kmer)
   4. Replaces the kmer labels in the keys by their ranks.
   5. Marks the kmers sorted if they have unique labels.
 */
-void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_chars,
+void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_char,
   bool print = false);
 
 //------------------------------------------------------------------------------
@@ -224,121 +223,72 @@ void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int
   from == to, the path will not be extended, because it already has a unique label.
   rank_type is the integer type used to store ranks of the original kmers.
   During edge generation, to will be used to store the number of outgoing edges.
-
-  FIXME Remove the template, move code to .cpp?
 */
 
-template<class rank_type = std::uint32_t, size_type label_length = 8>
 struct PathNode
 {
+  typedef std::uint32_t rank_type;
+
+  const static size_type LABEL_LENGTH = 8;
+
   node_type from, to;
-  rank_type label[label_length];
-  byte_type predecessors;
+  rank_type label[LABEL_LENGTH];
+  size_type fields; // Lowest 8 bits for predecessors, next 8 bits for order.
 
   inline bool sorted() const { return (this->from == this->to); }
   inline void makeSorted() { this->to = this->from; }
 
-  inline size_type outdegree() const { return this->to; }
+  inline byte_type order() const { return ((this->fields >> 8) & 0xFF); }
+  inline void setOrder(byte_type new_order)
+  {
+    this->fields &= ~(size_type)0xFF00;
+    this->fields |= ((size_type)new_order) << 8;
+  }
+
+  inline byte_type predecessors() const { return (this->fields & 0xFF); }
+  inline void setPredecessors(byte_type preds)
+  {
+    this->fields &= ~(size_type)0xFF;
+    this->fields |= (size_type)preds;
+  }
 
   inline void addPredecessors(const PathNode& another)
   {
-    this->predecessors |= another.predecessors;
+    this->fields |= another.predecessors();
   }
 
   inline bool hasPredecessor(char_type comp) const
   {
-    return (this->predecessors & (1 << comp));
+    return (this->fields & (1 << comp));
   }
 
-  PathNode(const KMer& kmer)
-  {
-    this->from = kmer.from; this->to = kmer.to;
-    this->label[0] = Key::kmer(kmer.key);
-    for(size_type i = 1; i < label_length; i++) { label[i] = 0; }
-    this->predecessors = Key::predecessors(kmer.key);
-  }
+  inline size_type outdegree() const { return this->to; }
 
-  PathNode(const PathNode& left, const PathNode& right, size_type old_order)
-  {
-    this->from = left.from;
-    this->to = (right.sorted() ? this->from : right.to);
-    for(size_type i = 0; i < old_order; i++) { this->label[i] = left.label[i]; }
-    for(size_type i = old_order; i < 2 * old_order; i++) { this->label[i] = right.label[i - old_order]; }
-    for(size_type i = 2 * old_order; i < label_length; i++) { this->label[i] = 0; }
-    this->predecessors = left.predecessors;
-  }
+  PathNode(const KMer& kmer);
+  PathNode(const PathNode& left, const PathNode& right);
+  explicit PathNode(std::ifstream& in);
 
-  explicit PathNode(std::ifstream& in)
-  {
-    sdsl::read_member(&(this->from), in); sdsl::read_member(&(this->to), in);
-    in.read((char*)(this->label), label_length * sizeof(rank_type));
-    sdsl::read_member(&(this->predecessors), in);
-  }
+  size_type serialize(std::ostream& out) const;
 
-  size_type serialize(std::ostream& out) const
-  {
-    size_type bytes = 0;
-    bytes += sdsl::write_member(this->from, out); bytes += sdsl::write_member(this->to, out);
-    out.write((char*)(this->label), label_length * sizeof(rank_type));
-    bytes += label_length * sizeof(rank_type);
-    bytes += sdsl::write_member(this->predecessors);
-    return bytes;
-  }
+  PathNode();
+  PathNode(const PathNode& source);
+  PathNode(PathNode&& source);
+  ~PathNode();
 
-  PathNode() {}
-  PathNode(const PathNode& source) { this->copy(source); }
-  PathNode(PathNode&& source) { *this = std::move(source); }
-  ~PathNode() {}
+  void copy(const PathNode& source);
+  void swap(PathNode& another);
 
-  void copy(const PathNode& source)
-  {
-    if(&source != this)
-    {
-      this->from = source.from; this->to = source.to;
-      for(size_type i = 0; i < label_length; i++) { this->label[i] = source.label[i]; }
-      this->predecessors = source.predecessors;
-    }
-  }
-
-  void swap(PathNode& another)
-  {
-    if(&another != this)
-    {
-      std::swap(this->from, another.from); std::swap(this->to, another.to);
-      for(size_type i = 0; i < label_length; i++) { std::swap(this->label[i], another.label[i]); }
-      std::swap(this->predecessors, another.predecessors);
-    }
-  }
-
-  PathNode& operator= (const PathNode& source)
-  {
-    this->copy(source);
-    return *this;
-  }
-
-  PathNode& operator= (PathNode&& source)
-  {
-    if(&source != this)
-    {
-      this->from = std::move(source.from);
-      this->to = std::move(source.to);
-      for(size_type i = 0; i < label_length; i++) { this->label[i] = std::move(source.label[i]); }
-      this-> predecessors = std::move(source.predecessors);
-    }
-    return *this;
-  }
+  PathNode& operator= (const PathNode& source);
+  PathNode& operator= (PathNode&& source);
 };
 
-template<class rank_type = std::uint32_t, size_type label_length = 8>
 struct PathLabelComparator
 {
-  typedef PathNode<rank_type, label_length> pn_type;
-
   size_type max_length;
 
-  PathLabelComparator(size_type len = label_length) : max_length(len) {}
+  PathLabelComparator(size_type len = PathNode::LABEL_LENGTH) : max_length(len) {}
 
-  inline bool operator() (const pn_type& a, const pn_type& b) const
+  inline bool operator() (const PathNode& a, const PathNode& b) const
   {
     for(size_t i = 0; i < this->max_length; i++)
     {
@@ -348,12 +298,9 @@ struct PathLabelComparator
   }
 };
 
-template<class rank_type = std::uint32_t, size_type label_length = 8>
 struct PathFromComparator
 {
-  typedef PathNode<rank_type, label_length> pn_type;
-
-  inline bool operator() (const pn_type& a, const pn_type& b) const
+  inline bool operator() (const PathNode& a, const PathNode& b) const
   {
     return (a.from < b.from);
   }

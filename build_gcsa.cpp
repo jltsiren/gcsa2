@@ -76,7 +76,7 @@ main(int argc, char** argv)
     uniqueKeys(kmers, keys, last_chars, true);
     GCSA mapper(keys, kmer_length);
     std::cout << "Nodes: " << mapper.size() << ", edges: " << mapper.edge_count() << std::endl;
-    std::cout << "GCSA size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
+    std::cout << "Mapper size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
     verifyMapper(mapper, keys, kmer_length);
   }
 #endif
@@ -84,6 +84,8 @@ main(int argc, char** argv)
   std::vector<KMer> kmers;
   size_type kmer_length = readKMers(base_name, kmers);
   GCSA index(kmers, kmer_length);
+  std::cout << "Index size: " << sdsl::size_in_bytes(index) << " bytes" << std::endl;
+  std::cout << std::endl;
   sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
 
 #ifdef VERIFY_INDEX
@@ -96,6 +98,36 @@ main(int argc, char** argv)
 }
 
 //------------------------------------------------------------------------------
+
+bool
+tokenize(const std::string& line, std::vector<std::string>& tokens)
+{
+  {
+    std::string token;
+    std::istringstream ss(line);
+    while(std::getline(ss, token, '\t'))
+    {
+      tokens.push_back(token);
+    }
+    if(tokens.size() != 5)
+    {
+      std::cerr << "KMer::tokenize(): The kmer line must contain 5 tokens." << std::endl;
+      std::cerr << "KMer::tokenize(): The line was: " << line << std::endl;
+      return false;
+    }
+  }
+
+  // Split the list of successor positions into separate tokens.
+  std::string destinations = tokens[4], token;
+  std::istringstream ss(destinations);
+  tokens.resize(4);
+  while(std::getline(ss, token, ','))
+  {
+    tokens.push_back(token);
+  }
+
+  return true;
+}
 
 size_type
 readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print)
@@ -118,7 +150,7 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print)
     if(line.length() == 0) { continue; }
 
     std::vector<std::string> tokens;
-    if(!(KMer::tokenize(line, tokens))) { continue; }
+    if(!tokenize(line, tokens)) { continue; }
     if(kmer_length > 0 && tokens[0].length() != kmer_length)
     {
       std::cerr << "build_gcsa: readKMers(): kmer length changed from " << kmer_length
@@ -131,21 +163,20 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print)
       KMer kmer(tokens, alpha, successor); kmers.push_back(kmer);
       if(successor == 4)
       {
-        if(kmer.sorted()) { sink_node = Node::id(kmer.from); }
+        if(Key::kmer(kmer.key) == 0) { sink_node = Node::id(kmer.from); }
       }
     }
   }
   input.close();
 
-  // If the kmer includes one or more endmarkers, the successor position is past
-  // the GCSA sink node. Those kmers are marked as sorted, as they cannot be
-  // extended.
+  /*
+    If the kmer includes one or more endmarkers, the successor position is past
+    the GCSA sink node. Those kmers are marked as sorted, as they cannot be
+    extended.
+  */
   for(size_type i = 0; i < kmers.size(); i++)
   {
-    if(Node::id(kmers[i].to) == sink_node && Node::offset(kmers[i].to) > 0)
-    {
-      kmers[i].makeSorted();
-    }
+    if(Node::id(kmers[i].to) == sink_node) { kmers[i].makeSorted(); }
   }
 
   if(print)
