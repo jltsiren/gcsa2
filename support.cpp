@@ -159,7 +159,7 @@ Alphabet::load(std::istream& in)
 //------------------------------------------------------------------------------
 
 std::string
-Key::decode(const Alphabet& alpha, key_type key, size_type kmer_length)
+Key::decode(key_type key, size_type kmer_length, const Alphabet& alpha)
 {
   key = kmer(key);
   kmer_length = std::min(kmer_length, MAX_LENGTH);
@@ -191,7 +191,7 @@ Node::encode(const std::string& token)
   size_type offset = std::stoul(temp);
   if(offset > OFFSET_MASK)
   {
-    std::cerr << "Node::encode(): Offset " << offset << " too large!" << std::endl;
+    std::cerr << "Node::encode(): Offset " << offset << " too large" << std::endl;
     return 0;
   }
 
@@ -274,11 +274,15 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
   }
 
   // Pass 3: Replace kmer values with ranks in the key array and mark kmers with unique keys sorted.
-  size_type key_start = 0;
+  size_type key_start = 0;  // The first kmer for the current key value.
   for(size_type kmer = 0, key = 0; kmer < kmers.size(); kmer++)
   {
-    while(keys[key] < kmers[kmer]) { key++; }
-    if(key_start + 1 == kmer) { kmers[key_start].makeSorted(); key_start = kmer; }
+    if(keys[key] < kmers[kmer])
+    {
+      if(kmer == key_start + 1) { kmers[key_start].makeSorted(); }
+      key_start = kmer;
+      key++;
+    }
     kmers[kmer].key = Key::replace(kmers[kmer].key, key);
   }
   if(key_start == kmers.size() - 1) { kmers[key_start].makeSorted(); }

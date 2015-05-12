@@ -42,6 +42,7 @@ namespace gcsa
 
 typedef std::uint64_t size_type;
 typedef std::uint8_t  char_type;
+typedef std::uint8_t  comp_type;
 typedef std::uint8_t  byte_type;
 
 const size_type WORD_BITS = 64;
@@ -99,14 +100,14 @@ bit_length(IntegerType val)
 const size_type FNV_OFFSET_BASIS = 0xcbf29ce484222325UL;
 const size_type FNV_PRIME        = 0x100000001b3UL;
 
-inline size_type fnv1a_hash(char_type c, size_type seed)
+inline size_type fnv1a_hash(byte_type b, size_type seed)
 {
-  return (seed ^ c) * FNV_PRIME;
+  return (seed ^ b) * FNV_PRIME;
 }
 
 inline size_type fnv1a_hash(size_type val, size_type seed)
 {
-  char_type* chars = (char_type*)&val;
+  byte_type* chars = (byte_type*)&val;
   for(size_type i = 0; i < 8; i++) { seed = fnv1a_hash(chars[i], seed); }
   return seed;
 }
@@ -131,8 +132,11 @@ inMicroseconds(double seconds)
   return seconds * MILLION_DOUBLE;
 }
 
-void printSize(const std::string& header, size_type bytes, size_type data_size, size_type indent = 18);
-void printTime(const std::string& header, size_type queries, double seconds, size_type indent = 18);
+const size_type DEFAULT_INDENT = 18;
+
+void printHeader(const std::string& header, size_type indent = DEFAULT_INDENT);
+void printSize(const std::string& header, size_type bytes, size_type data_size, size_type indent = DEFAULT_INDENT);
+void printTime(const std::string& header, size_type queries, double seconds, size_type indent = DEFAULT_INDENT);
 
 //------------------------------------------------------------------------------
 
@@ -226,37 +230,37 @@ removeDuplicates(std::vector<Element>& vec, bool parallel)
 
 template<class AlphabetType>
 inline bool
-hasChar(const AlphabetType& alpha, char_type c)
+hasChar(const AlphabetType& alpha, comp_type comp)
 {
-  return (alpha.C[c + 1] > alpha.C[c]);
+  return (alpha.C[comp + 1] > alpha.C[comp]);
 }
 
 template<class AlphabetType>
 inline range_type
-charRange(const AlphabetType& alpha, char_type c)
+charRange(const AlphabetType& alpha, comp_type comp)
 {
-  return range_type(alpha.C[c], alpha.C[c + 1] - 1);
+  return range_type(alpha.C[comp], alpha.C[comp + 1] - 1);
 }
 
 template<class AlphabetType>
-char_type
+comp_type
 findChar(const AlphabetType& alpha, size_type bwt_pos)
 {
-  char_type comp = 0;
+  comp_type comp = 0;
   while(alpha.C[comp + 1] <= bwt_pos) { comp++; }
   return comp;
 }
 
 template<class BWTType, class AlphabetType>
 inline size_type
-LF(const BWTType& bwt, const AlphabetType& alpha, size_type i, char_type comp)
+LF(const BWTType& bwt, const AlphabetType& alpha, size_type i, comp_type comp)
 {
   return alpha.C[comp] + bwt.rank(i, comp);
 }
 
 template<class BWTType, class AlphabetType>
 inline range_type
-LF(const BWTType& bwt, const AlphabetType& alpha, range_type range, char_type comp)
+LF(const BWTType& bwt, const AlphabetType& alpha, range_type range, comp_type comp)
 {
   return range_type(LF(bwt, alpha, range.first, comp), LF(bwt, alpha, range.second + 1, comp) - 1);
 }

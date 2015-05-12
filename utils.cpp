@@ -34,21 +34,25 @@ namespace gcsa
 //------------------------------------------------------------------------------
 
 void
-printSize(const std::string& header, size_type bytes, size_type data_size, size_type indent)
+printHeader(const std::string& header, size_type indent)
 {
   std::string padding;
   if(header.length() + 1 < indent) { padding = std::string(indent - 1 - header.length(), ' '); }
+  std::cout << header << ":" << padding;
+}
 
-  std::cout << header << ":" << padding << inMegabytes(bytes) << " MB ("
-            << inBPC(bytes, data_size) << " bpc)" << std::endl;
+void
+printSize(const std::string& header, size_type bytes, size_type data_size, size_type indent)
+{
+  printHeader(header, indent);
+  std::cout << inMegabytes(bytes) << " MB (" << inBPC(bytes, data_size) << " bpc)" << std::endl;
 }
 
 void
 printTime(const std::string& header, size_type queries, double seconds, size_type indent)
 {
-  std::string padding;
-  if(header.length() + 1 < indent) { padding = std::string(indent - 1 - header.length(), ' '); }
-  std::cout << header << ":" << padding << queries << " queries in " << seconds << " seconds ("
+  printHeader(header, indent);
+  std::cout << queries << " queries in " << seconds << " seconds ("
             << inMicroseconds(seconds / queries) << " µs/query)" << std::endl;
 }
 

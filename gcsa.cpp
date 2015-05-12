@@ -33,7 +33,7 @@ const std::string GCSA::EXTENSION = ".gcsa";
 
 GCSA::GCSA()
 {
-  this->node_count = 0;
+  this->path_node_count = 0;
   this->max_query_length = 0;
 }
 
@@ -54,22 +54,22 @@ GCSA::~GCSA()
 void
 GCSA::copy(const GCSA& g)
 {
-  this->node_count = g.node_count;
+  this->path_node_count = g.path_node_count;
   this->max_query_length = g.max_query_length;
 
   this->bwt = g.bwt;
   this->alpha = g.alpha;
 
-  this->nodes = g.nodes;
-  this->node_rank = g.node_rank;
-  this->node_select = g.node_select;
+  this->path_nodes = g.path_nodes;
+  this->path_rank = g.path_rank;
+  this->path_select = g.path_select;
 
   this->edges = g.edges;
   this->edge_rank = g.edge_rank;
   this->edge_select = g.edge_select;
 
-  this->sampled_nodes = g.sampled_nodes;
-  this->sampled_node_rank = g.sampled_node_rank;
+  this->sampled_paths = g.sampled_paths;
+  this->sampled_path_rank = g.sampled_path_rank;
 
   this->stored_samples = g.stored_samples;
   this->samples = g.samples;
@@ -83,22 +83,22 @@ GCSA::swap(GCSA& g)
 {
   if(this != &g)
   {
-    std::swap(this->node_count, g.node_count);
+    std::swap(this->path_node_count, g.path_node_count);
     std::swap(this->max_query_length, g.max_query_length);
 
     this->bwt.swap(g.bwt);
     this->alpha.swap(g.alpha);
 
-    this->nodes.swap(g.nodes);
-    sdsl::util::swap_support(this->node_rank, g.node_rank, &(this->nodes), &(g.nodes));
-    sdsl::util::swap_support(this->node_select, g.node_select, &(this->nodes), &(g.nodes));
+    this->path_nodes.swap(g.path_nodes);
+    sdsl::util::swap_support(this->path_rank, g.path_rank, &(this->path_nodes), &(g.path_nodes));
+    sdsl::util::swap_support(this->path_select, g.path_select, &(this->path_nodes), &(g.path_nodes));
 
     this->edges.swap(g.edges);
     sdsl::util::swap_support(this->edge_rank, g.edge_rank, &(this->edges), &(g.edges));
     sdsl::util::swap_support(this->edge_select, g.edge_select, &(this->edges), &(g.edges));
 
-    this->sampled_nodes.swap(g.sampled_nodes);
-    sdsl::util::swap_support(this->sampled_node_rank, g.sampled_node_rank, &(this->sampled_nodes), &(g.sampled_nodes));
+    this->sampled_paths.swap(g.sampled_paths);
+    sdsl::util::swap_support(this->sampled_path_rank, g.sampled_path_rank, &(this->sampled_paths), &(g.sampled_paths));
 
     this->stored_samples.swap(g.stored_samples);
     this->samples.swap(g.samples);
@@ -118,22 +118,22 @@ GCSA::operator=(GCSA&& g)
 {
   if(this != &g)
   {
-    this->node_count = std::move(g.node_count);
+    this->path_node_count = std::move(g.path_node_count);
     this->max_query_length = std::move(g.max_query_length);
 
     this->bwt = std::move(g.bwt);
     this->alpha = std::move(g.alpha);
 
-    this->nodes = std::move(g.nodes);
-    this->node_rank = std::move(g.node_rank);
-    this->node_select = std::move(g.node_select);
+    this->path_nodes = std::move(g.path_nodes);
+    this->path_rank = std::move(g.path_rank);
+    this->path_select = std::move(g.path_select);
 
     this->edges = std::move(g.edges);
     this->edge_rank = std::move(g.edge_rank);
     this->edge_select = std::move(g.edge_select);
 
-    this->sampled_nodes = std::move(g.sampled_nodes);
-    this->sampled_node_rank = std::move(g.sampled_node_rank);
+    this->sampled_paths = std::move(g.sampled_paths);
+    this->sampled_path_rank = std::move(g.sampled_path_rank);
 
     this->stored_samples = std::move(g.stored_samples);
     this->samples = std::move(g.samples);
@@ -147,13 +147,13 @@ GCSA::operator=(GCSA&& g)
 void
 GCSA::setVectors()
 {
-  this->node_rank.set_vector(&(this->nodes));
-  this->node_select.set_vector(&(this->nodes));
+  this->path_rank.set_vector(&(this->path_nodes));
+  this->path_select.set_vector(&(this->path_nodes));
 
   this->edge_rank.set_vector(&(this->edges));
   this->edge_select.set_vector(&(this->edges));
 
-  this->sampled_node_rank.set_vector(&(this->sampled_nodes));
+  this->sampled_path_rank.set_vector(&(this->sampled_paths));
 
   this->sample_select.set_vector(&(this->samples));
 }
@@ -164,22 +164,22 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* s, std::string nam
   sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(s, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
 
-  written_bytes += sdsl::write_member(this->node_count, out, child, "node_count");
+  written_bytes += sdsl::write_member(this->path_node_count, out, child, "path_node_count");
   written_bytes += sdsl::write_member(this->max_query_length, out, child, "max_query_length");
 
   written_bytes += this->bwt.serialize(out, child, "bwt");
   written_bytes += this->alpha.serialize(out, child, "alpha");
 
-  written_bytes += this->nodes.serialize(out, child, "nodes");
-  written_bytes += this->node_rank.serialize(out, child, "node_rank");
-  written_bytes += this->node_select.serialize(out, child, "node_select");
+  written_bytes += this->path_nodes.serialize(out, child, "path_nodes");
+  written_bytes += this->path_rank.serialize(out, child, "path_rank");
+  written_bytes += this->path_select.serialize(out, child, "path_select");
 
   written_bytes += this->edges.serialize(out, child, "edges");
   written_bytes += this->edge_rank.serialize(out, child, "edge_rank");
   written_bytes += this->edge_select.serialize(out, child, "edge_select");
 
-  written_bytes += this->sampled_nodes.serialize(out, child, "sampled_nodes");
-  written_bytes += this->sampled_node_rank.serialize(out, child, "sampled_node_rank");
+  written_bytes += this->sampled_paths.serialize(out, child, "sampled_paths");
+  written_bytes += this->sampled_path_rank.serialize(out, child, "sampled_path_rank");
 
   written_bytes += this->stored_samples.serialize(out, child, "stored_samples");
   written_bytes += this->samples.serialize(out, child, "samples");
@@ -192,22 +192,22 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* s, std::string nam
 void
 GCSA::load(std::istream& in)
 {
-  sdsl::read_member(this->node_count, in);
+  sdsl::read_member(this->path_node_count, in);
   sdsl::read_member(this->max_query_length, in);
 
   this->bwt.load(in);
   this->alpha.load(in);
 
-  this->nodes.load(in);
-  this->node_rank.load(in, &(this->nodes));
-  this->node_select.load(in, &(this->nodes));
+  this->path_nodes.load(in);
+  this->path_rank.load(in, &(this->path_nodes));
+  this->path_select.load(in, &(this->path_nodes));
 
   this->edges.load(in);
   this->edge_rank.load(in, &(this->edges));
   this->edge_select.load(in, &(this->edges));
 
-  this->sampled_nodes.load(in);
-  this->sampled_node_rank.load(in, &(this->sampled_nodes));
+  this->sampled_paths.load(in);
+  this->sampled_path_rank.load(in, &(this->sampled_paths));
 
   this->stored_samples.load(in);
   this->samples.load(in);
@@ -218,7 +218,7 @@ GCSA::load(std::istream& in)
 
 GCSA::GCSA(const std::vector<key_type>& keys, size_type kmer_length, const Alphabet& _alpha)
 {
-  this->node_count = keys.size();
+  this->path_node_count = keys.size();
   this->max_query_length = kmer_length;
 
   size_type total_edges = 0;
@@ -246,11 +246,13 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alp
 
   // Build the GCSA in PathNodes.
   size_type path_order = this->prefixDoubling(paths, kmer_length);
-  this->sample(paths, path_order);
+  std::vector<range_type> from_nodes;
+  this->mergeByLabel(paths, path_order, from_nodes);
   size_type total_edges = this->countEdges(paths, path_order, _alpha.sigma, mapper, last_char);
   sdsl::util::clear(mapper); sdsl::util::clear(last_char);
-
   this->build<PathNode, PathNodeGetter>(paths, _alpha, total_edges);
+
+  this->sample(paths, from_nodes);
 }
 
 //------------------------------------------------------------------------------
@@ -263,15 +265,16 @@ struct FromGetter
   }
 };
 
-struct LabelGetter
+struct FirstGetter
 {
-  inline static size_type get(const PathNode& path)
+  inline static size_type get(range_type range)
   {
-    return path.label[0];
+    return range.first;
   }
 };
 
-struct PathIndex
+template<class ValueType, class Getter>
+struct ValueIndex
 {
   sdsl::bit_vector                values;     // Marks the values that are present.
   sdsl::bit_vector::rank_1_type   value_rank;
@@ -281,36 +284,15 @@ struct PathIndex
 
   enum Field { field_from, field_label };
 
-  PathIndex(const std::vector<PathNode>& paths, Field field)
+  ValueIndex(const std::vector<ValueType>& input)
   {
-    if(field == field_from)
-    {
-      this->build<FromGetter>(paths);
-    }
-    else if(field == field_label)
-    {
-      this->build<LabelGetter>(paths);
-    }
-    else
-    {
-      std::cerr << "PathIndex::PathIndex(): Invalid field: " << field << std::endl;
-      return;
-    }
+    this->values = sdsl::bit_vector(Getter::get(input[input.size() - 1]) + 1, 0);
+    this->first_occ = sdsl::bit_vector(input.size(), 0);
 
-    sdsl::util::init_support(this->value_rank, &(this->values));
-    sdsl::util::init_support(this->first_select, &(this->first_occ));
-  }
-
-  template<class FieldGetter>
-  void
-  build(const std::vector<PathNode>& paths)
-  {
-    this->values = sdsl::bit_vector(FieldGetter::get(paths[paths.size() - 1]) + 1, 0);
-    this->first_occ = sdsl::bit_vector(paths.size(), 0);
     size_type prev = ~(size_type)0;
-    for(size_type i = 0; i < paths.size(); i++)
+    for(size_type i = 0; i < input.size(); i++)
     {
-      size_type curr = FieldGetter::get(paths[i]);
+      size_type curr = Getter::get(input[i]);
       if(curr != prev)
       {
         this->values[curr] = 1;
@@ -318,12 +300,15 @@ struct PathIndex
         prev = curr;
       }
     }
+
+    sdsl::util::init_support(this->value_rank, &(this->values));
+    sdsl::util::init_support(this->first_select, &(this->first_occ));
   }
 
   // Finds the first occurrence of the value.
   size_type find(size_type value) const
   {
-    if(this->values[value] == 0) { return this->first_occ.size(); }
+    if(value >= this->values.size() || this->values[value] == 0) { return this->first_occ.size(); }
     return this->first_select(this->value_rank(value) + 1);
   }
 };
@@ -338,7 +323,9 @@ struct PathIndex
 void
 joinPaths(std::vector<PathNode>& paths)
 {
-  PathIndex from_index(paths, PathIndex::field_from);
+  PathFromComparator pfc; // Sort the paths by from.
+  parallelQuickSort(paths.begin(), paths.end(), pfc);
+  ValueIndex<PathNode, FromGetter> from_index(paths);
 
   std::vector<PathNode> next;
   for(size_type i = 0; i < paths.size(); i++)
@@ -420,11 +407,8 @@ mergePaths(std::vector<PathNode>& paths, size_type path_order)
     }
   }
   paths.resize(tail);
-
   return range_type(unique, unsorted);
 }
-
-//------------------------------------------------------------------------------
 
 size_type
 GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length)
@@ -434,83 +418,56 @@ GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length)
   for(size_type step = 1; step <= DOUBLING_STEPS; step++)
   {
     size_type old_paths = paths.size();
-    std::cout << "Doubling step " << step << " (path length " << (path_order * kmer_length) << " -> "
+#ifdef VERBOSE_STATUS_INFO
+    std::cerr << "GCSA::prefixDoubling(): Step " << step << " (path length " << (path_order * kmer_length) << " -> "
               << (2 * path_order * kmer_length) << ")" << std::endl;
-    PathFromComparator pfc; // Sort the previous generation by from.
-    parallelQuickSort(paths.begin(), paths.end(), pfc);
+#endif
 
     joinPaths(paths); path_order *= 2;
     size_type joined_paths = paths.size();
 
     range_type unique_unsorted = mergePaths(paths, path_order);
-    std::cout << "  " << old_paths << " -> " << joined_paths << " -> "
+#ifdef VERBOSE_STATUS_INFO
+    std::cerr << "GCSA::prefixDoubling(): " << old_paths << " -> " << joined_paths << " -> "
               << paths.size() << " paths (" << unique_unsorted.first << " with unique labels)" << std::endl;
+#endif
     if(unique_unsorted.second == 0) { fully_sorted = true; break; }
   }
   this->max_query_length = (fully_sorted ? ~(size_type)0 : kmer_length << DOUBLING_STEPS);
-  std::cout << "Max query length: " << this->order() << std::endl;
 
   return path_order;
 }
 
+//------------------------------------------------------------------------------
+
 void
-GCSA::sample(std::vector<PathNode>& paths, size_type path_order)
+GCSA::mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vector<range_type>& from_nodes)
 {
-  this->node_count = 0;
-  this->sampled_nodes = bit_vector(paths.size(), 0);
-  this->samples = bit_vector(paths.size(), 0);
+  this->path_node_count = 0;
 
   range_type range(1, 0);
-  size_type sample_bits = 0;
-  std::vector<node_type> sample_buffer;
   PathLabelComparator plc(path_order);
   while(true)
   {
     nextRange(range, paths, plc);
     if(range.first >= paths.size()) { break; }
-    paths[this->node_count] = paths[range.first];
-    bool sample_this = false;
-    for(size_type i = range.first; i <= range.second; i++)
+    paths[this->path_node_count] = paths[range.first];
+    for(size_type i = range.first + 1; i <= range.second; i++)
     {
-      paths[this->node_count].addPredecessors(paths[i]);
-      if(Node::offset(paths[i].from) == 0) { sample_this = true; }
+      paths[this->path_node_count].addPredecessors(paths[i]);
+      from_nodes.push_back(range_type(this->path_node_count, paths[i].from));
     }
-    if(paths[this->node_count].hasPredecessor(ENDMARKER_COMP)) { sample_this = true; }
-    if(sdsl::bits::lt_cnt[paths[this->node_count].predecessors()] > 1) { sample_this = true; }
-    if(sample_this)
-    {
-      this->sampled_nodes[this->node_count] = 1;
-      for(size_type i = range.first; i <= range.second; i++)
-      {
-        sample_bits = std::max(sample_bits, bit_length(paths[i].from));
-        sample_buffer.push_back(paths[i].from);
-      }
-      this->samples[sample_buffer.size() - 1] = 1;
-    }
-    this->node_count++;
+    this->path_node_count++;
   }
-  paths.resize(this->node_count);
-
-  this->sampled_nodes.resize(this->node_count);
-  sdsl::util::init_support(this->sampled_node_rank, &(this->sampled_nodes));
-
-  this->samples.resize(sample_buffer.size());
-  sdsl::util::init_support(this->sample_select, &(this->samples));
-
-  this->stored_samples = sdsl::int_vector<0>(sample_buffer.size(), 0, sample_bits);
-  for(size_type i = 0; i < sample_buffer.size(); i++) { this->stored_samples[i] = sample_buffer[i]; }
-  sdsl::util::clear(sample_buffer);
-
-  std::cout << "Path nodes: " << this->node_count << std::endl;
-  std::cout << "Samples: " << this->stored_samples.size() << " values ("
-            << (size_type)(this->stored_samples.width()) << " bits each)" << std::endl;
+  paths.resize(this->path_node_count);
 }
+//------------------------------------------------------------------------------
 
 /*
-  Node labels are padded with 0s. They are interpreted as lower bounds of path labels starting
-  from the node. Predecessor labels are padded with ~0s and interpreted as upper bounds of the
+  Path node labels are padded with 0s. They are interpreted as lower bounds of path labels starting
+  from the path node. Predecessor labels are padded with ~0s and interpreted as upper bounds of the
   path labels starting with the given edge. The predecessor found using mapper.LF() matches
-  the last node with node.label <= predecessor.label.
+  the last path node with path_node.label <= predecessor.label.
 
   FIXME Later: parallelize
 */
@@ -552,7 +509,7 @@ GCSA::countEdges(std::vector<PathNode>& paths, size_type path_order, size_type s
         }
       }
 
-      // next[comp] should point to the last node with node.label <= predecessor.label.
+      // next[comp] should point to the last path node with path_node.label <= predecessor.label.
       while(next[comp] + 1 < paths.size() && !plc(predecessor, paths[next[comp] + 1]))
       {
         next[comp]++;
@@ -561,8 +518,87 @@ GCSA::countEdges(std::vector<PathNode>& paths, size_type path_order, size_type s
     }
   }
 
-  std::cout << "Edges: " << total_edges << std::endl;
   return total_edges;
+}
+
+//------------------------------------------------------------------------------
+
+std::vector<node_type>
+fromNodes(size_type path, const std::vector<PathNode>& paths,
+  size_type& additional, const std::vector<range_type>& from_nodes)
+{
+  std::vector<node_type> res;
+  res.push_back(paths[path].from);
+
+  while(additional < from_nodes.size() && from_nodes[additional].first < path) { additional++; }
+  while(additional < from_nodes.size() && from_nodes[additional].first == path)
+  {
+    res.push_back(from_nodes[additional].second); additional++;
+  }
+
+  sequentialSort(res.begin(), res.end());
+  return res;
+}
+
+void
+GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
+{
+  bit_vector new_sampled_nodes(paths.size(), 0);
+  this->sampled_paths = bit_vector(paths.size(), 0);
+  this->samples = bit_vector(paths.size() + from_nodes.size(), 0);
+
+  size_type sample_bits = 0;
+  std::vector<node_type> sample_buffer;
+  ValueIndex<range_type, FirstGetter> from_index(from_nodes);
+  for(size_type i = 0, j = 0; i < paths.size(); i++)
+  {
+    bool sample_this = false;
+    std::vector<node_type> curr = fromNodes(i, paths, j, from_nodes);
+    if(sdsl::bits::lt_cnt[paths[i].predecessors()] > 1) { sample_this = true; }
+    if(paths[i].hasPredecessor(ENDMARKER_COMP)) { sample_this = true; }
+    for(size_type k = 0; k < curr.size(); k++)
+    {
+      if(Node::offset(curr[k]) == 0) { sample_this = true; break; }
+    }
+
+    if(!sample_this)  // Compare to the from nodes at the predecessor.
+    {
+      size_type pred = this->LF(i);
+      size_type temp = from_index.find(pred);
+      std::vector<node_type> prev = fromNodes(pred, paths, temp, from_nodes);
+      if(prev.size() != curr.size()) { sample_this = true; }
+      else
+      {
+        for(size_type k = 0; k < curr.size(); k++)
+        {
+          if(Node::id(curr[k]) != Node::id(prev[k]) || Node::offset(curr[k]) != Node::offset(prev[k]) + 1)
+          {
+            sample_this = true; break;
+          }
+        }
+      }
+    }
+
+    if(sample_this)
+    {
+      this->sampled_paths[i] = 1;
+      for(size_type k = 0; k < curr.size(); k++)
+      {
+        sample_bits = std::max(sample_bits, bit_length(curr[k]));
+        sample_buffer.push_back(curr[k]);
+      }
+      this->samples[sample_buffer.size() - 1] = 1;
+    }
+  }
+  sdsl::util::clear(from_nodes);
+
+  sdsl::util::init_support(this->sampled_path_rank, &(this->sampled_paths));
+  this->samples.resize(sample_buffer.size());
+  sdsl::util::init_support(this->sample_select, &(this->samples));
+
+  this->stored_samples = sdsl::int_vector<0>(sample_buffer.size(), 0, sample_bits);
+  for(size_type i = 0; i < sample_buffer.size(); i++) { this->stored_samples[i] = sample_buffer[i]; }
+  sdsl::util::clear(sample_buffer);
 }
 
 //------------------------------------------------------------------------------
@@ -574,16 +610,16 @@ GCSA::find(const char_type* pattern, size_type length) const
 }
 
 void
-GCSA::locate(size_type node, std::vector<node_type>& results, bool append, bool sort) const
+GCSA::locate(size_type path_node, std::vector<node_type>& results, bool append, bool sort) const
 {
   if(!append) { sdsl::util::clear(results); }
-  if(node >= this->size())
+  if(path_node >= this->size())
   {
     if(sort) { removeDuplicates(results, false); }
     return;
   }
 
-  this->locateInternal(node, results);
+  this->locateInternal(path_node, results);
   if(sort) { removeDuplicates(results, false); }
 }
 
@@ -605,16 +641,16 @@ GCSA::locate(range_type range, std::vector<node_type>& results, bool append, boo
 }
 
 void
-GCSA::locateInternal(size_type node, std::vector<node_type>& results) const
+GCSA::locateInternal(size_type path_node, std::vector<node_type>& results) const
 {
   size_type steps = 0;
-  while(this->sampled_nodes[node] == 0)
+  while(this->sampled_paths[path_node] == 0)
   {
-    node = this->LF(node);
+    path_node = this->LF(path_node);
     steps++;
   }
 
-  range_type sample_range = this->sampleRange(node);
+  range_type sample_range = this->sampleRange(path_node);
   for(size_type i = sample_range.first; i <= sample_range.second; i++)
   {
     results.push_back(this->stored_samples[i] + steps);

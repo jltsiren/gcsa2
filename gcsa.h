@@ -58,7 +58,7 @@ public:
   const static size_type DOUBLING_STEPS = 3;
 
   const static char_type ENDMARKER = '$';
-  const static char_type ENDMARKER_COMP = 0;
+  const static comp_type ENDMARKER_COMP = 0;
   const static char_type SOURCE_MARKER = '#';
 
 //------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ public:
 //------------------------------------------------------------------------------
 
   /*
-    The high-level interface deals with node ranges and actual character values.
+    The high-level interface deals with path ranges and actual character values.
     locate() stores the node identifiers in the given vector in sorted order.
     If append is true, the results are appended to the existing vector.
     If sort is true, the results are sorted and the duplicates are removed.
@@ -100,11 +100,13 @@ public:
     }
 
     --end;
-    range_type range = this->nodeRange(gcsa::charRange(this->alpha, this->alpha.char2comp[*end]));
+    range_type range = this->pathNodeRange(gcsa::charRange(this->alpha, this->alpha.char2comp[*end]));
+std::cout << "range for " << *end << " (" << (size_type)(this->alpha.char2comp[*end]) << "): " << range << std::endl;
     while(!Range::empty(range) && end != begin)
     {
       --end;
       range = this->LF(range, this->alpha.char2comp[*end]);
+std::cout << "  range for " << *end << " (" << (size_type)(this->alpha.char2comp[*end]) << "): " << range << std::endl;
     }
 
     return range;
@@ -118,48 +120,50 @@ public:
 
   range_type find(const char_type* pattern, size_type length) const;
 
-  void locate(size_type node, std::vector<node_type>& results, bool append = false, bool sort = true) const;
+  void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;
   void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;
 
 //------------------------------------------------------------------------------
 
   /*
-    The low-level interface deals with nodes, node ranges, and contiguous character values.
+    The low-level interface deals with paths, path ranges, and contiguous character values.
   */
 
-  inline size_type size() const { return this->node_count; }
+  inline size_type size() const { return this->path_node_count; }
   inline size_type edge_count() const { return this->bwt.size(); }
   inline size_type order() const { return this->max_query_length; }
 
   inline bool has_samples() const { return (this->stored_samples.size() > 0); }
+  inline size_type sample_count() const { return this->stored_samples.size(); }
+  inline size_type sample_bits() const { return this->stored_samples.width(); }
 
-  inline range_type charRange(char_type comp) const
+  inline range_type charRange(comp_type comp) const
   {
-    return this->nodeRange(gcsa::charRange(this->alpha, comp));
+    return this->pathNodeRange(gcsa::charRange(this->alpha, comp));
   }
 
-  inline size_type LF(size_type node, char_type comp) const
+  inline size_type LF(size_type path_node, comp_type comp) const
   {
-    node = this->startPos(node);
-    node = gcsa::LF(this->bwt, this->alpha, node, comp);
-    return this->edge_rank(node);
+    path_node = this->startPos(path_node);
+    path_node = gcsa::LF(this->bwt, this->alpha, path_node, comp);
+    return this->edge_rank(path_node);
   }
 
-  inline range_type LF(range_type range, char_type comp) const
+  inline range_type LF(range_type range, comp_type comp) const
   {
     range = this->bwtRange(range);
     range = gcsa::LF(this->bwt, this->alpha, range, comp);
     if(Range::empty(range)) { return range; }
-    return this->nodeRange(range);
+    return this->pathNodeRange(range);
   }
 
   // Follow the first edge backwards.
-  inline size_type LF(size_type node) const
+  inline size_type LF(size_type path_node) const
   {
-    node = this->startPos(node);
-    auto temp = this->bwt.inverse_select(node);
-    node = this->alpha.C[temp.second] + temp.first;
-    return this->edge_rank(node);
+    path_node = this->startPos(path_node);
+    auto temp = this->bwt.inverse_select(path_node);
+    path_node = this->alpha.C[temp.second] + temp.first;
+    return this->edge_rank(path_node);
   }
 
 //------------------------------------------------------------------------------
@@ -170,27 +174,27 @@ public:
     is reasonable, we can just use (node, offset) = (id / max_length, id % max_length).
   */
 
-  size_type                 node_count;
+  size_type                 path_node_count;
   size_type                 max_query_length;
 
   bwt_type                  bwt;
   Alphabet                  alpha;
 
-  // The last BWT position in each node is marked with an 1-bit.
-  bit_vector                nodes;
-  bit_vector::rank_1_type   node_rank;
-  bit_vector::select_1_type node_select;
+  // The last BWT position in each path is marked with an 1-bit.
+  bit_vector                path_nodes;
+  bit_vector::rank_1_type   path_rank;
+  bit_vector::select_1_type path_select;
 
-  // The last outgoing edge from each node is marked with an 1-bit.
+  // The last outgoing edge from each path is marked with an 1-bit.
   bit_vector                edges;
   bit_vector::rank_1_type   edge_rank;
   bit_vector::select_1_type edge_select;
 
-  // Nodes containing samples are marked with an 1-bit.
-  bit_vector                sampled_nodes;
-  bit_vector::rank_1_type   sampled_node_rank;
+  // Paths containing samples are marked with an 1-bit.
+  bit_vector                sampled_paths;
+  bit_vector::rank_1_type   sampled_path_rank;
 
-  // The last sample belonging to the same node is marked with an 1-bit.
+  // The last sample belonging to the same path is marked with an 1-bit.
   sdsl::int_vector<0>       stored_samples;
   bit_vector                samples;
   bit_vector::select_1_type sample_select;
@@ -208,19 +212,11 @@ private:
   size_type prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length);
 
   /*
-    Merge paths having the same label and build the samples. Sets node_count and all
-    structures related to samples.
-
-    We sample a path node, if it a) has multiple predecessors; b) is the source node;
-    or c) has offset 0 for at least one from node.
-
-    FIXME Later: An alternate sampling scheme for graphs where nodes are not (id, offset)
-    pairs. We sample a path node, if it a) has multiple predecessors; b) is the source
-    node; or c) its node value is anything other than the value of the predecessor + 1
-    (for one or more nodes). We may also add samples, if the distance to the next sample
-    is too large.
+    Merges path nodes having the same label. Writes the additional from nodes to the given
+    vector as pairs (path rank, node). Sets node_count.
   */
-  void sample(std::vector<PathNode>& paths, size_type path_order);
+  void mergeByLabel(std::vector<PathNode>& paths, size_type path_order,
+    std::vector<range_type>& from_nodes);
 
   /*
     Store the number of outgoing edges in the to fields of each node.
@@ -228,7 +224,20 @@ private:
   size_type countEdges(std::vector<PathNode>& paths, size_type path_order, size_type sigma,
     const GCSA& mapper, const sdsl::int_vector<0>& last_char);
 
-  void locateInternal(size_type node, std::vector<node_type>& results) const;
+  /*
+    Builds the structures related to samples. Clears from_nodes.
+
+    We sample a path node, if it a) has multiple predecessors; b) is the source node;
+    c) has offset 0 for at least one from node; or d) the set of node ids is different
+    from the predecessor, or the offset is anything other than the offset in the
+    predecessor (for the same id) +1.
+
+    FIXME Later: An alternate sampling scheme for graphs where nodes are not (id, offset)
+    pairs.
+  */
+  void sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes);
+
+  void locateInternal(size_type path, std::vector<node_type>& results) const;
 
 //------------------------------------------------------------------------------
 
@@ -252,7 +261,7 @@ private:
   {
     sdsl::int_vector<64> counts(_alpha.sigma, 0);
     sdsl::int_vector<8> buffer(total_edges, 0);
-    this->nodes = bit_vector(total_edges, 0);
+    this->path_nodes = bit_vector(total_edges, 0);
     this->edges = bit_vector(total_edges, 0);
     for(size_type i = 0, bwt_pos = 0, edge_pos = 0; i < nodes.size(); i++)
     {
@@ -265,51 +274,51 @@ private:
           counts[j]++;
         }
       }
-      this->nodes[bwt_pos - 1] = 1;
+      this->path_nodes[bwt_pos - 1] = 1;
       edge_pos += Getter::outdegree(nodes[i]);
       this->edges[edge_pos - 1] = 1;
     }
     directConstruct(this->bwt, buffer);
     this->alpha = Alphabet(counts, _alpha.char2comp, _alpha.comp2char);
 
-    sdsl::util::init_support(this->node_rank, &(this->nodes));
-    sdsl::util::init_support(this->node_select, &(this->nodes));
+    sdsl::util::init_support(this->path_rank, &(this->path_nodes));
+    sdsl::util::init_support(this->path_select, &(this->path_nodes));
     sdsl::util::init_support(this->edge_rank, &(this->edges));
     sdsl::util::init_support(this->edge_select, &(this->edges));
   }
 
 //------------------------------------------------------------------------------
 
-  inline size_type startPos(size_type node) const
+  inline size_type startPos(size_type path_node) const
   {
-    return (node > 0 ? this->node_select(node) + 1 : 0);
+    return (path_node > 0 ? this->path_select(path_node) + 1 : 0);
   }
 
-  inline size_type endPos(size_type node) const
+  inline size_type endPos(size_type path_node) const
   {
-    return this->node_select(node + 1);
+    return this->path_select(path_node + 1);
   }
 
-  inline range_type bwtRange(range_type node_range) const
+  inline range_type bwtRange(range_type path_node_range) const
   {
-    node_range.first = this->startPos(node_range.first);
-    node_range.second = this->endPos(node_range.second);
-    return node_range;
+    path_node_range.first = this->startPos(path_node_range.first);
+    path_node_range.second = this->endPos(path_node_range.second);
+    return path_node_range;
   }
 
-  inline range_type nodeRange(range_type incoming_range) const
+  inline range_type pathNodeRange(range_type incoming_range) const
   {
     incoming_range.first = this->edge_rank(incoming_range.first);
     incoming_range.second = this->edge_rank(incoming_range.second);
     return incoming_range;
   }
 
-  inline range_type sampleRange(size_type node) const
+  inline range_type sampleRange(size_type path_node) const
   {
-    node = this->sampled_node_rank(node);
+    path_node = this->sampled_path_rank(path_node);
     range_type sample_range;
-    sample_range.first = (node > 0 ? this->sample_select(node) + 1 : 0);
-    sample_range.second = this->sample_select(node + 1);
+    sample_range.first = (path_node > 0 ? this->sample_select(path_node) + 1 : 0);
+    sample_range.second = this->sample_select(path_node + 1);
     return sample_range;
   }
 };  // class GCSA

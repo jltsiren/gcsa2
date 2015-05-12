@@ -137,12 +137,12 @@ struct Key
     return value;
   }
 
-  static std::string decode(const Alphabet& alpha, key_type key, size_type kmer_length);
+  static std::string decode(key_type key, size_type kmer_length, const Alphabet& alpha);
 
   inline static size_type kmer(key_type key) { return (key >> 16); }
   inline static byte_type predecessors(key_type key) { return (key >> 8) & 0xFF; }
   inline static byte_type successors(key_type key) { return key & 0xFF; }
-  inline static char_type last(key_type key) { return (key >> 16) & CHAR_MASK; }
+  inline static comp_type last(key_type key) { return (key >> 16) & CHAR_MASK; }
 
   inline static key_type merge(key_type key1, key_type key2) { return (key1 | (key2 & 0xFFFF)); }
   inline static key_type replace(key_type key, size_type kmer_val)
@@ -157,8 +157,8 @@ typedef std::uint64_t node_type;
 
 struct Node
 {
-  const static size_type OFFSET_BITS = 6;
-  const static size_type OFFSET_MASK = 63;
+  const static size_type OFFSET_BITS = 8;
+  const static size_type OFFSET_MASK = 0xFF;
 
   inline static node_type encode(size_type node_id, size_type node_offset)
   {
@@ -257,14 +257,14 @@ struct PathNode
     this->fields |= another.predecessors();
   }
 
-  inline bool hasPredecessor(char_type comp) const
+  inline bool hasPredecessor(comp_type comp) const
   {
     return (this->fields & (1 << comp));
   }
 
   inline size_type outdegree() const { return this->to; }
 
-  PathNode(const KMer& kmer);
+  explicit PathNode(const KMer& kmer);
   PathNode(const PathNode& left, const PathNode& right);
   explicit PathNode(std::ifstream& in);
 
