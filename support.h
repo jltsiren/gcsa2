@@ -233,7 +233,7 @@ struct PathNode
 
   node_type from, to;
   rank_type label[LABEL_LENGTH];
-  size_type fields; // Lowest 8 bits for predecessors, next 8 bits for order.
+  size_type fields; // Lowest 8 bits for predecessors, next 8 bits for order, 48 bits for multilabel.
 
   inline bool sorted() const { return (this->from == this->to); }
   inline void makeSorted() { this->to = this->from; }
@@ -243,6 +243,14 @@ struct PathNode
   {
     this->fields &= ~(size_type)0xFF00;
     this->fields |= ((size_type)new_order) << 8;
+  }
+
+  inline bool multiLabel() const { return ((this->fields >> 16) > 0); }
+  inline size_type lastLabel() const { return (this->fields >> 16) - 1; }
+  inline void setLastLabel(size_type ptr)
+  {
+    this->fields &= 0xFFFF;
+    this->fields |= (ptr + 1) << 16;
   }
 
   inline byte_type predecessors() const { return (this->fields & 0xFF); }
@@ -305,6 +313,8 @@ struct PathFromComparator
     return (a.from < b.from);
   }
 };
+
+std::ostream& operator<< (std::ostream& stream, const PathNode& pn);
 
 //------------------------------------------------------------------------------
 

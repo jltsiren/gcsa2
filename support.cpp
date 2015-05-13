@@ -241,6 +241,21 @@ operator<< (std::ostream& out, const KMer& kmer)
 }
 
 void
+nextRange(const std::vector<KMer>& kmers, range_type& range, bool& same_from)
+{
+  if(Range::empty(range)) { range = range_type(0, 0); }
+  else { range = range_type(range.second + 1, range.second + 1); }
+  same_from = true;
+
+  while(range.second + 1 < kmers.size() &&
+    Key::kmer(kmers[range.second + 1].key == Key::kmer(kmers[range.first].key)))
+  {
+    range.second++;
+    if(kmers[range.second].from != kmers[range.first].from) { same_from = false; }
+  }
+}
+
+void
 uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_char, bool print)
 {
   if(kmers.empty()) { return; }
@@ -258,9 +273,11 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
   }
 
   // Pass 2: Create the merged key array and the last character array for edge generation.
+  // Replace the kmer values with ranks in the key array.
   keys = std::vector<key_type>(total_keys, 0);
   last_char = sdsl::int_vector<0>(total_keys, 0, Key::CHAR_WIDTH);
   keys[0] = kmers[0].key; last_char[0] = Key::last(kmers[0].key);
+  kmers[0].key = Key::replace(kmers[0].key, 0);
   for(size_type kmer = 1, key = 0; kmer < kmers.size(); kmer++)
   {
     if(Key::kmer(kmers[kmer].key) == Key::kmer(keys[key]))
@@ -271,21 +288,34 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
     {
       key++; keys[key] = kmers[kmer].key; last_char[key] = Key::last(kmers[kmer].key);
     }
-  }
-
-  // Pass 3: Replace kmer values with ranks in the key array and mark kmers with unique keys sorted.
-  size_type key_start = 0;  // The first kmer for the current key value.
-  for(size_type kmer = 0, key = 0; kmer < kmers.size(); kmer++)
-  {
-    if(keys[key] < kmers[kmer])
-    {
-      if(kmer == key_start + 1) { kmers[key_start].makeSorted(); }
-      key_start = kmer;
-      key++;
-    }
     kmers[kmer].key = Key::replace(kmers[kmer].key, key);
   }
-  if(key_start == kmers.size() - 1) { kmers[key_start].makeSorted(); }
+
+  // Pass 3: Mark unique kmers sorted.
+  size_type tail = 0;
+  bool same_from = true;
+  range_type range(1, 0); nextRange(kmers, range, same_from);
+  while(range.second < kmers.size())
+  {
+    if(same_from)
+    {
+      kmers[tail] = kmers[range.first]; kmers[tail].makeSorted();
+      for(size_type i = range.first + 1; i <= range.second; i++)
+      {
+        kmers[tail].key = Key::merge(kmers[tail].key, kmers[i].key);
+      }
+      tail++;
+    }
+    else
+    {
+      for(size_type i = range.first; i <= range.second; i++)
+      {
+        kmers[tail] = kmers[i]; tail++;
+      }
+    }
+    nextRange(kmers, range, same_from);
+  }
+  kmers.resize(tail);
 }
 
 //------------------------------------------------------------------------------
@@ -293,6 +323,7 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
 PathNode::PathNode(const KMer& kmer)
 {
   this->from = kmer.from; this->to = kmer.to;
+  this->fields = 0;
   this->label[0] = Key::kmer(kmer.key);
   for(size_type i = 1; i < LABEL_LENGTH; i++) { label[i] = 0; }
   this->setPredecessors(Key::predecessors(kmer.key));
@@ -301,8 +332,8 @@ PathNode::PathNode(const KMer& kmer)
 
 PathNode::PathNode(const PathNode& left, const PathNode& right)
 {
-  this->from = left.from;
-  this->to = (right.sorted() ? this->from : right.to);
+  this->from = left.from; this->to = right.to;
+  this->fields = 0;
 
   size_type left_order = left.order();
   size_type new_order = left_order + right.order();
@@ -312,6 +343,7 @@ PathNode::PathNode(const PathNode& left, const PathNode& right)
 
   this->setPredecessors(left.predecessors());
   this->setOrder(new_order);
+  if(right.sorted()) { this->makeSorted(); }
 }
 
 PathNode::PathNode(std::ifstream& in)
@@ -334,6 +366,9 @@ PathNode::serialize(std::ostream& out) const
 
 PathNode::PathNode()
 {
+  this->from = 0; this->to = 0;
+  this->fields = 0;
+  for(size_type i = 0; i < LABEL_LENGTH; i++) { this->label[i] = 0; }
 }
 
 PathNode::PathNode(const PathNode& source)
@@ -390,6 +425,20 @@ PathNode::operator= (PathNode&& source)
     this-> fields = std::move(source.fields);
   }
   return *this;
+}
+
+std::ostream&
+operator<< (std::ostream& stream, const PathNode& pn)
+{
+  stream << "(" << Node::decode(pn.from) << " -> " << Node::decode(pn.to);
+  size_type order = pn.order();
+  for(size_type i = 0; i < order; i++)
+  {
+    stream << (i == 0 ? "; " : ", ") << pn.label[i];
+  }
+  stream << ")";
+
+  return stream;
 }
 
 //------------------------------------------------------------------------------

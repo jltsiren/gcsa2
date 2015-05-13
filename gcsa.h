@@ -101,12 +101,10 @@ public:
 
     --end;
     range_type range = this->pathNodeRange(gcsa::charRange(this->alpha, this->alpha.char2comp[*end]));
-std::cout << "range for " << *end << " (" << (size_type)(this->alpha.char2comp[*end]) << "): " << range << std::endl;
     while(!Range::empty(range) && end != begin)
     {
       --end;
       range = this->LF(range, this->alpha.char2comp[*end]);
-std::cout << "  range for " << *end << " (" << (size_type)(this->alpha.char2comp[*end]) << "): " << range << std::endl;
     }
 
     return range;
@@ -206,22 +204,27 @@ private:
   void setVectors();
 
   /*
-    Increase path length to 2^DOUBLING_STEPS times the original and set max_query_length.
-    Return the actual path length multiplier.
+    Increases path length to up to 2^DOUBLING_STEPS times the original and returns
+    the actual path length multiplier. Sets max_query_length.
+
+    Vector last_labels will contain the lexicographically largest labels of merged
+    nodes.
   */
-  size_type prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length);
+  size_type prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length,
+    std::vector<PathNode>& last_labels);
 
   /*
     Merges path nodes having the same label. Writes the additional from nodes to the given
-    vector as pairs (path rank, node). Sets node_count.
+    vector as pairs (path rank, node). Sets path_node_count.
   */
-  void mergeByLabel(std::vector<PathNode>& paths, size_type path_order,
-    std::vector<range_type>& from_nodes);
+  void mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vector<range_type>& from_nodes,
+    std::vector<PathNode>& last_labels);
 
   /*
     Store the number of outgoing edges in the to fields of each node.
   */
-  size_type countEdges(std::vector<PathNode>& paths, size_type path_order, size_type sigma,
+  size_type countEdges(std::vector<PathNode>& paths, size_type path_order,
+    std::vector<PathNode>& last_labels,
     const GCSA& mapper, const sdsl::int_vector<0>& last_char);
 
   /*
@@ -265,7 +268,7 @@ private:
     this->edges = bit_vector(total_edges, 0);
     for(size_type i = 0, bwt_pos = 0, edge_pos = 0; i < nodes.size(); i++)
     {
-      byte_type pred = Getter::predecessors(nodes[i]);
+      size_type pred = Getter::predecessors(nodes[i]);
       for(size_type j = 0; j < _alpha.sigma; j++)
       {
         if(pred & (((size_type)1) << j))
