@@ -248,7 +248,7 @@ nextRange(const std::vector<KMer>& kmers, range_type& range, bool& same_from)
   same_from = true;
 
   while(range.second + 1 < kmers.size() &&
-    Key::kmer(kmers[range.second + 1].key == Key::kmer(kmers[range.first].key)))
+    Key::kmer(kmers[range.second + 1].key) == Key::kmer(kmers[range.first].key))
   {
     range.second++;
     if(kmers[range.second].from != kmers[range.first].from) { same_from = false; }
@@ -326,8 +326,10 @@ PathNode::PathNode(const KMer& kmer)
   this->fields = 0;
   this->label[0] = Key::kmer(kmer.key);
   for(size_type i = 1; i < LABEL_LENGTH; i++) { label[i] = 0; }
+
   this->setPredecessors(Key::predecessors(kmer.key));
   this->setOrder(1);
+  if(kmer.sorted()) { this->makeSorted(); }
 }
 
 PathNode::PathNode(const PathNode& left, const PathNode& right)

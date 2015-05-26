@@ -223,6 +223,9 @@ void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int
   from == to, the path will not be extended, because it already has a unique label.
   rank_type is the integer type used to store ranks of the original kmers.
   During edge generation, to will be used to store the number of outgoing edges.
+
+  FIXME Later: If the graph is cyclic, from == to may denote an actual path. Encode
+  the sorted information somewhere else.
 */
 
 struct PathNode
@@ -270,7 +273,14 @@ struct PathNode
     return (this->fields & (1 << comp));
   }
 
-  inline size_type outdegree() const { return this->to; }
+  /*
+    We reuse the to field for indegree (upper 32 bits) and outdegree (lower 32 bits).
+  */
+  inline void initDegree() { this->to = 0; }
+  inline void incrementOutdegree() { this->to++; }
+  inline size_type outdegree() const { return (this->to & 0xFFFFFFFF); }
+  inline void incrementIndegree() { this->to += ((size_type)1) << 32; }
+  inline size_type indegree() const { return (this->to >> 32); }
 
   explicit PathNode(const KMer& kmer);
   PathNode(const PathNode& left, const PathNode& right);

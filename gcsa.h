@@ -100,7 +100,7 @@ public:
     }
 
     --end;
-    range_type range = this->pathNodeRange(gcsa::charRange(this->alpha, this->alpha.char2comp[*end]));
+    range_type range = this->charRange(this->alpha.char2comp[*end]);
     while(!Range::empty(range) && end != begin)
     {
       --end;
@@ -217,15 +217,16 @@ private:
     Merges path nodes having the same label. Writes the additional from nodes to the given
     vector as pairs (path rank, node). Sets path_node_count.
   */
-  void mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vector<range_type>& from_nodes,
-    std::vector<PathNode>& last_labels);
+  void mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vector<range_type>& from_nodes);
 
   /*
-    Store the number of outgoing edges in the to fields of each node.
+    Store the number of outgoing edges in the to fields of each node. Then build the GCSA,
+    apart from the fields related to samples. Clears last_labels, mapper, and last_char.
   */
-  size_type countEdges(std::vector<PathNode>& paths, size_type path_order,
-    std::vector<PathNode>& last_labels,
-    const GCSA& mapper, const sdsl::int_vector<0>& last_char);
+  void build(std::vector<PathNode>& paths, size_type path_order,
+    std::vector<PathNode>& last_labels, GCSA& mapper, sdsl::int_vector<0>& last_char);
+
+  void initSupport();
 
   /*
     Builds the structures related to samples. Clears from_nodes.
@@ -241,54 +242,6 @@ private:
   void sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes);
 
   void locateInternal(size_type path, std::vector<node_type>& results) const;
-
-//------------------------------------------------------------------------------
-
-  struct KeyGetter
-  {
-    inline static size_type predecessors(key_type key) { return Key::predecessors(key); }
-    inline static size_type outdegree(key_type key)
-    {
-      return sdsl::bits::lt_cnt[Key::successors(key)];
-    }
-  };
-
-  struct PathNodeGetter
-  {
-    inline static size_type predecessors(const PathNode& path) { return path.predecessors(); }
-    inline static size_type outdegree(const PathNode& path) { return path.outdegree(); }
-  };
-
-  template<class NodeType, class Getter>
-  void build(const std::vector<NodeType>& nodes, const Alphabet& _alpha, size_type total_edges)
-  {
-    sdsl::int_vector<64> counts(_alpha.sigma, 0);
-    sdsl::int_vector<8> buffer(total_edges, 0);
-    this->path_nodes = bit_vector(total_edges, 0);
-    this->edges = bit_vector(total_edges, 0);
-    for(size_type i = 0, bwt_pos = 0, edge_pos = 0; i < nodes.size(); i++)
-    {
-      size_type pred = Getter::predecessors(nodes[i]);
-      for(size_type j = 0; j < _alpha.sigma; j++)
-      {
-        if(pred & (((size_type)1) << j))
-        {
-          buffer[bwt_pos] = j; bwt_pos++;
-          counts[j]++;
-        }
-      }
-      this->path_nodes[bwt_pos - 1] = 1;
-      edge_pos += Getter::outdegree(nodes[i]);
-      this->edges[edge_pos - 1] = 1;
-    }
-    directConstruct(this->bwt, buffer);
-    this->alpha = Alphabet(counts, _alpha.char2comp, _alpha.comp2char);
-
-    sdsl::util::init_support(this->path_rank, &(this->path_nodes));
-    sdsl::util::init_support(this->path_select, &(this->path_nodes));
-    sdsl::util::init_support(this->edge_rank, &(this->edges));
-    sdsl::util::init_support(this->edge_select, &(this->edges));
-  }
 
 //------------------------------------------------------------------------------
 

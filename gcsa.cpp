@@ -224,7 +224,29 @@ GCSA::GCSA(const std::vector<key_type>& keys, size_type kmer_length, const Alpha
   size_type total_edges = 0;
   for(size_type i = 0; i < keys.size(); i++) { total_edges += sdsl::bits::lt_cnt[Key::predecessors(keys[i])]; }
 
-  this->build<key_type, KeyGetter>(keys, _alpha, total_edges);
+  sdsl::int_vector<64> counts(_alpha.sigma, 0);
+  sdsl::int_vector<8> buffer(total_edges, 0);
+  this->path_nodes = bit_vector(total_edges, 0);
+  this->edges = bit_vector(total_edges, 0);
+  for(size_type i = 0, bwt_pos = 0, edge_pos = 0; i < keys.size(); i++)
+  {
+    size_type pred = Key::predecessors(keys[i]);
+    for(size_type j = 0; j < _alpha.sigma; j++)
+    {
+      if(pred & (((size_type)1) << j))
+      {
+        buffer[bwt_pos] = j; bwt_pos++;
+        counts[j]++;
+      }
+    }
+    this->path_nodes[bwt_pos - 1] = 1;
+    edge_pos += sdsl::bits::lt_cnt[Key::successors(keys[i])];
+    this->edges[edge_pos - 1] = 1;
+  }
+  directConstruct(this->bwt, buffer);
+  this->alpha = Alphabet(counts, _alpha.char2comp, _alpha.comp2char);
+
+  this->initSupport();
 }
 
 GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alpha)
@@ -248,11 +270,8 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alp
   std::vector<PathNode> last_labels;
   size_type path_order = this->prefixDoubling(paths, kmer_length, last_labels);
   std::vector<range_type> from_nodes;
-  this->mergeByLabel(paths, path_order, from_nodes, last_labels);
-  size_type total_edges = this->countEdges(paths, path_order, last_labels, mapper, last_char);
-  sdsl::util::clear(last_labels);
-  sdsl::util::clear(mapper); sdsl::util::clear(last_char);
-  this->build<PathNode, PathNodeGetter>(paths, _alpha, total_edges);
+  this->mergeByLabel(paths, path_order, from_nodes);
+  this->build(paths, path_order, last_labels, mapper, last_char);
 
   this->sample(paths, from_nodes);
   sdsl::util::clear(from_nodes);
@@ -418,19 +437,11 @@ mergePaths(std::vector<PathNode>& paths, size_type path_order, std::vector<PathN
     if(range.first >= paths.size()) { break; }
     if(same_from)
     {
-if(paths[range.first].from == 58910 * 256 + 38)
-{
-  std::cout << "At " << range << std::endl;
-}
       paths[tail] = paths[range.first];
       paths[tail].makeSorted();
       PathNode last = paths[range.second];
       for(size_type i = range.first; i <= range.second; i++)
       {
-if(paths[range.first].from == 58910 * 256 + 38)
-{
-  std::cout << "  found " << paths[i] << std::endl;
-}
         if(paths[i].multiLabel() && plc(last, last_labels[paths[i].lastLabel()]))
         {
           last = last_labels[paths[i].lastLabel()];
@@ -441,14 +452,6 @@ if(paths[range.first].from == 58910 * 256 + 38)
         new_last.push_back(last);
         paths[tail].setLastLabel(new_last.size() - 1);
       }
-if(paths[range.first].from == 58910 * 256 + 38)
-{
-  std::cout << "  produced " << paths[tail] << " at " << tail << std::endl;
-  if(paths[tail].multiLabel())
-  {
-    std::cout << "  last label " << new_last[paths[tail].lastLabel()] << std::endl;
-  }
-}
       tail++; unique++;
     }
     else
@@ -461,7 +464,6 @@ if(paths[range.first].from == 58910 * 256 + 38)
         {
           new_last.push_back(last_labels[paths[tail].lastLabel()]);
           paths[tail].setLastLabel(new_last.size() - 1);
-std::cout << "This should not happen." << std::endl;
         }
         tail++;
       }
@@ -500,85 +502,86 @@ GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, std::v
 //------------------------------------------------------------------------------
 
 void
-GCSA::mergeByLabel(std::vector<PathNode>& paths, size_type path_order,
-  std::vector<range_type>& from_nodes, std::vector<PathNode>& last_labels)
+GCSA::mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vector<range_type>& from_nodes)
 {
   this->path_node_count = 0;
-  size_type old_path_count = paths.size(), old_multilabel = last_labels.size();
+  size_type old_path_count = paths.size();
 
   range_type range(1, 0);
   PathLabelComparator plc(path_order);
-  std::vector<PathNode> new_last;
   while(true)
   {
     nextRange(range, paths, plc);
     if(range.first >= paths.size()) { break; }
-if(paths[range.first].label[0] == 84464)
-{
-  std::cout << "Found " << paths[range.first] << " at " << range << std::endl;
-}
     paths[this->path_node_count] = paths[range.first];
-    PathNode last =
-      (paths[range.first].multiLabel() ? last_labels[paths[range.first].lastLabel()] : paths[range.first]);
     for(size_type i = range.first + 1; i <= range.second; i++)
     {
       paths[this->path_node_count].addPredecessors(paths[i]);
       from_nodes.push_back(range_type(this->path_node_count, paths[i].from));
-      if(paths[i].multiLabel() && plc(last, last_labels[paths[i].lastLabel()]))
-      {
-        last = last_labels[paths[i].lastLabel()];
-      }
     }
-    if(plc(paths[this->path_node_count], last))
-    {
-      new_last.push_back(last);
-      paths[this->path_node_count].setLastLabel(new_last.size() - 1);
-    }
-if(paths[range.first].label[0] == 84464)
-{
-  std::cout << "  produced " << paths[this->path_node_count] << " at " << this->path_node_count << std::endl;
-  if(paths[this->path_node_count].multiLabel())
-  {
-    std::cout << "  last label " << new_last[paths[this->path_node_count].lastLabel()] << std::endl;
-  }
-}
     this->path_node_count++;
   }
 
-  paths.resize(this->path_node_count); last_labels.swap(new_last);
+  paths.resize(this->path_node_count);
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "GCSA::mergeByLabel(): " << old_path_count << " -> " << paths.size() << " paths ("
-            << old_multilabel << " -> " << last_labels.size() << " multilabel)" << std::endl;
+  std::cerr << "GCSA::mergeByLabel(): " << old_path_count << " -> " << paths.size() << " paths" << std::endl;
 #endif
-
-for(size_type i = 0, next = 0; i < paths.size(); i++)
-{
-  if(paths[i].label[0] != next)
-  {
-    std::cout << "Node " << i << ": " << paths[i] << ": expected " << next << std::endl;
-  }
-  next = paths[i].label[0] + 1;
-  if(paths[i].multiLabel()) { next = last_labels[paths[i].lastLabel()].label[0] + 1; }
-}
 }
 
 //------------------------------------------------------------------------------
 
+inline PathNode
+predecessor(const PathNode& curr, comp_type comp, const GCSA& mapper, const sdsl::int_vector<0>& last_char)
+{
+  PathNode pred;
+  pred.label[0] = mapper.LF(curr.label[0], comp);
+  size_type order = curr.order();
+  for(size_type i = 1; i < order; i++)
+  {
+    pred.label[i] = mapper.LF(curr.label[i], last_char[curr.label[i - 1]]);
+  }
+  pred.setOrder(order);
+  return pred;
+}
+
+inline void
+padLower(PathNode& pred, size_type path_order, const GCSA& mapper, size_type last_char)
+{
+  size_type order = pred.order();
+  if(order >= path_order) { return; }
+  pred.label[order] = mapper.edge_rank(mapper.alpha.C[last_char]);
+  for(size_type i = order + 1; i < PathNode::LABEL_LENGTH; i++) { pred.label[i] = 0; }
+}
+
+inline void
+padUpper(PathNode& source, size_type path_order)
+{
+  for(size_type i = source.order(); i < path_order; i++) { source.label[i] = ~(PathNode::rank_type)0; }
+}
+
+inline void
+padUpper(PathNode& pred, size_type path_order, const GCSA& mapper, size_type last_char)
+{
+  size_type order = pred.order();
+  if(order >= path_order) { return; }
+  pred.label[order] = mapper.edge_rank(mapper.alpha.C[last_char + 1] - 1);
+  for(size_type i = order + 1; i < PathNode::LABEL_LENGTH; i++)
+  {
+    pred.label[i] = ~(PathNode::rank_type)0;
+  }
+}
+
 /*
-  Path node labels are padded with 0s. They are interpreted as lower bounds of path labels starting
-  from the path node. Predecessor labels are padded with ~0s and interpreted as upper bounds of the
-  path labels starting with the given edge. The predecessor found using mapper.LF() matches
-  the last path node with path_node.label <= predecessor.label. If a merged node originally had
-  multiple labels, the LF() is based on the lexicographically largest of them.
+  Path nodes correspond to lexicographic ranges of path labels. The predecessor found using
+  mapper.LF() matches all path nodes with ranges intersecting the predecessor range.
 
   FIXME Later: parallelize
 */
-size_type
-GCSA::countEdges(std::vector<PathNode>& paths, size_type path_order,
-  std::vector<PathNode>& last_labels,
-  const GCSA& mapper, const sdsl::int_vector<0>& last_char)
+void
+GCSA::build(std::vector<PathNode>& paths, size_type path_order,
+  std::vector<PathNode>& last_labels, GCSA& mapper, sdsl::int_vector<0>& last_char)
 {
-  for(size_type i = 0; i < paths.size(); i++) { paths[i].to = 0; }
+  for(size_type i = 0; i < paths.size(); i++) { paths[i].initDegree(); }
   PathLabelComparator plc(path_order);
 
   // Pointers to the next path nodes with labels starting with the given comp value.
@@ -592,61 +595,95 @@ GCSA::countEdges(std::vector<PathNode>& paths, size_type path_order,
   }
 
   size_type total_edges = 0;
+  sdsl::int_vector<64> counts(mapper.alpha.sigma, 0);
+  sdsl::int_vector<8> bwt_buffer(paths.size() + paths.size() / 2, 0);
+  this->path_nodes = bit_vector(bwt_buffer.size(), 0);
   for(size_type i = 0; i < paths.size(); i++)
   {
-if(i >= 314891 && i <= 314895)
-{
-  std::cout << "At " << i << std::endl;
-  std::cout << "  Path " << paths[i] << std::endl;
-  if(paths[i].multiLabel()) { std::cout << "  Last label " << last_labels[paths[i].lastLabel()] << std::endl; }
-  std::cout << "  LF(" << paths[i].label[0] << ", 1) = " << mapper.LF(paths[i].label[0], 1) << std::endl;
-}
-    size_type order = paths[i].order();
+    size_type lc_low = last_char[paths[i].label[paths[i].order() - 1]];
+    size_type lc_high = lc_low;
+    if(paths[i].multiLabel())
+    {
+      PathNode& temp = last_labels[paths[i].lastLabel()];
+      lc_high = last_char[temp.label[temp.order() - 1]];
+    }
+
     for(size_type comp = 0; comp < sigma; comp++)
     {
       if(!(paths[i].hasPredecessor(comp))) { continue; }
-      PathNode predecessor; predecessor.setOrder(path_order);
-      PathNode& curr = (paths[i].multiLabel() ? last_labels[paths[i].lastLabel()] : paths[i]);
-      predecessor.label[0] = mapper.LF(curr.label[0], comp);
-      for(size_type j = 1; j < order; j++)
-      {
-        predecessor.label[j] = mapper.LF(curr.label[j], last_char[curr.label[j - 1]]);
-      }
-      if(order < path_order)
-      {
-        predecessor.label[order] = mapper.alpha.C[comp + 1] - 1;
-        for(size_type j = order + 1; j < PathNode::LABEL_LENGTH; j++)
-        {
-          predecessor.label[j] = ~(PathNode::rank_type)0;
-        }
-      }
 
-      // next[comp] should point to the last path node with path_node.label <= predecessor.label.
-      while(next[comp] + 1 < paths.size() && !plc(predecessor, paths[next[comp] + 1]))
+      // Find the range for the predecessor on comp.
+      PathNode pred_lower = predecessor(paths[i], comp, mapper, last_char);
+      padLower(pred_lower, path_order, mapper, lc_low);
+      PathNode pred_upper = (paths[i].multiLabel() ?
+        predecessor(last_labels[paths[i].lastLabel()], comp, mapper, last_char) : pred_lower);
+      padUpper(pred_upper, path_order, mapper, lc_high);
+      pred_lower.setOrder(pred_lower.order() + 1);  // The first value of padding is now relevant.
+      pred_upper.setOrder(pred_upper.order() + 1);
+
+      // Find the first source path node with range intersecting the predecessor.
+      PathNode source_upper = (paths[next[comp]].multiLabel() ?
+        last_labels[paths[next[comp]].lastLabel()] : paths[next[comp]]);
+      padUpper(source_upper, path_order);
+      while(plc(source_upper, pred_lower))
       {
         next[comp]++;
+        source_upper = (paths[next[comp]].multiLabel() ?
+          last_labels[paths[next[comp]].lastLabel()] : paths[next[comp]]);
+        padUpper(source_upper, path_order);
       }
-      paths[next[comp]].to++; total_edges++;
+      paths[i].incrementIndegree(); paths[next[comp]].incrementOutdegree(); total_edges++;
+      if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + paths.size() / 2); }
+      bwt_buffer[total_edges - 1] = comp; counts[comp]++;
 
-if(predecessor.label[0] >= 84463 && predecessor.label[0] <= 84465)
-{
-  std::cout << "  Predecessor(" << comp << ") = " << predecessor << std::endl;
-  std::cout << "  Maps to " << paths[next[comp]] << " at " << next[comp] << std::endl;
-  if(next[comp] > 0) { std::cout << "    previous " << paths[next[comp] - 1] << std::endl; }
-  if(next[comp] + 1 < paths.size()) { std::cout << "    next " << paths[next[comp] + 1] << std::endl; }
-}
+      // Create additional edges if the next path node also intersects the range.
+      while(next[comp] + 1 < paths.size() && !plc(pred_upper, paths[next[comp] + 1]))
+      {
+        next[comp]++;
+        paths[i].incrementIndegree(); paths[next[comp]].incrementOutdegree(); total_edges++;
+        if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + paths.size() / 2); }
+        bwt_buffer[total_edges - 1] = comp; counts[comp]++;
+      }
     }
+
+    if(total_edges > this->path_nodes.size()) { this->path_nodes.resize(bwt_buffer.size()); }
+    this->path_nodes[total_edges - 1] = 1;
   }
 
+  // Init alpha and bwt; clear unnecessary structures.
+  this->alpha = Alphabet(counts, mapper.alpha.char2comp, mapper.alpha.comp2char);
+  sdsl::util::clear(last_labels); sdsl::util::clear(mapper); sdsl::util::clear(last_char);
+  bwt_buffer.resize(total_edges); this->path_nodes.resize(total_edges);
+  directConstruct(this->bwt, bwt_buffer); sdsl::util::clear(bwt_buffer);
+
+  // Init edges and rank/select support.
+  this->edges = bit_vector(total_edges, 0); total_edges = 0;
+  for(size_type i = 0; i < paths.size(); i++)
+  {
+    total_edges += paths[i].outdegree();
+    this->edges[total_edges - 1] = 1;
+  }
+  this->initSupport();
+
+/* This is a useful test when something goes wrong.
 for(size_type i = 0; i < paths.size(); i++)
 {
   if(paths[i].outdegree() == 0)
   {
-    std::cerr << "Path " << i << " " << paths[i] << " has outdegree 0" << std::endl;
+    std::cout << "Path " << i << ": " << paths[i] << " has outdegree 0" << std::endl;
   }
+}*/
 }
 
-  return total_edges;
+//------------------------------------------------------------------------------
+
+void
+GCSA::initSupport()
+{
+  sdsl::util::init_support(this->path_rank, &(this->path_nodes));
+  sdsl::util::init_support(this->path_select, &(this->path_nodes));
+  sdsl::util::init_support(this->edge_rank, &(this->edges));
+  sdsl::util::init_support(this->edge_select, &(this->edges));
 }
 
 //------------------------------------------------------------------------------
@@ -671,7 +708,6 @@ fromNodes(size_type path, const std::vector<PathNode>& paths,
 void
 GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
 {
-  bit_vector new_sampled_nodes(paths.size(), 0);
   this->sampled_paths = bit_vector(paths.size(), 0);
   this->samples = bit_vector(paths.size() + from_nodes.size(), 0);
 
@@ -682,7 +718,7 @@ GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
   {
     bool sample_this = false;
     std::vector<node_type> curr = fromNodes(i, paths, j, from_nodes);
-    if(sdsl::bits::lt_cnt[paths[i].predecessors()] > 1) { sample_this = true; }
+    if(paths[i].indegree() > 1) { sample_this = true; }
     if(paths[i].hasPredecessor(ENDMARKER_COMP)) { sample_this = true; }
     for(size_type k = 0; k < curr.size(); k++)
     {

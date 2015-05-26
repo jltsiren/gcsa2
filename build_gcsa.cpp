@@ -305,7 +305,7 @@ verifyMapper(const GCSA& mapper, const std::vector<key_type>& keys, size_type km
 
 //------------------------------------------------------------------------------
 
-void
+std::ostream&
 printOccs(const std::vector<node_type>& occs, std::ostream& out)
 {
   out << "{";
@@ -314,6 +314,7 @@ printOccs(const std::vector<node_type>& occs, std::ostream& out)
     out << (i == 0 ? " " : ", ") << Node::decode(occs[i]);
   }
   out << " }";
+  return out;
 }
 
 void
@@ -358,9 +359,9 @@ verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
     {
       std::cerr << "build_gcsa: verifyIndex(): locate(" << kmer << ") failed" << std::endl;
       std::cerr << "build_gcsa: verifyIndex(): Expected ";
-      printOccs(expected, std::cerr); std::cerr << std::endl;
+      printOccs(expected, std::cerr) << std::endl;
       std::cerr << "build_gcsa: verifyIndex(): Got ";
-      printOccs(occs, std::cerr); std::cerr << std::endl;
+      printOccs(occs, std::cerr) << std::endl;
       ok = false; break;
     }
 
