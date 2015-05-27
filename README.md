@@ -1,16 +1,45 @@
 # GCSA2
 
-This is going to be a reimplementation of the Generalized Compressed Suffix Array (GCSA). [The old implementation](http://jltsiren.kapsi.fi/gcsa) is based on the [RLCSA library](http://jltsiren.kapsi.fi/rlcsa), which is quite slow by today's standards, and not too pleasant to work with. The new implementation will use the [Succinct Data Structures Library 2.0](https://github.com/simongog/sdsl-lite).
+This is a reimplementation of the Generalized Compressed Suffix Array (GCSA), a BWT-based index for directed graphs. The implementation is based on the [Succinct Data Structures Library 2.0](https://github.com/simongog/sdsl-lite) (SDSL). To compile, set `SDSL_DIR` in the Makefile to point to your SDSL directory. As the implementation uses C++11, OpenMP, and libstdc++ parallel mode, you need g++ 4.7 or newer to compile.
 
-GCSA construction often requires heuristics to avoid combinatorial explosions. When working with graphs arising from human genetic variation, this usually happens at doubling step 8, when the length of the paths increases from 128 to 256. The necessity for (input-specific?) heuristics makes GCSA less useful than it could be.
+[The old implementation](http://jltsiren.kapsi.fi/gcsa) is still available. This new implementation should be faster. Note that while the original GCSA was a full index, this implementation stops the prefix-doubling algorithm after three steps, when path length is at most 128. This should be enough to avoid the combinatorial explosion occurring in many graphs representing genetic variation, without resorting to heuristics.
 
-Bowe et al. used a related structure to index de Bruijn graphs in small space. GCSA can be easily adapted to the task. By indexing all *k*-mers of a graph, we can still support path queries of length up to k, while index construction will be much easier. A naive de Bruijn graph of the *k*-mers in a variant graph would be too large for interesting values of *k*. Fortunately the experience from full GCSA construction suggests that merging redundant subgraphs will keep the size of the graph under control for *k* up to 128.
+The input to index construction is a set of paths of length up to *k* in the original graph. The prefix-doubling algorithm transforms the input into an equivalent of order-*8k* de Bruijn graph for the paths of the input graph. As such, the index supports path queries of length up to *8k*. As each doubling step is followed by a pruning step that merges lexicographically adjacent paths starting from the same node, the resulting graph should be smaller than a de Bruijn graph.
+
+At the moment, GCSA2 is being developed as a plugin to Erik Garrison's [variant graph tools](https://github.com/ekg/vg). The only implemented construction option is based on extracting *k*-mers from vg. Later, GCSA2 should become a more general graph indexing library.
 
 ## Data model
 
-The input to GCSA2 is a directed graph. Each node of the input graph is a pair *(id,c)*, where integer *id* is the unique identifier of the node and character *c* is the label of the node. Depending on the construction options, the identifiers can be provided explicitly or inferred from the position of the node in the input. For best results, nodes on unary paths should have successive identifiers. A source is a node with indegree 0, while a sink is a node with outdegree 0. The graph must either have no sources and no sinks, or exactly one source and one sink. If a sink is present, its label must be unique, and the `Alphabet` object must map the label into value 0.
+The input to GCSA2 is a directed graph. Each **node** of the input graph is a pair *(id,c)*, where integer *id* is the unique identifier of the node and character *c* is the label of the node. For best results, nodes on unary paths should have successive identifiers. At the moment, GCSA2 assumes that the input is a directed acyclic graph. Cyclic graphs will be supported later. The graph must have exactly one **source** node with indegree 0, and exactly one **sink** node with outdegree 0. The sink node must have a unique label that the `Alphabet` object maps into value 0.
 
-The internal graph representation uses paths of length up to *k* in the input graph as its nodes. Path nodes are identified by their ranks in lexicographic order. All paths having the same label are represented by the same path node. A path node matches pattern *P* (of length up to *k*), if either *P* is a prefix of its label, or the corresponding path in the input graph can be extended to match the pattern. (The construction guarantees that all paths represented by the same path node have the same extensions of length up to *k*.) Query `find(P)` returns the lexicographic range of path nodes matching pattern *P*. Query `locate(i)` returns the identifiers of the input nodes at the beginning of the paths represented by the path node with lexicographic rank *i*.
+The nodes of the final transformed graph are called **path nodes**, as they correspond to sets of **paths** in the original graph. Path nodes are identified by their ranks in lexicographic order. All paths having the same label are represented by the same path node. A path node matches **pattern** *P*, if either *P* is a prefix of its label, or the corresponding path in the input graph can be extended to match the pattern. (The construction guarantees that all paths represented by the same path node have the same extensions up to the maximum query length.)
+
+## Interface
+
+Query `find(P)` returns the lexicographic range of path nodes matching pattern *P*. The pattern can be a pair of random-access iterators (e.g. those returned by `pattern.begin()` and `pattern.end()`), a container with random-access iterators (e.g. `std::string`, `std::vector`, or `sdsl::int_vector`), or a character pointer with string length.
+
+Query `locate(i, results)` returns the identifiers of the input nodes at the beginning of the paths represented by the path node with lexicographic rank *i*. Query `locate(range_type(sp,ep), results)` does the same for lexicographic range *[sp,ep]*.
+
+The construction interface, the low-level interface and the graph navigation operations are still subject to change.
+
+## Version history
+
+### 0.1 (2015-05-27)
+
+* The first release.
+* Index construction from paths extracted from vg.
+* `find()` and `locate()` queries.
+
+## Todo
+
+* Support for cyclic graphs.
+* Support for larger alphabets.
+* Multi-threaded construction.
+* More space-efficient construction.
+* Support for inputs other than vg paths.
+* Low-level interface.
+* Graph navigation operations.
+* A paper describing the new algorithmic ideas.
 
 ## References
 
