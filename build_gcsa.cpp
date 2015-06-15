@@ -31,8 +31,14 @@ using namespace gcsa;
 
 //------------------------------------------------------------------------------
 
+/*
+  These options are for debugging purposes. They should all be commented out in
+  actual use.
+*/
+
 //#define VERIFY_GRAPH
 //#define VERIFY_MAPPER
+//#define LOAD_INDEX
 //#define VERIFY_INDEX
 
 size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print = false);
@@ -82,21 +88,29 @@ main(int argc, char** argv)
   }
 #endif
 
-  std::vector<KMer> kmers;
-  size_type kmer_length = readKMers(base_name, kmers);
-  GCSA index(kmers, kmer_length);
+  GCSA index;
+#ifdef LOAD_INDEX
+  sdsl::load_from_file(index, base_name + GCSA::EXTENSION);
+#else
+  {
+    std::vector<KMer> kmers;
+    size_type kmer_length = readKMers(base_name, kmers);
+    GCSA temp(kmers, kmer_length); index.swap(temp);
+    sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
+  }
+#endif
   printHeader("Paths"); std::cout << index.size() << std::endl;
   printHeader("Edges"); std::cout << index.edge_count() << std::endl;
   printHeader("Samples");
   std::cout << index.sample_count() << " (" << index.sample_bits() << " bits each)" << std::endl;
   printHeader("Max query"); std::cout << index.order() << std::endl;
-  printHeader("Index size"); std::cout << sdsl::size_in_bytes(index) << " bytes" << std::endl;
+  printHeader("Index size"); std::cout << inMegabytes(sdsl::size_in_bytes(index)) << " MB" << std::endl;
   std::cout << std::endl;
-  sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
 
 #ifdef VERIFY_INDEX
   {
-    readKMers(base_name, kmers);
+    std::vector<KMer> kmers;
+    size_type kmer_length = readKMers(base_name, kmers);
     verifyIndex(index, kmers, kmer_length);
   }
 #endif
@@ -347,12 +361,23 @@ verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
     index.locate(range, occs);
 
     bool failed = false;
-    if(occs.size() != expected.size()) { failed = true; }
+    if(occs.size() != expected.size())
+    {
+      std::cerr << "build_gcsa: verifyIndex(): Expected " << expected.size()
+                << " occurrences, got " << occs.size() << std::endl;
+      failed = true;
+    }
     else
     {
       for(size_type j = 0; j < occs.size(); j++)
       {
-        if(occs[j] != expected[j]) { failed = true; break; }
+        if(occs[j] != expected[j])
+        {
+          std::cerr << "build_gcsa: verifyIndex(): Failure at " << j << ": "
+                    << "expected " << Node::decode(expected[j])
+                    << ", got " << Node::decode(occs[j]) << std::endl;
+          failed = true; break;
+        }
       }
     }
     if(failed)

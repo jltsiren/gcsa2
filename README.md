@@ -36,7 +36,10 @@ The construction interface, the low-level interface and the graph navigation ope
 * Support for larger alphabets.
 * Multi-threaded construction.
 * More space-efficient construction.
+* More space-efficient index representation.
+* Sample compression (if necessary).
 * Support for inputs other than vg paths.
+* Sampling when starting positions are just node ids without offsets.
 * Low-level interface.
 * Graph navigation operations.
 * A paper describing the new algorithmic ideas.

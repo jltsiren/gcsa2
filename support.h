@@ -157,8 +157,8 @@ typedef std::uint64_t node_type;
 
 struct Node
 {
-  const static size_type OFFSET_BITS = 8;
-  const static size_type OFFSET_MASK = 0xFF;
+  const static size_type OFFSET_BITS = 10;
+  const static size_type OFFSET_MASK = 0x3FF;
 
   inline static node_type encode(size_type node_id, size_type node_offset)
   {

@@ -2,7 +2,7 @@ SDSL_DIR=../sdsl-lite
 
 # In OS X, getrusage() returns maximum resident set size in bytes.
 # In Linux, the value is in kilobytes, so this line should be commented out.
-RUSAGE_FLAGS=-DRUSAGE_IN_BYTES
+#RUSAGE_FLAGS=-DRUSAGE_IN_BYTES
 
 # Multithreading with OpenMP and libstdc++ Parallel Mode. Requires g++ 4.7
 # or newer.
