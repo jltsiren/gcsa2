@@ -339,7 +339,7 @@ struct ValueIndex
 
 /*
   Join paths by left.to == right.from.
-  FIXME Later: Predict the size of the next generation or write it to disk.
+  FIXME Later: Write the next generation to disk.
   FIXME Later: parallelize
 */
 void
@@ -350,7 +350,29 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode>& last_labels)
   size_type old_path_count = paths.size(), old_multilabel = last_labels.size();
 
   ValueIndex<PathNode, FromGetter> from_index(paths);
-  std::vector<PathNode> next, new_last;
+  size_type new_path_count = 0, new_multilabel = 0;
+  for(size_type i = 0; i < paths.size(); i++)
+  {
+    if(paths[i].sorted())
+    {
+      new_path_count++;
+      if(paths[i].multiLabel()) { new_multilabel++; }
+      continue;
+    }
+    size_type first = from_index.find(paths[i].to);
+    for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
+    {
+      new_path_count++;
+      if(paths[j].multiLabel()) { new_multilabel++; }
+    }
+  }
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "  joinPaths(): Reserving space for " << new_path_count << " paths, "
+            << new_multilabel << " last labels" << std::endl;
+#endif
+
+  std::vector<PathNode> next; next.reserve(new_path_count);
+  std::vector<PathNode> new_last; new_last.reserve(new_multilabel);
   for(size_type i = 0; i < paths.size(); i++)
   {
     if(paths[i].sorted())

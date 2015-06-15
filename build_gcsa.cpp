@@ -33,7 +33,7 @@ using namespace gcsa;
 
 //#define VERIFY_GRAPH
 //#define VERIFY_MAPPER
-#define VERIFY_INDEX
+//#define VERIFY_INDEX
 
 size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print = false);
 
