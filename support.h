@@ -232,6 +232,7 @@ struct PathNode
 {
   typedef std::uint32_t rank_type;
 
+  // This should be at least 1 << GCSA::DOUBLING_STEPS.
   const static size_type LABEL_LENGTH = 8;
 
   node_type from, to;

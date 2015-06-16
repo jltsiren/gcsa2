@@ -249,9 +249,15 @@ GCSA::GCSA(const std::vector<key_type>& keys, size_type kmer_length, const Alpha
   this->initSupport();
 }
 
-GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alpha)
+GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, size_type doubling_steps, const Alphabet& _alpha)
 {
   if(kmers.size() == 0) { return; }
+  if(doubling_steps > DOUBLING_STEPS)
+  {
+    std::cerr << "GCSA::GCSA(): The number of doubling steps is too high: " << doubling_steps << std::endl;
+    std::cerr << "GCSA::GCSA(): Reverting the number of doubling steps to " << DOUBLING_STEPS << std::endl;
+    doubling_steps = DOUBLING_STEPS;
+  }
 
   // Sort the kmers, build the mapper GCSA for generating the edges.
   std::vector<key_type> keys;
@@ -268,7 +274,7 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alp
 
   // Build the GCSA in PathNodes.
   std::vector<PathNode> last_labels;
-  size_type path_order = this->prefixDoubling(paths, kmer_length, last_labels);
+  size_type path_order = this->prefixDoubling(paths, kmer_length, doubling_steps, last_labels);
   std::vector<range_type> from_nodes;
   this->mergeByLabel(paths, path_order, from_nodes);
   this->build(paths, path_order, last_labels, mapper, last_char);
@@ -502,11 +508,12 @@ mergePaths(std::vector<PathNode>& paths, size_type path_order, std::vector<PathN
 }
 
 size_type
-GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, std::vector<PathNode>& last_labels)
+GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_type doubling_steps,
+  std::vector<PathNode>& last_labels)
 {
   bool fully_sorted = false;
   size_type path_order = 1;
-  for(size_type step = 1; step <= DOUBLING_STEPS; step++)
+  for(size_type step = 1; step <= doubling_steps; step++)
   {
 #ifdef VERBOSE_STATUS_INFO
     std::cerr << "GCSA::prefixDoubling(): Step " << step << " (path length " << (path_order * kmer_length) << " -> "
@@ -516,7 +523,7 @@ GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, std::v
     size_type unsorted = mergePaths(paths, path_order, last_labels);
     if(unsorted == 0) { fully_sorted = true; break; }
   }
-  this->max_query_length = (fully_sorted ? ~(size_type)0 : kmer_length << DOUBLING_STEPS);
+  this->max_query_length = (fully_sorted ? ~(size_type)0 : kmer_length << doubling_steps);
 
   return path_order;
 }

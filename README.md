@@ -32,6 +32,7 @@ The construction interface, the low-level interface and the graph navigation ope
 
 ## Todo
 
+* Make index construction work with less than 2 doubling steps.
 * Support for cyclic graphs.
 * Support for larger alphabets.
 * Multi-threaded construction.

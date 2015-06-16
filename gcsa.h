@@ -71,11 +71,13 @@ public:
 
   /*
     This is the main constructor. We build GCSA from the kmers, doubling the path length
-    three times. The kmer array will be cleared during the construction.
+    the specified number of times (up to DOUBLING_STEPS). The kmer array will be cleared
+    during the construction.
 
     FIXME option to change the number of doubling steps
   */
-  GCSA(std::vector<KMer>& kmers, size_type kmer_length, const Alphabet& _alpha = Alphabet());
+  GCSA(std::vector<KMer>& kmers, size_type kmer_length, size_type doubling_steps = DOUBLING_STEPS,
+    const Alphabet& _alpha = Alphabet());
 
 //------------------------------------------------------------------------------
 
@@ -134,6 +136,7 @@ public:
   inline bool has_samples() const { return (this->stored_samples.size() > 0); }
   inline size_type sample_count() const { return this->stored_samples.size(); }
   inline size_type sample_bits() const { return this->stored_samples.width(); }
+  inline size_type sampled_positions() const { return this->sampled_path_rank(this->sampled_paths.size()); }
 
   inline range_type charRange(comp_type comp) const
   {
@@ -204,13 +207,13 @@ private:
   void setVectors();
 
   /*
-    Increases path length to up to 2^DOUBLING_STEPS times the original and returns
+    Increases path length to up to 2^doubling_steps times the original and returns
     the actual path length multiplier. Sets max_query_length.
 
     Vector last_labels will contain the lexicographically largest labels of merged
     nodes.
   */
-  size_type prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length,
+  size_type prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_type doubling_steps,
     std::vector<PathNode>& last_labels);
 
   /*

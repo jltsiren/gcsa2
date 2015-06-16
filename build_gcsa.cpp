@@ -24,6 +24,7 @@
 
 #include <map>
 #include <string>
+#include <unistd.h>
 
 #include "gcsa.h"
 
@@ -39,7 +40,7 @@ using namespace gcsa;
 //#define VERIFY_GRAPH
 //#define VERIFY_MAPPER
 //#define LOAD_INDEX
-//#define VERIFY_INDEX
+#define VERIFY_INDEX
 
 size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print = false);
 
@@ -52,17 +53,42 @@ void verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_len
 int
 main(int argc, char** argv)
 {
-  if(argc != 2)
+  if(argc < 2)
   {
-    std::cerr << "Usage: build_gcsa base_name" << std::endl;
+    std::cerr << "Usage: build_gcsa [options] base_name" << std::endl;
+    std::cerr << "  -d N  Doubling steps (default and max " << GCSA::DOUBLING_STEPS << ")" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "Warning: Index construction does not work correctly with less than 2 doubling steps!" << std::endl;
     std::cerr << std::endl;
     return 1;
   }
 
+  size_type doubling_steps = GCSA::DOUBLING_STEPS;
+  int c = 0;
+  while((c = getopt(argc, argv, "d:")) != -1)
+  {
+    switch(c)
+    {
+    case 'd':
+      doubling_steps =  std::stoul(optarg);
+      if(doubling_steps > GCSA::DOUBLING_STEPS)
+      {
+        std::cerr << "build_gcsa: Number of doubling steps is too high: " << doubling_steps << std::endl;
+        return 2;
+      }
+      break;
+    case '?':
+      return 3;
+    default:
+      return 4;
+    }
+  }
+  std::string base_name = argv[optind];
+
   std::cout << "GCSA builder" << std::endl;
   std::cout << std::endl;
-  std::string base_name = argv[1];
   std::cout << "Input: " << base_name << std::endl;
+  std::cout << "Doubling steps: " << doubling_steps << std::endl;
   std::cout << std::endl;
 
 #ifdef VERIFY_GRAPH
@@ -95,14 +121,15 @@ main(int argc, char** argv)
   {
     std::vector<KMer> kmers;
     size_type kmer_length = readKMers(base_name, kmers);
-    GCSA temp(kmers, kmer_length); index.swap(temp);
+    GCSA temp(kmers, kmer_length, doubling_steps); index.swap(temp);
     sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
   }
 #endif
   printHeader("Paths"); std::cout << index.size() << std::endl;
   printHeader("Edges"); std::cout << index.edge_count() << std::endl;
   printHeader("Samples");
-  std::cout << index.sample_count() << " (" << index.sample_bits() << " bits each)" << std::endl;
+  std::cout << index.sample_count() << " (at " << index.sampled_positions() << " positions, "
+            << index.sample_bits() << " bits each)" << std::endl;
   printHeader("Max query"); std::cout << index.order() << std::endl;
   printHeader("Index size"); std::cout << inMegabytes(sdsl::size_in_bytes(index)) << " MB" << std::endl;
   std::cout << std::endl;
