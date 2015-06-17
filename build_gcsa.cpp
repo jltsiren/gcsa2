@@ -134,7 +134,12 @@ main(int argc, char** argv)
   std::cout << index.sample_count() << " (at " << index.sampled_positions() << " positions, "
             << index.sample_bits() << " bits each)" << std::endl;
   printHeader("Max query"); std::cout << index.order() << std::endl;
-  printHeader("Index size"); std::cout << inMegabytes(sdsl::size_in_bytes(index)) << " MB" << std::endl;
+
+  size_type index_bytes = sdsl::size_in_bytes(index);
+  size_type sample_bytes = sdsl::size_in_bytes(index.stored_samples);
+  printHeader("Index size"); std::cout << inMegabytes(index_bytes) << " MB" << std::endl;
+  printHeader("Without samples"); std::cout << inMegabytes(index_bytes - sample_bytes) << " MB" << std::endl;
+
   std::cout << std::endl;
 
 #ifdef VERIFY_INDEX
