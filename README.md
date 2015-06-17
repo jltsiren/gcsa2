@@ -8,6 +8,14 @@ The input to index construction is a set of paths of length up to *k* in the ori
 
 At the moment, GCSA2 is being developed as a plugin to Erik Garrison's [variant graph tools](https://github.com/ekg/vg). The only implemented construction option is based on extracting *k*-mers from vg. Later, GCSA2 should become a more general graph indexing library.
 
+## Compilation options
+
+The maximum resident size reported by `getrusage()` is in kilobytes in Linux and in bytes in OS X. By default, the implementation assumes Linux-like behavior. To get the correct memory usage reports in OS X, uncomment the line `RUSAGE_FLAGS=-DRUSAGE_IN_BYTES` in the makefile.
+
+There are some verification/debugging options in `build_gcsa`. To disable them, comment out the line `VERIFY_FLAGS=-DVERIFY_CONSTRUCTION` in the makefile.
+
+Index construction can be set to output some status information to `stderr` by uncommenting the line `OUTPUT_FLAGS=-DVERBOSE_STATUS_INFO` in the makefile.
+
 ## Data model
 
 The input to GCSA2 is a directed graph. Each **node** of the input graph is a pair *(id,c)*, where integer *id* is the unique identifier of the node and character *c* is the label of the node. For best results, nodes on unary paths should have successive identifiers. At the moment, GCSA2 assumes that the input is a directed acyclic graph. Cyclic graphs will be supported later. The graph must have exactly one **source** node with indegree 0, and exactly one **sink** node with outdegree 0. The sink node must have a unique label that the `Alphabet` object maps into value 0.

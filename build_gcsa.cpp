@@ -33,14 +33,17 @@ using namespace gcsa;
 //------------------------------------------------------------------------------
 
 /*
-  These options are for debugging purposes. They should all be commented out in
-  actual use.
+  Various verification options for debugging purposes.
 */
 
+#ifdef VERIFY_CONSTRUCTION
 //#define VERIFY_GRAPH
 //#define VERIFY_MAPPER
 //#define LOAD_INDEX
 #define VERIFY_INDEX
+#endif
+
+//------------------------------------------------------------------------------
 
 size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print = false);
 
