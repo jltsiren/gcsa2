@@ -304,17 +304,15 @@ struct FirstGetter
 template<class ValueType, class Getter>
 struct ValueIndex
 {
-  sdsl::bit_vector                values;     // Marks the values that are present.
-  sdsl::bit_vector::rank_1_type   value_rank;
+  sdsl::sd_vector<>               values;     // Marks the values that are present.
+  sdsl::sd_vector<>::rank_1_type  value_rank;
 
   sdsl::bit_vector                first_occ;  // Marks the first occurrence of each rank.
   sdsl::bit_vector::select_1_type first_select;
 
-  enum Field { field_from, field_label };
-
   ValueIndex(const std::vector<ValueType>& input)
   {
-    this->values = sdsl::bit_vector(Getter::get(input[input.size() - 1]) + 1, 0);
+    std::vector<size_type> buffer;
     this->first_occ = sdsl::bit_vector(input.size(), 0);
 
     size_type prev = ~(size_type)0;
@@ -323,11 +321,15 @@ struct ValueIndex
       size_type curr = Getter::get(input[i]);
       if(curr != prev)
       {
-        this->values[curr] = 1;
+        buffer.push_back(curr);
         this->first_occ[i] = 1;
         prev = curr;
       }
     }
+
+    sdsl::sd_vector<> temp(buffer.begin(), buffer.end());
+    this->values.swap(temp);
+    sdsl::util::clear(buffer);
 
     sdsl::util::init_support(this->value_rank, &(this->values));
     sdsl::util::init_support(this->first_select, &(this->first_occ));
