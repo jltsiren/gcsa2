@@ -188,8 +188,8 @@ struct KMer
     return (Key::kmer(this->key) < Key::kmer(another.key));
   }
 
-  inline bool sorted() const { return (this->from == this->to); }
-  inline void makeSorted() { this->to = this->from; }
+  inline bool sorted() const { return (this->to == ~(node_type)0); }
+  inline void makeSorted() { this->to = ~(node_type)0; }
 
   static byte_type chars(const std::string& token, const Alphabet& alpha);
 };
@@ -239,8 +239,8 @@ struct PathNode
   rank_type label[LABEL_LENGTH];
   size_type fields; // Lowest 8 bits for predecessors, next 8 bits for order, 48 bits for multilabel.
 
-  inline bool sorted() const { return (this->from == this->to); }
-  inline void makeSorted() { this->to = this->from; }
+  inline bool sorted() const { return (this->to == ~(node_type)0); }
+  inline void makeSorted() { this->to = ~(node_type)0; }
 
   inline byte_type order() const { return ((this->fields >> 8) & 0xFF); }
   inline void setOrder(byte_type new_order)

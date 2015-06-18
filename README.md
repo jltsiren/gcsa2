@@ -32,6 +32,11 @@ The construction interface, the low-level interface and the graph navigation ope
 
 ## Version history
 
+### Current version
+
+* More space-efficient construction.
+* Support for cyclic graphs.
+
 ### 0.1 (2015-05-27)
 
 * The first release.
@@ -41,7 +46,6 @@ The construction interface, the low-level interface and the graph navigation ope
 ## Todo
 
 * Make index construction work with less than 2 doubling steps.
-* Support for cyclic graphs.
 * Support for larger alphabets.
 * Multi-threaded construction.
 * More space-efficient construction.
