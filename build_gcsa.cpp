@@ -45,7 +45,10 @@ using namespace gcsa;
 
 //------------------------------------------------------------------------------
 
-size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print = false);
+const std::string BINARY_EXTENSION = ".graph";
+const std::string TEXT_EXTENSION = ".gcsa2";
+
+size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool binary, bool print = false);
 
 bool verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length);
 bool verifyMapper(const GCSA& mapper, const std::vector<key_type>& keys, size_type kmer_length);
@@ -59,7 +62,9 @@ main(int argc, char** argv)
   if(argc < 2)
   {
     std::cerr << "Usage: build_gcsa [options] base_name" << std::endl;
+    std::cerr << "  -b    Read the input in binary format" << std::endl;
     std::cerr << "  -d N  Doubling steps (default and max " << GCSA::DOUBLING_STEPS << ")" << std::endl;
+    std::cerr << "  -t    Read the input in text format (default)" << std::endl;
     std::cerr << std::endl;
     std::cerr << "Warning: Index construction does not work correctly with less than 2 doubling steps!" << std::endl;
     std::cerr << std::endl;
@@ -67,11 +72,13 @@ main(int argc, char** argv)
   }
 
   size_type doubling_steps = GCSA::DOUBLING_STEPS;
-  int c = 0;
-  while((c = getopt(argc, argv, "d:")) != -1)
+  int c = 0; bool binary = false;
+  while((c = getopt(argc, argv, "bd:t")) != -1)
   {
     switch(c)
     {
+    case 'b':
+      binary = true; break;
     case 'd':
       doubling_steps =  std::stoul(optarg);
       if(doubling_steps > GCSA::DOUBLING_STEPS)
@@ -80,6 +87,8 @@ main(int argc, char** argv)
         return 2;
       }
       break;
+    case 't':
+      binary = false; break;
     case '?':
       return 3;
     default:
@@ -90,14 +99,16 @@ main(int argc, char** argv)
 
   std::cout << "GCSA builder" << std::endl;
   std::cout << std::endl;
-  std::cout << "Input: " << base_name << std::endl;
+  std::cout << "Input: " << base_name;
+  if(binary) { std::cout << BINARY_EXTENSION << " (binary format)" << std::endl; }
+  else { std::cout << TEXT_EXTENSION << " (text format)" << std::endl; }
   std::cout << "Doubling steps: " << doubling_steps << std::endl;
   std::cout << std::endl;
 
 #ifdef VERIFY_GRAPH
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(base_name, kmers, true);
+    size_type kmer_length = readKMers(base_name, kmers, binary, true);
     if(!(verifyGraph(kmers, kmer_length))) { return 2; }
   }
 #endif
@@ -108,7 +119,7 @@ main(int argc, char** argv)
     std::vector<KMer> kmers;
     std::vector<key_type> keys;
     sdsl::int_vector<0> last_chars;
-    size_type kmer_length = readKMers(base_name, kmers, true);
+    size_type kmer_length = readKMers(base_name, kmers, binary, true);
     uniqueKeys(kmers, keys, last_chars, true);
     GCSA mapper(keys, kmer_length);
     std::cout << "Nodes: " << mapper.size() << ", edges: " << mapper.edge_count() << std::endl;
@@ -123,7 +134,7 @@ main(int argc, char** argv)
 #else
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(base_name, kmers);
+    size_type kmer_length = readKMers(base_name, kmers, binary);
     GCSA temp(kmers, kmer_length, doubling_steps); index.swap(temp);
     sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
   }
@@ -145,7 +156,7 @@ main(int argc, char** argv)
 #ifdef VERIFY_INDEX
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(base_name, kmers);
+    size_type kmer_length = readKMers(base_name, kmers, binary);
     verifyIndex(index, kmers, kmer_length);
   }
 #endif
@@ -189,13 +200,13 @@ tokenize(const std::string& line, std::vector<std::string>& tokens)
 }
 
 size_type
-readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print)
+readText(const std::string& base_name, std::vector<KMer>& kmers)
 {
-  std::string filename = base_name + ".gcsa2";
+  std::string filename = base_name + TEXT_EXTENSION;
   std::ifstream input(filename.c_str(), std::ios_base::binary);
   if(!input)
   {
-    std::cerr << "build_gcsa: readKMers(): Cannot open input file " << filename << std::endl;
+    std::cerr << "build_gcsa: readText(): Cannot open input file " << filename << std::endl;
     return 0;
   }
 
@@ -212,7 +223,7 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print)
     if(!tokenize(line, tokens)) { continue; }
     if(kmer_length > 0 && tokens[0].length() != kmer_length)
     {
-      std::cerr << "build_gcsa: readKMers(): kmer length changed from " << kmer_length
+      std::cerr << "build_gcsa: readText(): kmer length changed from " << kmer_length
                 << " to " << tokens[0].length() << std::endl;
     }
     kmer_length = tokens[0].length();
@@ -222,7 +233,7 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print)
       KMer kmer(tokens, alpha, successor); kmers.push_back(kmer);
       if(successor == 4)
       {
-        if(Key::kmer(kmer.key) == 0) { sink_node = Node::id(kmer.from); }
+        if(Key::label(kmer.key) == 0) { sink_node = Node::id(kmer.from); }
       }
     }
   }
@@ -238,6 +249,36 @@ readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool print)
     if(Node::id(kmers[i].to) == sink_node) { kmers[i].makeSorted(); }
   }
 
+  return kmer_length;
+}
+
+size_type
+readBinary(const std::string& base_name, std::vector<KMer>& kmers)
+{
+  std::string filename = base_name + TEXT_EXTENSION;
+  std::ifstream input(filename.c_str(), std::ios_base::binary);
+  if(!input)
+  {
+    std::cerr << "build_gcsa: readBinary(): Cannot open input file " << filename << std::endl;
+    return 0;
+  }
+
+  size_type flags = 0;  // Currently unused.
+  size_type kmer_count = 0, kmer_length = 0;
+  sdsl::read_member(flags, input);
+  sdsl::read_member(kmer_count, input);
+  sdsl::read_member(kmer_length, input);
+  kmers.resize(kmer_count);
+  input.read((char*)kmers.data(), kmer_count * sizeof(KMer));
+
+  input.close();
+  return kmer_length;
+}
+
+size_type
+readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool binary, bool print)
+{
+  size_type kmer_length = (binary ? readBinary(base_name, kmers) : readText(base_name, kmers));
   if(print)
   {
     std::cout << "Read " << kmers.size() << " kmers of length " << kmer_length << std::endl;
@@ -376,7 +417,7 @@ verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
   while(i < kmers.size())
   {
     size_type next = i + 1;
-    while(next < kmers.size() && Key::kmer(kmers[next].key) == Key::kmer(kmers[i].key)) { next++; }
+    while(next < kmers.size() && Key::label(kmers[next].key) == Key::label(kmers[i].key)) { next++; }
 
     std::string kmer = Key::decode(kmers[i].key, kmer_length, index.alpha);
     size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.

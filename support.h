@@ -111,7 +111,7 @@ characterCounts(const ByteVector& sequence, const sdsl::int_vector<8>& char2comp
 /*
   This interface is intended for indexing kmers of length 16 or less on an alphabet of size
   8 or less. The kmer is encoded as an 64-bit integer (most significant bit first):
-    - 16x3 bits for the kmer, with high-order characters 0s when necessary
+    - 16x3 bits for the label, with high-order characters 0s when necessary
     - 8 bits for marking which predecessors are present
     - 8 bits for marking which successors are present
 */
@@ -124,13 +124,13 @@ struct Key
   const static size_type CHAR_MASK = 0x7;
   const static size_type MAX_LENGTH = 16;
 
-  inline static key_type encode(const Alphabet& alpha, const std::string& label,
+  inline static key_type encode(const Alphabet& alpha, const std::string& kmer,
     byte_type pred, byte_type succ)
   {
     key_type value = 0;
-    for(size_type i = 0; i < label.length(); i++)
+    for(size_type i = 0; i < kmer.length(); i++)
     {
-      value = (value << CHAR_WIDTH) | alpha.char2comp[label[i]];
+      value = (value << CHAR_WIDTH) | alpha.char2comp[kmer[i]];
     }
     value = (value << 8) | pred;
     value = (value << 8) | succ;
@@ -139,7 +139,7 @@ struct Key
 
   static std::string decode(key_type key, size_type kmer_length, const Alphabet& alpha);
 
-  inline static size_type kmer(key_type key) { return (key >> 16); }
+  inline static size_type label(key_type key) { return (key >> 16); }
   inline static byte_type predecessors(key_type key) { return (key >> 8) & 0xFF; }
   inline static byte_type successors(key_type key) { return key & 0xFF; }
   inline static comp_type last(key_type key) { return (key >> 16) & CHAR_MASK; }
@@ -185,7 +185,7 @@ struct KMer
   inline bool
   operator< (const KMer& another) const
   {
-    return (Key::kmer(this->key) < Key::kmer(another.key));
+    return (Key::label(this->key) < Key::label(another.key));
   }
 
   inline bool sorted() const { return (this->to == ~(node_type)0); }
@@ -199,7 +199,7 @@ std::ostream& operator<< (std::ostream& out, const KMer& kmer);
 inline bool
 operator< (key_type key, const KMer& kmer)
 {
-  return (Key::kmer(key) < Key::kmer(kmer.key));
+  return (Key::label(key) < Key::label(kmer.key));
 }
 
 /*

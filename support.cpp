@@ -161,7 +161,7 @@ Alphabet::load(std::istream& in)
 std::string
 Key::decode(key_type key, size_type kmer_length, const Alphabet& alpha)
 {
-  key = kmer(key);
+  key = label(key);
   kmer_length = std::min(kmer_length, MAX_LENGTH);
 
   std::string res(kmer_length, '\0');
@@ -232,7 +232,7 @@ KMer::chars(const std::string& token, const Alphabet& alpha)
 std::ostream&
 operator<< (std::ostream& out, const KMer& kmer)
 {
-  out << "(key " << Key::kmer(kmer.key)
+  out << "(key " << Key::label(kmer.key)
       << ", in " << (size_type)(Key::predecessors(kmer.key))
       << ", out " << (size_type)(Key::successors(kmer.key))
       << ", from " << Node::decode(kmer.from)
@@ -248,7 +248,7 @@ nextRange(const std::vector<KMer>& kmers, range_type& range, bool& same_from)
   same_from = true;
 
   while(range.second + 1 < kmers.size() &&
-    Key::kmer(kmers[range.second + 1].key) == Key::kmer(kmers[range.first].key))
+    Key::label(kmers[range.second + 1].key) == Key::label(kmers[range.first].key))
   {
     range.second++;
     if(kmers[range.second].from != kmers[range.first].from) { same_from = false; }
@@ -265,7 +265,7 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
   size_type total_keys = 1;
   for(size_type i = 1; i < kmers.size(); i++)
   {
-    if(Key::kmer(kmers[i].key) != Key::kmer(kmers[i - 1].key)) { total_keys++; }
+    if(Key::label(kmers[i].key) != Key::label(kmers[i - 1].key)) { total_keys++; }
   }
   if(print)
   {
@@ -280,7 +280,7 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
   kmers[0].key = Key::replace(kmers[0].key, 0);
   for(size_type kmer = 1, key = 0; kmer < kmers.size(); kmer++)
   {
-    if(Key::kmer(kmers[kmer].key) == Key::kmer(keys[key]))
+    if(Key::label(kmers[kmer].key) == Key::label(keys[key]))
     {
       keys[key] = Key::merge(keys[key], kmers[kmer].key);
     }
@@ -324,7 +324,7 @@ PathNode::PathNode(const KMer& kmer)
 {
   this->from = kmer.from; this->to = kmer.to;
   this->fields = 0;
-  this->label[0] = Key::kmer(kmer.key);
+  this->label[0] = Key::label(kmer.key);
   for(size_type i = 1; i < LABEL_LENGTH; i++) { label[i] = 0; }
 
   this->setPredecessors(Key::predecessors(kmer.key));
