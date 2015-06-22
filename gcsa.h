@@ -118,6 +118,7 @@ public:
     return this->find(pattern.begin(), pattern.end());
   }
 
+  range_type find(const char* pattern, size_type length) const;
   range_type find(const char_type* pattern, size_type length) const;
 
   void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;

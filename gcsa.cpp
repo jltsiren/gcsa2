@@ -426,18 +426,23 @@ nextRange(range_type& range, const std::vector<PathNode>& paths,
   else { range.first = range.second + 1; range.second = range.first; }
   if(range.first >= paths.size()) { return true; }
 
-  bool same_from = true;
+  bool same_from = true, found_range = false;
   size_type rank_start = range.first, next = range.first + 1;
   while(next < paths.size())
   {
-    if(plc(paths[rank_start], paths[next])) // A range ends at next - 1.
+    if(plc(paths[rank_start], paths[next])) // A label range ends at next - 1.
     {
-      range.second = next - 1; rank_start = next;
-      if(!same_from) { return false; }  // Found a range with different from nodes.
+      if(!found_range)  // This was the first label range.
+      {
+        range.second = next - 1;
+        if(!same_from) { return false; }
+      }
+      found_range = true; rank_start = next;
+      if(same_from) { range.second = next - 1; }
     }
     if(paths[next].from != paths[range.first].from)
     {
-      if(rank_start != range.first) { return same_from; } // Already found at least one range.
+      if(found_range) { return same_from; }
       same_from = false;
     }
     next++;
@@ -459,7 +464,7 @@ mergePaths(std::vector<PathNode>& paths, size_type path_order, std::vector<PathN
   size_type old_path_count = paths.size(), old_multilabel = last_labels.size();
 
   std::vector<PathNode> new_last;
-  size_type tail = 0, unique = 0, unsorted = 0;
+  size_type tail = 0, unique = 0, unsorted = 0, nondeterministic = 0;
   range_type range(1, 0);
   while(true)
   {
@@ -469,9 +474,10 @@ mergePaths(std::vector<PathNode>& paths, size_type path_order, std::vector<PathN
     {
       paths[tail] = paths[range.first];
       paths[tail].makeSorted();
-      PathNode last = paths[range.second];
-      for(size_type i = range.first; i <= range.second; i++)
+      PathNode last = (paths[tail].multiLabel() ? last_labels[paths[tail].lastLabel()] : paths[range.second]);
+      for(size_type i = range.first + 1; i <= range.second; i++)
       {
+        paths[tail].mergeWith(paths[i]);
         if(paths[i].multiLabel() && plc(last, last_labels[paths[i].lastLabel()]))
         {
           last = last_labels[paths[i].lastLabel()];
@@ -486,9 +492,14 @@ mergePaths(std::vector<PathNode>& paths, size_type path_order, std::vector<PathN
     }
     else
     {
+      /*
+        The graph is not reverse deterministic. If a suffix of the path is unique, the entire
+        path can be marked sorted, even though its label is non-unique.
+      */
       for(size_type i = range.first; i <= range.second; i++)
       {
-        if(!(paths[i].sorted())) { unsorted++; }
+        if(paths[i].sorted()) { nondeterministic++; }
+        else { unsorted++; }
         paths[tail] = paths[i];
         if(paths[tail].multiLabel())
         {
@@ -504,7 +515,8 @@ mergePaths(std::vector<PathNode>& paths, size_type path_order, std::vector<PathN
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "  mergePaths(): " << old_path_count << " -> " << paths.size() << " paths ("
             << old_multilabel << " -> " << last_labels.size() << " multilabel)" << std::endl;
-  std::cerr << "  mergePaths(): " << unique << " unique paths, " << unsorted << " unsorted paths" << std::endl;
+  std::cerr << "  mergePaths(): " << unique << " unique, " << unsorted << " unsorted, "
+            << nondeterministic << " nondeterministic paths" << std::endl;
 #endif
   return unsorted;
 }
@@ -550,7 +562,7 @@ GCSA::mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vect
     paths[this->path_node_count] = paths[range.first];
     for(size_type i = range.first + 1; i <= range.second; i++)
     {
-      paths[this->path_node_count].addPredecessors(paths[i]);
+      paths[this->path_node_count].mergeWith(paths[i]);
       from_nodes.push_back(range_type(this->path_node_count, paths[i].from));
     }
     this->path_node_count++;
@@ -578,31 +590,41 @@ predecessor(const PathNode& curr, comp_type comp, const GCSA& mapper, const sdsl
   return pred;
 }
 
+/*
+  These pad the label of the path to desired length. If last_char is specified (< sigma),
+  the first value of the padding will be based on that character. Otherwise the stored
+  smallest/largest following character will be used.
+*/
+
 inline void
-padLower(PathNode& pred, size_type path_order, const GCSA& mapper, size_type last_char)
+padLower(PathNode& path, size_type path_order, const GCSA& mapper, size_type last_char)
 {
-  size_type order = pred.order();
-  if(order >= path_order) { return; }
-  pred.label[order] = mapper.edge_rank(mapper.alpha.C[last_char]);
-  for(size_type i = order + 1; i < PathNode::LABEL_LENGTH; i++) { pred.label[i] = 0; }
+  if(last_char >= mapper.alpha.sigma) { last_char = path.smallest(); }
+
+  size_type order = path.order();
+  if(order >= path_order) { path.setSmallest(last_char); return; }
+  else { path.setSmallest(0); }
+  path.label[order] = mapper.edge_rank(mapper.alpha.C[last_char]);
+  for(size_type i = order + 1; i < PathNode::LABEL_LENGTH; i++) { path.label[i] = 0; }
+
+  path.setOrder(path_order);
 }
 
 inline void
-padUpper(PathNode& source, size_type path_order)
+padUpper(PathNode& path, size_type path_order, const GCSA& mapper, size_type last_char)
 {
-  for(size_type i = source.order(); i < path_order; i++) { source.label[i] = ~(PathNode::rank_type)0; }
-}
+  if(last_char >= mapper.alpha.sigma) { last_char = path.largest(); }
 
-inline void
-padUpper(PathNode& pred, size_type path_order, const GCSA& mapper, size_type last_char)
-{
-  size_type order = pred.order();
-  if(order >= path_order) { return; }
-  pred.label[order] = mapper.edge_rank(mapper.alpha.C[last_char + 1] - 1);
+  size_type order = path.order();
+  if(order >= path_order) { path.setLargest(last_char); return; }
+  else { path.setLargest(mapper.alpha.sigma - 1); }
+  path.label[order] = mapper.edge_rank(mapper.alpha.C[last_char + 1]) - 1;
   for(size_type i = order + 1; i < PathNode::LABEL_LENGTH; i++)
   {
-    pred.label[i] = ~(PathNode::rank_type)0;
+    path.label[i] = ~(PathNode::rank_type)0;
   }
+
+  path.setOrder(path_order);
 }
 
 /*
@@ -629,7 +651,7 @@ GCSA::build(std::vector<PathNode>& paths, size_type path_order,
   }
 
   size_type total_edges = 0;
-  sdsl::int_vector<64> counts(mapper.alpha.sigma, 0);
+  sdsl::int_vector<64> counts(sigma, 0);
   sdsl::int_vector<8> bwt_buffer(paths.size() + paths.size() / 2, 0);
   this->path_nodes = bit_vector(bwt_buffer.size(), 0);
   for(size_type i = 0; i < paths.size(); i++)
@@ -646,33 +668,34 @@ GCSA::build(std::vector<PathNode>& paths, size_type path_order,
     {
       if(!(paths[i].hasPredecessor(comp))) { continue; }
 
-      // Find the range for the predecessor on comp.
+      // Find the lexicographic range for the predecessors.
       PathNode pred_lower = predecessor(paths[i], comp, mapper, last_char);
-      padLower(pred_lower, path_order, mapper, lc_low);
       PathNode pred_upper = (paths[i].multiLabel() ?
         predecessor(last_labels[paths[i].lastLabel()], comp, mapper, last_char) : pred_lower);
+      padLower(pred_lower, path_order, mapper, lc_low);
       padUpper(pred_upper, path_order, mapper, lc_high);
-      pred_lower.setOrder(pred_lower.order() + 1);  // The first value of padding is now relevant.
-      pred_upper.setOrder(pred_upper.order() + 1);
 
       // Find the first source path node with range intersecting the predecessor.
-      PathNode source_upper = (paths[next[comp]].multiLabel() ?
+      PathNode source = (paths[next[comp]].multiLabel() ?
         last_labels[paths[next[comp]].lastLabel()] : paths[next[comp]]);
-      padUpper(source_upper, path_order);
-      while(plc(source_upper, pred_lower))
+      padUpper(source, path_order, mapper, sigma);
+      while(!(plc.intersect(pred_lower, source)))
       {
         next[comp]++;
-        source_upper = (paths[next[comp]].multiLabel() ?
+        source = (paths[next[comp]].multiLabel() ?
           last_labels[paths[next[comp]].lastLabel()] : paths[next[comp]]);
-        padUpper(source_upper, path_order);
+        padUpper(source, path_order, mapper, sigma);
       }
       paths[i].incrementIndegree(); paths[next[comp]].incrementOutdegree(); total_edges++;
       if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + paths.size() / 2); }
       bwt_buffer[total_edges - 1] = comp; counts[comp]++;
 
       // Create additional edges if the next path node also intersects the range.
-      while(next[comp] + 1 < paths.size() && !plc(pred_upper, paths[next[comp] + 1]))
+      while(next[comp] + 1 < paths.size())
       {
+        source = paths[next[comp] + 1];
+        padLower(source, path_order, mapper, sigma);
+        if(!(plc.intersect(source, pred_upper))) { break; }
         next[comp]++;
         paths[i].incrementIndegree(); paths[next[comp]].incrementOutdegree(); total_edges++;
         if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + paths.size() / 2); }
@@ -699,14 +722,14 @@ GCSA::build(std::vector<PathNode>& paths, size_type path_order,
   }
   this->initSupport();
 
-/* This is a useful test when something goes wrong.
-for(size_type i = 0; i < paths.size(); i++)
-{
-  if(paths[i].outdegree() == 0)
+  // This is a useful test when something goes wrong.
+/*  for(size_type i = 0; i < paths.size(); i++)
   {
-    std::cout << "Path " << i << ": " << paths[i] << " has outdegree 0" << std::endl;
-  }
-}*/
+    if(paths[i].outdegree() == 0)
+    {
+      std::cout << "Path " << i << ": " << paths[i] << " has outdegree 0" << std::endl;
+    }
+  }*/
 }
 
 //------------------------------------------------------------------------------
@@ -803,6 +826,12 @@ GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
 
 range_type
 GCSA::find(const char_type* pattern, size_type length) const
+{
+  return this->find(pattern, pattern + length);
+}
+
+range_type
+GCSA::find(const char* pattern, size_type length) const
 {
   return this->find(pattern, pattern + length);
 }

@@ -289,6 +289,10 @@ PathNode::PathNode(const KMer& kmer)
   this->setPredecessors(Key::predecessors(kmer.key));
   this->setOrder(1);
   if(kmer.sorted()) { this->makeSorted(); }
+
+  byte_type successors = Key::successors(kmer.key);
+  this->setSmallest(sdsl::bits::lt_lo[successors]);
+  this->setLargest(sdsl::bits::lt_hi[successors]);
 }
 
 PathNode::PathNode(const PathNode& left, const PathNode& right)
@@ -305,6 +309,7 @@ PathNode::PathNode(const PathNode& left, const PathNode& right)
   this->setPredecessors(left.predecessors());
   this->setOrder(new_order);
   if(right.sorted()) { this->makeSorted(); }
+  this->setSmallest(right.smallest()); this->setLargest(right.largest());
 }
 
 PathNode::PathNode(std::ifstream& in)
@@ -388,6 +393,16 @@ PathNode::operator= (PathNode&& source)
   return *this;
 }
 
+void
+PathNode::mergeWith(const PathNode& another)
+{
+  this->fields |= another.predecessors();
+
+  if(!(this->sameLabel(another))) { return; }
+  if(another.smallest() < this->smallest()) { this->setSmallest(another.smallest()); }
+  if(another.largest() > this->largest()) { this->setLargest(another.largest()); }
+}
+
 std::ostream&
 operator<< (std::ostream& stream, const PathNode& pn)
 {
@@ -397,7 +412,7 @@ operator<< (std::ostream& stream, const PathNode& pn)
   {
     stream << (i == 0 ? "; " : ", ") << pn.label[i];
   }
-  stream << ")";
+  stream << " + [" << (size_type)(pn.smallest()) << ", " << (size_type)(pn.largest()) << "])";
 
   return stream;
 }

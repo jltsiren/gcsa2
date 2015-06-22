@@ -135,10 +135,15 @@ main(int argc, char** argv)
   {
     std::vector<KMer> kmers;
     size_type kmer_length = readKMers(base_name, kmers, binary);
+    double start = readTimer();
     GCSA temp(kmers, kmer_length, doubling_steps); index.swap(temp);
+    double seconds = readTimer() - start;
+    std::cout << "Index built in " << seconds << " seconds" << std::endl;
+    std::cout << std::endl;
     sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
   }
 #endif
+
   printHeader("Paths"); std::cout << index.size() << std::endl;
   printHeader("Edges"); std::cout << index.edge_count() << std::endl;
   printHeader("Samples");
@@ -150,7 +155,6 @@ main(int argc, char** argv)
   size_type sample_bytes = sdsl::size_in_bytes(index.stored_samples);
   printHeader("Index size"); std::cout << inMegabytes(index_bytes) << " MB" << std::endl;
   printHeader("Without samples"); std::cout << inMegabytes(index_bytes - sample_bytes) << " MB" << std::endl;
-
   std::cout << std::endl;
 
 #ifdef VERIFY_INDEX

@@ -236,25 +236,20 @@ struct PathNode
 
   node_type from, to;
   rank_type label[LABEL_LENGTH];
-  size_type fields; // Lowest 8 bits for predecessors, next 8 bits for order, 48 bits for multilabel.
+
+  /*
+    From low-order to high-order bits:
+
+    8 bits   which predecessor comp values exist
+    4 bits   length of the label
+    4 bits   the smallest comp value following the label
+    4 bits   the largest comp value following the label
+    44 bits  index of the last label in the array
+  */
+  size_type fields;
 
   inline bool sorted() const { return (this->to == ~(node_type)0); }
   inline void makeSorted() { this->to = ~(node_type)0; }
-
-  inline byte_type order() const { return ((this->fields >> 8) & 0xFF); }
-  inline void setOrder(byte_type new_order)
-  {
-    this->fields &= ~(size_type)0xFF00;
-    this->fields |= ((size_type)new_order) << 8;
-  }
-
-  inline bool multiLabel() const { return ((this->fields >> 16) > 0); }
-  inline size_type lastLabel() const { return (this->fields >> 16) - 1; }
-  inline void setLastLabel(size_type ptr)
-  {
-    this->fields &= 0xFFFF;
-    this->fields |= (ptr + 1) << 16;
-  }
 
   inline byte_type predecessors() const { return (this->fields & 0xFF); }
   inline void setPredecessors(byte_type preds)
@@ -262,16 +257,52 @@ struct PathNode
     this->fields &= ~(size_type)0xFF;
     this->fields |= (size_type)preds;
   }
-
-  inline void addPredecessors(const PathNode& another)
-  {
-    this->fields |= another.predecessors();
-  }
-
   inline bool hasPredecessor(comp_type comp) const
   {
     return (this->fields & (1 << comp));
   }
+
+  inline size_type order() const { return ((this->fields >> 8) & 0xF); }
+  inline void setOrder(size_type new_order)
+  {
+    this->fields &= ~(size_type)0xF00;
+    this->fields |= new_order << 8;
+  }
+
+  inline comp_type smallest() const { return ((this->fields >> 12) & 0xF); }
+  inline void setSmallest(comp_type comp)
+  {
+    this->fields &= ~(size_type)0xF000;
+    this->fields |= ((size_type)comp) << 12;
+  }
+
+  inline comp_type largest() const { return ((this->fields >> 16) & 0xF); }
+  inline void setLargest(comp_type comp)
+  {
+    this->fields &= ~(size_type)0xF0000;
+    this->fields |= ((size_type)comp) << 16;
+  }
+
+  inline bool multiLabel() const { return ((this->fields >> 20) > 0); }
+  inline size_type lastLabel() const { return (this->fields >> 20) - 1; }
+  inline void setLastLabel(size_type ptr)
+  {
+    this->fields &= (size_type)0xFFFFF;
+    this->fields |= (ptr + 1) << 20;
+  }
+
+  inline bool sameLabel(const PathNode& another) const
+  {
+    size_type path_order = this->order();
+    if(another.order() != path_order) { return false; }
+    for(size_type i = 0; i < path_order; i++)
+    {
+      if(this->label[i] != another.label[i]) { return false; }
+    }
+    return true;
+  }
+
+  void mergeWith(const PathNode& another);
 
   /*
     We reuse the to field for indegree (upper 32 bits) and outdegree (lower 32 bits).
@@ -308,11 +339,20 @@ struct PathLabelComparator
 
   inline bool operator() (const PathNode& a, const PathNode& b) const
   {
-    for(size_t i = 0; i < this->max_length; i++)
+    for(size_type i = 0; i < this->max_length; i++)
     {
       if(a.label[i] != b.label[i]) { return (a.label[i] < b.label[i]); }
     }
     return false;
+  }
+
+  inline bool intersect(const PathNode& low, const PathNode& high) const
+  {
+    for(size_type i = 0; i < this->max_length; i++)
+    {
+      if(low.label[i] != high.label[i]) { return (low.label[i] < high.label[i]); }
+    }
+    return (low.smallest() <= high.largest());
   }
 };
 
