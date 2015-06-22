@@ -276,7 +276,7 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, size_type doubling_s
   std::vector<PathNode> last_labels;
   size_type path_order = this->prefixDoubling(paths, kmer_length, doubling_steps, last_labels);
   std::vector<range_type> from_nodes;
-  this->mergeByLabel(paths, path_order, from_nodes);
+  this->mergeByLabel(paths, path_order, last_labels, from_nodes);
   this->build(paths, path_order, last_labels, mapper, last_char);
 
   this->sample(paths, from_nodes);
@@ -412,11 +412,12 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode>& last_labels)
 #endif
 }
 
+//------------------------------------------------------------------------------
+
 /*
   Iterates through ranges of paths with the same label. Empty range means start from
   the beginning, while range.first >= paths.size() means the end. Returns true if
-  the range contains only nodes with the same label. In that case the range may cover
-  multiple adjacent labels.
+  the range contains only nodes with the same from node.
 */
 bool
 nextRange(range_type& range, const std::vector<PathNode>& paths,
@@ -426,25 +427,12 @@ nextRange(range_type& range, const std::vector<PathNode>& paths,
   else { range.first = range.second + 1; range.second = range.first; }
   if(range.first >= paths.size()) { return true; }
 
-  bool same_from = true, found_range = false;
-  size_type rank_start = range.first, next = range.first + 1;
+  bool same_from = true;
+  size_type next = range.first + 1;
   while(next < paths.size())
   {
-    if(plc(paths[rank_start], paths[next])) // A label range ends at next - 1.
-    {
-      if(!found_range)  // This was the first label range.
-      {
-        range.second = next - 1;
-        if(!same_from) { return false; }
-      }
-      found_range = true; rank_start = next;
-      if(same_from) { range.second = next - 1; }
-    }
-    if(paths[next].from != paths[range.first].from)
-    {
-      if(found_range) { return same_from; }
-      same_from = false;
-    }
+    if(plc(paths[range.first], paths[next])) { range.second = next - 1; return same_from; }
+    if(paths[next].from != paths[range.first].from) { same_from = false; }
     next++;
   }
   range.second = paths.size() - 1;
@@ -452,9 +440,44 @@ nextRange(range_type& range, const std::vector<PathNode>& paths,
   return same_from;
 }
 
+void
+mergePathNodes(const std::vector<PathNode>& paths, range_type range, const std::vector<PathNode>& last_labels,
+  PathLabelComparator& plc,
+  PathNode& current, PathNode& last, bool& is_multilabel)
+{
+  is_multilabel = false;
+
+  current = paths[range.first];
+  if(current.multiLabel())
+  {
+    last = last_labels[current.lastLabel()];
+    is_multilabel = true;
+  }
+  current.makeSorted();
+
+  for(size_type i = range.first + 1; i <= range.second; i++)
+  {
+    current.mergeWith(paths[i]);
+    if(paths[i].multiLabel())
+    {
+      const PathNode& temp = last_labels[paths[i].lastLabel()];
+      if(!is_multilabel || plc(last, temp)) { last = temp; }
+      is_multilabel = true;
+    }
+  }
+}
+
 /*
   Merges paths with adjacent labels and the same from node. Marks paths with unique
   labels sorted. Returns (unique_labels, unsorted_paths).
+
+  Note 1: Paths with same 'from' may also be multi-label. This can happen, suffixes of
+  length k are unique and multi-label, suffixes of length 2k are non-deterministic, and
+  paths of length 4k are again unique.
+
+  Note 2: The graph is not reverse deterministic. If a suffix of the path is unique, the
+  entire path can be marked sorted, even though its label is non-unique. If a suffix is
+  multi-label, paths having non-unique labels may also be multi-label.
 */
 size_type
 mergePaths(std::vector<PathNode>& paths, size_type path_order, std::vector<PathNode>& last_labels)
@@ -472,30 +495,32 @@ mergePaths(std::vector<PathNode>& paths, size_type path_order, std::vector<PathN
     if(range.first >= paths.size()) { break; }
     if(same_from)
     {
-      paths[tail] = paths[range.first];
-      paths[tail].makeSorted();
-      PathNode last = (paths[tail].multiLabel() ? last_labels[paths[tail].lastLabel()] : paths[range.second]);
-      for(size_type i = range.first + 1; i <= range.second; i++)
+      PathNode current, last;
+      bool is_multilabel = false;
+      mergePathNodes(paths, range, last_labels, plc, current, last, is_multilabel);
+      range_type last_valid_range = range;
+      while(true)
       {
-        paths[tail].mergeWith(paths[i]);
-        if(paths[i].multiLabel() && plc(last, last_labels[paths[i].lastLabel()]))
-        {
-          last = last_labels[paths[i].lastLabel()];
-        }
+        bool next_same_from = nextRange(range, paths, plc);
+        if(range.first >= paths.size() || !next_same_from || paths[range.first].from != current.from) { break; }
+        PathNode next_last;
+        mergePathNodes(paths, range, last_labels, plc, last, next_last, is_multilabel);
+        current.addPredecessors(last);
+        if(is_multilabel) { last = next_last; }
+        last_valid_range = range;
+        is_multilabel = true;
       }
-      if(plc(paths[tail], last))
+      range = last_valid_range;
+      if(is_multilabel)
       {
+        current.setLastLabel(new_last.size());
         new_last.push_back(last);
-        paths[tail].setLastLabel(new_last.size() - 1);
       }
+      paths[tail] = current;
       tail++; unique++;
     }
     else
     {
-      /*
-        The graph is not reverse deterministic. If a suffix of the path is unique, the entire
-        path can be marked sorted, even though its label is non-unique.
-      */
       for(size_type i = range.first; i <= range.second; i++)
       {
         if(paths[i].sorted()) { nondeterministic++; }
@@ -503,8 +528,8 @@ mergePaths(std::vector<PathNode>& paths, size_type path_order, std::vector<PathN
         paths[tail] = paths[i];
         if(paths[tail].multiLabel())
         {
+          paths[tail].setLastLabel(new_last.size());
           new_last.push_back(last_labels[paths[tail].lastLabel()]);
-          paths[tail].setLastLabel(new_last.size() - 1);
         }
         tail++;
       }
@@ -520,6 +545,8 @@ mergePaths(std::vector<PathNode>& paths, size_type path_order, std::vector<PathN
 #endif
   return unsorted;
 }
+
+//------------------------------------------------------------------------------
 
 size_type
 GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_type doubling_steps,
@@ -548,10 +575,12 @@ GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_t
 //------------------------------------------------------------------------------
 
 void
-GCSA::mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vector<range_type>& from_nodes)
+GCSA::mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vector<PathNode>& last_labels,
+  std::vector<range_type>& from_nodes)
 {
   this->path_node_count = 0;
-  size_type old_path_count = paths.size();
+  size_type old_path_count = paths.size(), old_multilabel = last_labels.size();
+  std::vector<PathNode> new_last;
 
   range_type range(1, 0);
   PathLabelComparator plc(path_order);
@@ -559,18 +588,27 @@ GCSA::mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vect
   {
     nextRange(range, paths, plc);
     if(range.first >= paths.size()) { break; }
-    paths[this->path_node_count] = paths[range.first];
+    PathNode current, last;
+    bool is_multilabel = false;
+    mergePathNodes(paths, range, last_labels, plc, current, last, is_multilabel);
+    if(is_multilabel)
+    {
+      current.setLastLabel(new_last.size());
+      new_last.push_back(last);
+    }
+    paths[this->path_node_count] = current;
     for(size_type i = range.first + 1; i <= range.second; i++)
     {
-      paths[this->path_node_count].mergeWith(paths[i]);
       from_nodes.push_back(range_type(this->path_node_count, paths[i].from));
     }
     this->path_node_count++;
   }
 
-  paths.resize(this->path_node_count);
+  paths.resize(this->path_node_count); last_labels.swap(new_last);
+
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "GCSA::mergeByLabel(): " << old_path_count << " -> " << paths.size() << " paths" << std::endl;
+  std::cerr << "GCSA::mergeByLabel(): " << old_path_count << " -> " << paths.size() << " paths ("
+            << old_multilabel << " -> " << last_labels.size() << " multilabel)" << std::endl;
 #endif
 }
 

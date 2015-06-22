@@ -393,16 +393,6 @@ PathNode::operator= (PathNode&& source)
   return *this;
 }
 
-void
-PathNode::mergeWith(const PathNode& another)
-{
-  this->fields |= another.predecessors();
-
-  if(!(this->sameLabel(another))) { return; }
-  if(another.smallest() < this->smallest()) { this->setSmallest(another.smallest()); }
-  if(another.largest() > this->largest()) { this->setLargest(another.largest()); }
-}
-
 std::ostream&
 operator<< (std::ostream& stream, const PathNode& pn)
 {

@@ -221,7 +221,8 @@ private:
     Merges path nodes having the same label. Writes the additional from nodes to the given
     vector as pairs (path rank, node). Sets path_node_count.
   */
-  void mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vector<range_type>& from_nodes);
+  void mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vector<PathNode>& last_labels,
+    std::vector<range_type>& from_nodes);
 
   /*
     Store the number of outgoing edges in the to fields of each node. Then build the GCSA,

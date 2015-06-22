@@ -261,6 +261,10 @@ struct PathNode
   {
     return (this->fields & (1 << comp));
   }
+  inline void addPredecessors(const PathNode& another)
+  {
+    this->fields |= another.predecessors();
+  }
 
   inline size_type order() const { return ((this->fields >> 8) & 0xF); }
   inline void setOrder(size_type new_order)
@@ -302,7 +306,15 @@ struct PathNode
     return true;
   }
 
-  void mergeWith(const PathNode& another);
+  /*
+    Use only when the nodes have identical labels.
+  */
+  void mergeWith(const PathNode& another)
+  {
+    this->addPredecessors(another);
+    if(another.smallest() < this->smallest()) { this->setSmallest(another.smallest()); }
+    if(another.largest() > this->largest()) { this->setLargest(another.largest()); }
+  }
 
   /*
     We reuse the to field for indegree (upper 32 bits) and outdegree (lower 32 bits).
