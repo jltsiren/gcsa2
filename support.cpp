@@ -283,16 +283,14 @@ PathNode::PathNode(const KMer& kmer)
 {
   this->from = kmer.from; this->to = kmer.to;
   this->fields = 0;
-  this->label[0] = Key::label(kmer.key);
-  for(size_type i = 1; i < LABEL_LENGTH; i++) { label[i] = 0; }
+  this->first_label[0] = Key::label(kmer.key);
+  for(size_type i = 1; i < LABEL_LENGTH; i++) { this->first_label[i] = 0; }
+  this->last_label[0] = Key::label(kmer.key);
+  for(size_type i = 1; i < LABEL_LENGTH; i++) { this->last_label[i] = ~(rank_type)0; }
 
   this->setPredecessors(Key::predecessors(kmer.key));
   this->setOrder(1);
   if(kmer.sorted()) { this->makeSorted(); }
-
-  byte_type successors = Key::successors(kmer.key);
-  this->setSmallest(sdsl::bits::lt_lo[successors]);
-  this->setLargest(sdsl::bits::lt_hi[successors]);
 }
 
 PathNode::PathNode(const PathNode& left, const PathNode& right)
@@ -302,20 +300,23 @@ PathNode::PathNode(const PathNode& left, const PathNode& right)
 
   size_type left_order = left.order();
   size_type new_order = left_order + right.order();
-  for(size_type i = 0; i < left_order; i++) { this->label[i] = left.label[i]; }
-  for(size_type i = left_order; i < new_order; i++) { this->label[i] = right.label[i - left_order]; }
-  for(size_type i = new_order; i < LABEL_LENGTH; i++) { this->label[i] = 0; }
+  for(size_type i = 0; i < left_order; i++) { this->first_label[i] = left.first_label[i]; }
+  for(size_type i = left_order; i < new_order; i++) { this->first_label[i] = right.first_label[i - left_order]; }
+  for(size_type i = new_order; i < LABEL_LENGTH; i++) { this->first_label[i] = 0; }
+  for(size_type i = 0; i < left_order; i++) { this->last_label[i] = left.last_label[i]; }
+  for(size_type i = left_order; i < new_order; i++) { this->last_label[i] = right.last_label[i - left_order]; }
+  for(size_type i = new_order; i < LABEL_LENGTH; i++) { this->last_label[i] = ~(rank_type)0; }
 
   this->setPredecessors(left.predecessors());
   this->setOrder(new_order);
   if(right.sorted()) { this->makeSorted(); }
-  this->setSmallest(right.smallest()); this->setLargest(right.largest());
 }
 
 PathNode::PathNode(std::ifstream& in)
 {
   sdsl::read_member(this->from, in); sdsl::read_member(this->to, in);
-  in.read((char*)(this->label), LABEL_LENGTH * sizeof(rank_type));
+  in.read((char*)(this->first_label), LABEL_LENGTH * sizeof(rank_type));
+  in.read((char*)(this->last_label), LABEL_LENGTH * sizeof(rank_type));
   sdsl::read_member(this->fields, in);
 }
 
@@ -324,8 +325,9 @@ PathNode::serialize(std::ostream& out) const
 {
   size_type bytes = 0;
   bytes += sdsl::write_member(this->from, out); bytes += sdsl::write_member(this->to, out);
-  out.write((char*)(this->label), LABEL_LENGTH * sizeof(rank_type));
-  bytes += LABEL_LENGTH * sizeof(rank_type);
+  out.write((char*)(this->first_label), LABEL_LENGTH * sizeof(rank_type));
+  out.write((char*)(this->last_label), LABEL_LENGTH * sizeof(rank_type));
+  bytes += 2 * LABEL_LENGTH * sizeof(rank_type);
   bytes += sdsl::write_member(this->fields, out);
   return bytes;
 }
@@ -334,7 +336,8 @@ PathNode::PathNode()
 {
   this->from = 0; this->to = 0;
   this->fields = 0;
-  for(size_type i = 0; i < LABEL_LENGTH; i++) { this->label[i] = 0; }
+  for(size_type i = 0; i < LABEL_LENGTH; i++) { this->first_label[i] = 0; }
+  for(size_type i = 0; i < LABEL_LENGTH; i++) { this->last_label[i] = 0; }
 }
 
 PathNode::PathNode(const PathNode& source)
@@ -357,7 +360,8 @@ PathNode::copy(const PathNode& source)
   if(&source != this)
   {
     this->from = source.from; this->to = source.to;
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->label[i] = source.label[i]; }
+    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->first_label[i] = source.first_label[i]; }
+    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->last_label[i] = source.last_label[i]; }
     this->fields = source.fields;
   }
 }
@@ -368,7 +372,8 @@ PathNode::swap(PathNode& another)
   if(&another != this)
   {
     std::swap(this->from, another.from); std::swap(this->to, another.to);
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { std::swap(this->label[i], another.label[i]); }
+    for(size_type i = 0; i < LABEL_LENGTH; i++) { std::swap(this->first_label[i], another.first_label[i]); }
+    for(size_type i = 0; i < LABEL_LENGTH; i++) { std::swap(this->last_label[i], another.last_label[i]); }
     std::swap(this->fields, another.fields);
   }
 }
@@ -387,7 +392,8 @@ PathNode::operator= (PathNode&& source)
   {
     this->from = std::move(source.from);
     this->to = std::move(source.to);
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->label[i] = std::move(source.label[i]); }
+    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->first_label[i] = std::move(source.first_label[i]); }
+    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->last_label[i] = std::move(source.last_label[i]); }
     this-> fields = std::move(source.fields);
   }
   return *this;
@@ -400,9 +406,13 @@ operator<< (std::ostream& stream, const PathNode& pn)
   size_type order = pn.order();
   for(size_type i = 0; i < order; i++)
   {
-    stream << (i == 0 ? "; " : ", ") << pn.label[i];
+    stream << (i == 0 ? "; [" : ", ") << pn.first_label[i];
   }
-  stream << " + [" << (size_type)(pn.smallest()) << ", " << (size_type)(pn.largest()) << "])";
+  for(size_type i = 0; i < order; i++)
+  {
+    stream << (i == 0 ? " to " : ", ") << pn.last_label[i];
+  }
+  stream << "])";
 
   return stream;
 }

@@ -222,9 +222,6 @@ void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int
   from == to, the path will not be extended, because it already has a unique label.
   rank_type is the integer type used to store ranks of the original kmers.
   During edge generation, to will be used to store the number of outgoing edges.
-
-  FIXME Later: If the graph is cyclic, from == to may denote an actual path. Encode
-  the sorted information somewhere else.
 */
 
 struct PathNode
@@ -235,16 +232,16 @@ struct PathNode
   const static size_type LABEL_LENGTH = 8;
 
   node_type from, to;
-  rank_type label[LABEL_LENGTH];
+  rank_type first_label[LABEL_LENGTH];
+  rank_type last_label[LABEL_LENGTH];
 
   /*
     From low-order to high-order bits:
 
     8 bits   which predecessor comp values exist
-    4 bits   length of the label
-    4 bits   the smallest comp value following the label
-    4 bits   the largest comp value following the label
-    44 bits  index of the last label in the array
+    4 bits   length of the labels
+    12 bits  unused
+    40 bits  index of the last label in the array
   */
   size_type fields;
 
@@ -273,47 +270,12 @@ struct PathNode
     this->fields |= new_order << 8;
   }
 
-  inline comp_type smallest() const { return ((this->fields >> 12) & 0xF); }
-  inline void setSmallest(comp_type comp)
-  {
-    this->fields &= ~(size_type)0xF000;
-    this->fields |= ((size_type)comp) << 12;
-  }
-
-  inline comp_type largest() const { return ((this->fields >> 16) & 0xF); }
-  inline void setLargest(comp_type comp)
-  {
-    this->fields &= ~(size_type)0xF0000;
-    this->fields |= ((size_type)comp) << 16;
-  }
-
-  inline bool multiLabel() const { return ((this->fields >> 20) > 0); }
-  inline size_type lastLabel() const { return (this->fields >> 20) - 1; }
+  inline bool multiLabel() const { return ((this->fields >> 24) > 0); }
+  inline size_type lastLabel() const { return (this->fields >> 24) - 1; }
   inline void setLastLabel(size_type ptr)
   {
-    this->fields &= (size_type)0xFFFFF;
-    this->fields |= (ptr + 1) << 20;
-  }
-
-  inline bool sameLabel(const PathNode& another) const
-  {
-    size_type path_order = this->order();
-    if(another.order() != path_order) { return false; }
-    for(size_type i = 0; i < path_order; i++)
-    {
-      if(this->label[i] != another.label[i]) { return false; }
-    }
-    return true;
-  }
-
-  /*
-    Use only when the nodes have identical labels.
-  */
-  void mergeWith(const PathNode& another)
-  {
-    this->addPredecessors(another);
-    if(another.smallest() < this->smallest()) { this->setSmallest(another.smallest()); }
-    if(another.largest() > this->largest()) { this->setLargest(another.largest()); }
+    this->fields &= (size_type)0xFFFFFF;
+    this->fields |= (ptr + 1) << 24;
   }
 
   /*
@@ -343,30 +305,11 @@ struct PathNode
   PathNode& operator= (PathNode&& source);
 };
 
-struct PathLabelComparator
-{
-  size_type max_length;
-
-  PathLabelComparator(size_type len = PathNode::LABEL_LENGTH) : max_length(len) {}
-
-  inline bool operator() (const PathNode& a, const PathNode& b) const
-  {
-    for(size_type i = 0; i < this->max_length; i++)
-    {
-      if(a.label[i] != b.label[i]) { return (a.label[i] < b.label[i]); }
-    }
-    return false;
-  }
-
-  inline bool intersect(const PathNode& low, const PathNode& high) const
-  {
-    for(size_type i = 0; i < this->max_length; i++)
-    {
-      if(low.label[i] != high.label[i]) { return (low.label[i] < high.label[i]); }
-    }
-    return (low.smallest() <= high.largest());
-  }
-};
+/*
+  FIXME: Comparison operator based on first_label. Implement a method for creating a union PathNode
+  [a.first_label, b.last_label]. Implement a method for checking whether two PathNodes intersect.
+  Implement a method for creating the predecessor PathNode for a given first character.
+*/
 
 struct PathFromComparator
 {
