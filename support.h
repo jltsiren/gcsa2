@@ -210,7 +210,6 @@ operator< (key_type key, const KMer& kmer)
      fields merged from the original kmers.
   3. Stores the last character of each unique kmer label in an array.
   4. Replaces the kmer labels in the keys by their ranks.
-  5. Marks the kmers sorted if they have unique labels.
 */
 void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_char,
   bool print = false);

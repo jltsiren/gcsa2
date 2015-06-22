@@ -241,21 +241,6 @@ operator<< (std::ostream& out, const KMer& kmer)
 }
 
 void
-nextRange(const std::vector<KMer>& kmers, range_type& range, bool& same_from)
-{
-  if(Range::empty(range)) { range = range_type(0, 0); }
-  else { range = range_type(range.second + 1, range.second + 1); }
-  same_from = true;
-
-  while(range.second + 1 < kmers.size() &&
-    Key::label(kmers[range.second + 1].key) == Key::label(kmers[range.first].key))
-  {
-    range.second++;
-    if(kmers[range.second].from != kmers[range.first].from) { same_from = false; }
-  }
-}
-
-void
 uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_char, bool print)
 {
   if(kmers.empty()) { return; }
@@ -290,32 +275,6 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
     }
     kmers[kmer].key = Key::replace(kmers[kmer].key, key);
   }
-
-  // Pass 3: Mark unique kmers sorted.
-  size_type tail = 0;
-  bool same_from = true;
-  range_type range(1, 0); nextRange(kmers, range, same_from);
-  while(range.second < kmers.size())
-  {
-    if(same_from)
-    {
-      kmers[tail] = kmers[range.first]; kmers[tail].makeSorted();
-      for(size_type i = range.first + 1; i <= range.second; i++)
-      {
-        kmers[tail].key = Key::merge(kmers[tail].key, kmers[i].key);
-      }
-      tail++;
-    }
-    else
-    {
-      for(size_type i = range.first; i <= range.second; i++)
-      {
-        kmers[tail] = kmers[i]; tail++;
-      }
-    }
-    nextRange(kmers, range, same_from);
-  }
-  kmers.resize(tail);
 }
 
 //------------------------------------------------------------------------------

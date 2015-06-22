@@ -36,6 +36,7 @@ The construction interface, the low-level interface and the graph navigation ope
 
 * More space-efficient construction.
 * Support for cyclic graphs.
+* Binary format for input graphs.
 
 ### 0.1 (2015-05-27)
 

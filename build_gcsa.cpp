@@ -246,7 +246,7 @@ readText(const std::string& base_name, std::vector<KMer>& kmers)
   */
   for(size_type i = 0; i < kmers.size(); i++)
   {
-    if(Node::id(kmers[i].to) == sink_node) { kmers[i].makeSorted(); }
+    if(Node::id(kmers[i].to) == sink_node && Node::offset(kmers[i].to) > 0) { kmers[i].makeSorted(); }
   }
 
   return kmer_length;

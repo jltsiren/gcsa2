@@ -513,19 +513,22 @@ size_type
 GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_type doubling_steps,
   std::vector<PathNode>& last_labels)
 {
-  bool fully_sorted = false;
   size_type path_order = 1;
-  for(size_type step = 1; step <= doubling_steps; step++)
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "GCSA::prefixDoubling(): Initial path length " << kmer_length << std::endl;
+#endif
+  size_type unsorted = mergePaths(paths, path_order, last_labels);
+
+  for(size_type step = 1; step <= doubling_steps && unsorted > 0; step++)
   {
 #ifdef VERBOSE_STATUS_INFO
     std::cerr << "GCSA::prefixDoubling(): Step " << step << " (path length " << (path_order * kmer_length) << " -> "
               << (2 * path_order * kmer_length) << ")" << std::endl;
 #endif
     joinPaths(paths, last_labels); path_order *= 2;
-    size_type unsorted = mergePaths(paths, path_order, last_labels);
-    if(unsorted == 0) { fully_sorted = true; break; }
+    unsorted = mergePaths(paths, path_order, last_labels);
   }
-  this->max_query_length = (fully_sorted ? ~(size_type)0 : kmer_length << doubling_steps);
+  this->max_query_length = (unsorted == 0 ? ~(size_type)0 : kmer_length << doubling_steps);
 
   return path_order;
 }
