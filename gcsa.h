@@ -208,28 +208,22 @@ private:
   void setVectors();
 
   /*
-    Increases path length to up to 2^doubling_steps times the original and returns
-    the actual path length multiplier. Sets max_query_length.
-
-    Vector last_labels will contain the lexicographically largest labels of merged
-    nodes.
+    Increases path length to up to 2^doubling_steps times the original. Sets
+    max_query_length.
   */
-  size_type prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_type doubling_steps,
-    std::vector<PathNode>& last_labels);
+  void prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_type doubling_steps);
 
   /*
-    Merges path nodes having the same label. Writes the additional from nodes to the given
+    Merges path nodes having the same labels. Writes the additional from nodes to the given
     vector as pairs (path rank, node). Sets path_node_count.
   */
-  void mergeByLabel(std::vector<PathNode>& paths, size_type path_order, std::vector<PathNode>& last_labels,
-    std::vector<range_type>& from_nodes);
+  void mergeByLabel(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes);
 
   /*
     Store the number of outgoing edges in the to fields of each node. Then build the GCSA,
     apart from the fields related to samples. Clears last_labels, mapper, and last_char.
   */
-  void build(std::vector<PathNode>& paths, size_type path_order,
-    std::vector<PathNode>& last_labels, GCSA& mapper, sdsl::int_vector<0>& last_char);
+  void build(std::vector<PathNode>& paths, GCSA& mapper, sdsl::int_vector<0>& last_char);
 
   void initSupport();
 

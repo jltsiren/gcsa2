@@ -219,9 +219,13 @@ void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int
 /*
   The node type used during doubling. As in the original GCSA, from and to are nodes
   in the original graph, denoting a path as a semiopen range [from, to). If
-  from == to, the path will not be extended, because it already has a unique label.
+  from == -1, the path will not be extended, because it already has a unique label.
   rank_type is the integer type used to store ranks of the original kmers.
-  During edge generation, to will be used to store the number of outgoing edges.
+  During edge generation, to will be used to store indegree and the outdegree.
+
+  FIXME Later: Store the labels of all PathNodes in a single array. 4+4 bits in the
+  fields tell the actual lengths of the first/last labels, while another 4 bits tell
+  the lcp of the two labels.
 */
 
 struct PathNode
@@ -231,17 +235,20 @@ struct PathNode
   // This should be at least 1 << GCSA::DOUBLING_STEPS.
   const static size_type LABEL_LENGTH = 8;
 
+  const static rank_type LOWER_PADDING = 0;
+  const static rank_type UPPER_PADDING = ~(rank_type)0;
+
   node_type from, to;
   rank_type first_label[LABEL_LENGTH];
   rank_type last_label[LABEL_LENGTH];
+
 
   /*
     From low-order to high-order bits:
 
     8 bits   which predecessor comp values exist
     4 bits   length of the labels
-    12 bits  unused
-    40 bits  index of the last label in the array
+    52 bits  unused
   */
   size_type fields;
 
@@ -263,19 +270,12 @@ struct PathNode
     this->fields |= another.predecessors();
   }
 
+  // Convention: The labels contain padding beyond the order of the path node.
   inline size_type order() const { return ((this->fields >> 8) & 0xF); }
   inline void setOrder(size_type new_order)
   {
     this->fields &= ~(size_type)0xF00;
     this->fields |= new_order << 8;
-  }
-
-  inline bool multiLabel() const { return ((this->fields >> 24) > 0); }
-  inline size_type lastLabel() const { return (this->fields >> 24) - 1; }
-  inline void setLastLabel(size_type ptr)
-  {
-    this->fields &= (size_type)0xFFFFFF;
-    this->fields |= (ptr + 1) << 24;
   }
 
   /*
@@ -286,6 +286,48 @@ struct PathNode
   inline size_type outdegree() const { return (this->to & 0xFFFFFFFF); }
   inline void incrementIndegree() { this->to += ((size_type)1) << 32; }
   inline size_type indegree() const { return (this->to >> 32); }
+
+//------------------------------------------------------------------------------
+
+  /*
+    Convention: If a.first_label is a proper prefix of b.first_label, a < b. If
+    a.last_label is a proper prefix of b.last_label, a.last_label > b.last_label.
+  */
+
+  // Make this the union of this and another.
+  void merge(const PathNode& another);
+
+  // Do the two path nodes intersect?
+  bool intersect(const PathNode& another) const;
+
+  inline bool operator< (const PathNode& another) const
+  {
+    size_type ord = std::min(this->order(), another.order());
+    for(size_type i = 0; i < ord; i++)
+    {
+      if(this->first_label[i] != another.first_label[i])
+      {
+        return (this->first_label[i] < another.first_label[i]);
+      }
+    }
+    return (this->order() < another.order());
+  }
+
+  // Like operator<, but for the last labels.
+  inline bool compareLast(const PathNode& another) const
+  {
+    size_type ord = std::min(this->order(), another.order());
+    for(size_type i = 0; i < ord; i++)
+    {
+      if(this->last_label[i] != another.last_label[i])
+      {
+        return (this->last_label[i] < another.last_label[i]);
+      }
+    }
+    return (another.order() < this->order());
+  }
+
+//------------------------------------------------------------------------------
 
   explicit PathNode(const KMer& kmer);
   PathNode(const PathNode& left, const PathNode& right);
@@ -304,12 +346,6 @@ struct PathNode
   PathNode& operator= (const PathNode& source);
   PathNode& operator= (PathNode&& source);
 };
-
-/*
-  FIXME: Comparison operator based on first_label. Implement a method for creating a union PathNode
-  [a.first_label, b.last_label]. Implement a method for checking whether two PathNodes intersect.
-  Implement a method for creating the predecessor PathNode for a given first character.
-*/
 
 struct PathFromComparator
 {
