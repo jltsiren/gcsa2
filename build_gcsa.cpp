@@ -66,8 +66,6 @@ main(int argc, char** argv)
     std::cerr << "  -d N  Doubling steps (default and max " << GCSA::DOUBLING_STEPS << ")" << std::endl;
     std::cerr << "  -t    Read the input in text format (default)" << std::endl;
     std::cerr << std::endl;
-    std::cerr << "Warning: Index construction does not work correctly with less than 2 doubling steps!" << std::endl;
-    std::cerr << std::endl;
     return 1;
   }
 
@@ -416,8 +414,7 @@ verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
 {
   parallelQuickSort(kmers.begin(), kmers.end());
 
-  bool ok = true;
-  size_type i = 0;
+  size_type i = 0, fails = 0;
   while(i < kmers.size())
   {
     size_type next = i + 1;
@@ -431,7 +428,7 @@ verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
     if(Range::empty(range))
     {
       std::cerr << "build_gcsa: verifyIndex(): find(" << kmer << ") returned empty range" << std::endl;
-      ok = false; i = next; break;
+      i = next; fails++; continue;
     }
 
     std::vector<node_type> expected;
@@ -467,13 +464,20 @@ verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
       printOccs(expected, std::cerr) << std::endl;
       std::cerr << "build_gcsa: verifyIndex(): Got ";
       printOccs(occs, std::cerr) << std::endl;
-      ok = false; break;
+      fails++;
     }
 
     i = next;
   }
 
-  std::cout << "Index verification " << (ok ? "complete." : "failed.") << std::endl;
+  if(fails == 0)
+  {
+    std::cout << "Index verification complete." << std::endl;
+  }
+  else
+  {
+    std::cout << "Index verification failed for " << fails << " patterns." << std::endl;
+  }
   std::cout << std::endl;
 }
 
