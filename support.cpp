@@ -282,51 +282,34 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
 PathNode::PathNode(const KMer& kmer)
 {
   this->from = kmer.from; this->to = kmer.to;
-  this->fields = 0;
-  this->first_label[0] = Key::label(kmer.key);
-  for(size_type i = 1; i < LABEL_LENGTH; i++) { this->first_label[i] = LOWER_PADDING; }
-  this->last_label[0] = Key::label(kmer.key);
-  for(size_type i = 1; i < LABEL_LENGTH; i++) { this->last_label[i] = UPPER_PADDING; }
+  if(kmer.sorted()) { this->makeSorted(); }
 
+  this->fields = 0;
   this->setPredecessors(Key::predecessors(kmer.key));
   this->setOrder(1);
-  if(kmer.sorted()) { this->makeSorted(); }
+
+  this->first_label[0] = Key::label(kmer.key);
+  this->last_label[0] = Key::label(kmer.key);
+  this->pad();
 }
 
 PathNode::PathNode(const PathNode& left, const PathNode& right)
 {
   this->from = left.from; this->to = right.to;
+  if(right.sorted()) { this->makeSorted(); }
+
   this->fields = 0;
+  this->setPredecessors(left.predecessors());
 
   size_type left_order = left.order();
   size_type new_order = left_order + right.order();
+  this->setOrder(new_order);
+
   for(size_type i = 0; i < left_order; i++) { this->first_label[i] = left.first_label[i]; }
   for(size_type i = left_order; i < new_order; i++) { this->first_label[i] = right.first_label[i - left_order]; }
-  for(size_type i = new_order; i < LABEL_LENGTH; i++) { this->first_label[i] = LOWER_PADDING; }
   for(size_type i = 0; i < left_order; i++) { this->last_label[i] = left.last_label[i]; }
   for(size_type i = left_order; i < new_order; i++) { this->last_label[i] = right.last_label[i - left_order]; }
-  for(size_type i = new_order; i < LABEL_LENGTH; i++) { this->last_label[i] = UPPER_PADDING; }
-
-  this->setPredecessors(left.predecessors());
-  this->setOrder(new_order);
-  if(right.sorted()) { this->makeSorted(); }
-}
-
-void
-PathNode::merge(const PathNode& another)
-{
-  if(another < *this)
-  {
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->first_label[i] = another.first_label[i]; }
-  }
-  if(this->compareLast(another))
-  {
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->last_label[i] = another.last_label[i]; }
-  }
-
-  this->addPredecessors(another);
-  this->setOrder(std::max(this->order(), another.order()));
-  this->makeSorted();
+  this->pad();
 }
 
 /*
@@ -348,6 +331,17 @@ PathNode::intersect(const PathNode& another) const
 {
   if(*this < another) { return gcsa::intersect(*this, another); }
   else { return gcsa::intersect(another, *this); }
+}
+
+size_type
+PathNode::lcp(const PathNode& another) const
+{
+  size_type ord = std::max(this->order(), another.order());
+  for(size_type i = 0; i < ord; i++)
+  {
+    if(this->first_label[i] != another.first_label[i]) { return i; }
+  }
+  return ord;
 }
 
 //------------------------------------------------------------------------------

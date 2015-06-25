@@ -37,6 +37,7 @@ The construction interface, the low-level interface and the graph navigation ope
 * More space-efficient construction.
 * Support for cyclic graphs.
 * Binary format for input graphs.
+* Fixed a rare incompatibility between `mergePaths()` and `mergeByLabel()`.
 
 ### 0.1 (2015-05-27)
 
@@ -46,11 +47,12 @@ The construction interface, the low-level interface and the graph navigation ope
 
 ## Todo
 
-* Make index construction work with less than 2 doubling steps.
+* Make index construction work with 0 doubling steps.
 * Support for larger alphabets.
 * Multi-threaded construction.
 * More space-efficient construction.
 * More space-efficient index representation.
+* `mergePaths()` based on prefixes of the path labels instead of prefixes of the k-mer rank sequences.
 * Sample compression (if necessary).
 * Support for inputs other than vg paths.
 * Sampling when starting positions are just node ids without offsets.

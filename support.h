@@ -223,9 +223,8 @@ void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int
   rank_type is the integer type used to store ranks of the original kmers.
   During edge generation, to will be used to store indegree and the outdegree.
 
-  FIXME Later: Store the labels of all PathNodes in a single array. 4+4 bits in the
-  fields tell the actual lengths of the first/last labels, while another 4 bits tell
-  the lcp of the two labels.
+  FIXME Later: Use only one label. Separate labels are only needed when generating
+  predecessors.
 */
 
 struct PathNode
@@ -294,11 +293,12 @@ struct PathNode
     a.last_label is a proper prefix of b.last_label, a.last_label > b.last_label.
   */
 
-  // Make this the union of this and another.
-  void merge(const PathNode& another);
-
   // Do the two path nodes intersect?
   bool intersect(const PathNode& another) const;
+
+  // Returns the length of the longest common prefix of path labels.
+  // FIXME Later: Should be based on the actual labels instead of k-mer ranks.
+  size_type lcp(const PathNode& another) const;
 
   inline bool operator< (const PathNode& another) const
   {
@@ -325,6 +325,12 @@ struct PathNode
       }
     }
     return (another.order() < this->order());
+  }
+
+  inline void pad()
+  {
+    for(size_type i = this->order(); i < LABEL_LENGTH; i++) { this->first_label[i] = LOWER_PADDING; }
+    for(size_type i = this->order(); i < LABEL_LENGTH; i++) { this->last_label[i] = UPPER_PADDING; }
   }
 
 //------------------------------------------------------------------------------
