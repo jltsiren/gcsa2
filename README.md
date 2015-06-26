@@ -2,7 +2,7 @@
 
 This is a reimplementation of the Generalized Compressed Suffix Array (GCSA), a BWT-based index for directed graphs. The implementation is based on the [Succinct Data Structures Library 2.0](https://github.com/simongog/sdsl-lite) (SDSL). To compile, set `SDSL_DIR` in the Makefile to point to your SDSL directory. As the implementation uses C++11, OpenMP, and libstdc++ parallel mode, you need g++ 4.7 or newer to compile.
 
-[The old implementation](http://jltsiren.kapsi.fi/gcsa) is still available. This new implementation should be faster. Note that while the original GCSA was a full index, this implementation stops the prefix-doubling algorithm after three steps, when path length is at most 128. This should be enough to avoid the combinatorial explosion occurring in many graphs representing genetic variation, without resorting to heuristics.
+[The old implementation](http://jltsiren.kapsi.fi/gcsa) indexed all paths in a directed acyclic graph, which had to be determinized before index construction. This implementation indexes paths of length at most 128 in any graph. The limit on path length should limit the combinatorial explosion often occurring in graphs containing regions with a lot of branching in a small area.
 
 The input to index construction is a set of paths of length up to *k* in the original graph. The prefix-doubling algorithm transforms the input into an equivalent of order-*8k* de Bruijn graph for the paths of the input graph. As such, the index supports path queries of length up to *8k*. As each doubling step is followed by a pruning step that merges lexicographically adjacent paths starting from the same node, the resulting graph should be smaller than a de Bruijn graph.
 
@@ -18,7 +18,9 @@ Index construction can be set to output some status information to `stderr` by u
 
 ## Data model
 
-The input to GCSA2 is a directed graph. Each **node** of the input graph is a pair *(id,c)*, where integer *id* is the unique identifier of the node and character *c* is the label of the node. For best results, nodes on unary paths should have successive identifiers. At the moment, GCSA2 assumes that the input is a directed acyclic graph. Cyclic graphs will be supported later. The graph must have exactly one **source** node with indegree 0, and exactly one **sink** node with outdegree 0. The sink node must have a unique label that the `Alphabet` object maps into value 0.
+The input to GCSA2 is a directed graph. Each **node** of the input graph is a pair *(id,c)*, where integer *id* is the **unique identifier** of the node and character *c* is the **label** of the node. For best results, nodes on unary paths should have successive identifiers. Each node must have at least one incoming edge and one outgoing edge.
+
+In the current implementation, the graph must have exactly one **source** node and one **sink** node. There must be an edge from the sink node to the source node. The source node must not have any other incoming edges, and the sink node must not have any other outgoing edges. The source and the sink must have unique labels, which the `Alphabet` object must map to values that are smaller than larger, respectively, than for any real character. These additional restrictions are a matter of convenience. There are no fundamental or performance reasons for having them.
 
 The nodes of the final transformed graph are called **path nodes**, as they correspond to sets of **paths** in the original graph. Path nodes are identified by their ranks in lexicographic order. All paths having the same label are represented by the same path node. A path node matches **pattern** *P*, if either *P* is a prefix of its label, or the corresponding path in the input graph can be extended to match the pattern. (The construction guarantees that all paths represented by the same path node have the same extensions up to the maximum query length.)
 

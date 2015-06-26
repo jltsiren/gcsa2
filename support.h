@@ -121,8 +121,9 @@ typedef std::uint64_t key_type;
 struct Key
 {
   const static size_type CHAR_WIDTH = 3;
-  const static size_type CHAR_MASK = 0x7;
+  const static key_type  CHAR_MASK = 0x7;
   const static size_type MAX_LENGTH = 16;
+  const static key_type  PRED_SUCC_MASK = 0xFFFF;
 
   inline static key_type encode(const Alphabet& alpha, const std::string& kmer,
     byte_type pred, byte_type succ)
@@ -144,10 +145,26 @@ struct Key
   inline static byte_type successors(key_type key) { return key & 0xFF; }
   inline static comp_type last(key_type key) { return (key >> 16) & CHAR_MASK; }
 
-  inline static key_type merge(key_type key1, key_type key2) { return (key1 | (key2 & 0xFFFF)); }
+  inline static key_type merge(key_type key1, key_type key2) { return (key1 | (key2 & PRED_SUCC_MASK)); }
   inline static key_type replace(key_type key, size_type kmer_val)
   {
-    return (kmer_val << 16) | (key & 0xFFFF);
+    return (kmer_val << 16) | (key & PRED_SUCC_MASK);
+  }
+
+  inline static size_type lcp(key_type a, key_type b, size_type kmer_length)
+  {
+    size_type res = 0;
+    key_type mask = CHAR_MASK << (CHAR_WIDTH * kmer_length);
+    a = label(a); b = label(b);
+
+    while(mask > 0)
+    {
+      mask >>= CHAR_WIDTH;
+      if((a & mask) != (b & mask)) { break; }
+      res++;
+    }
+
+    return res;
   }
 };
 
