@@ -54,7 +54,6 @@ The construction interface, the low-level interface and the graph navigation ope
 * Multi-threaded construction.
 * More space-efficient construction.
 * More space-efficient index representation.
-* `mergePaths()` based on prefixes of the path labels instead of prefixes of the k-mer rank sequences.
 * Sample compression (if necessary).
 * Support for inputs other than vg paths.
 * Sampling when starting positions are just node ids without offsets.

@@ -209,7 +209,8 @@ private:
     Increases path length to up to 2^doubling_steps times the original. Sets
     max_query_length.
   */
-  void prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_type doubling_steps);
+  void prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_type doubling_steps,
+    const LCP& lcp);
 
   /*
     Merges path nodes having the same labels. Writes the additional from nodes to the given

@@ -25,6 +25,8 @@
 #ifndef _GCSA_SUPPORT_H
 #define _GCSA_SUPPORT_H
 
+#include <sdsl/rmq_support.hpp>
+
 #include "utils.h"
 
 namespace gcsa
@@ -313,9 +315,13 @@ struct PathNode
   // Do the two path nodes intersect?
   bool intersect(const PathNode& another) const;
 
-  // Returns the length of the longest common prefix of path labels.
-  // FIXME Later: Should be based on the actual labels instead of k-mer ranks.
-  size_type lcp(const PathNode& another) const;
+  /*
+    Returns the length of the longest common prefix of path labels.
+    another must come after this in lexicographic order, and the ranges must either be
+    identical or not overlap at all.
+  */
+  size_type min_lcp(const PathNode& another) const;
+  size_type max_lcp(const PathNode& another) const;
 
   inline bool operator< (const PathNode& another) const
   {
@@ -379,6 +385,28 @@ struct PathFromComparator
 };
 
 std::ostream& operator<< (std::ostream& stream, const PathNode& pn);
+
+//------------------------------------------------------------------------------
+
+struct LCP
+{
+  size_type                kmer_length, total_keys;
+  sdsl::int_vector<0>      kmer_lcp;
+  sdsl::rmq_succinct_sct<> lcp_rmq;
+
+  LCP();
+  LCP(const std::vector<key_type>& keys, size_type _kmer_length);
+
+  /*
+    Computes the minimal/maximal lcp of path nodes a and b. a must be before
+    b in lexicographic order, and the ranges must not overlap.
+    FIXME Later: Do not use the rmq if the kmer ranks are close.
+  */
+  size_type min_lcp(const PathNode& a, const PathNode& b) const;
+  size_type max_lcp(const PathNode& a, const PathNode& b) const;
+
+  void swap(LCP& another);
+};
 
 //------------------------------------------------------------------------------
 

@@ -334,12 +334,23 @@ PathNode::intersect(const PathNode& another) const
 }
 
 size_type
-PathNode::lcp(const PathNode& another) const
+PathNode::min_lcp(const PathNode& another) const
 {
-  size_type ord = std::max(this->order(), another.order());
+  size_type ord = std::min(this->order(), another.order());
   for(size_type i = 0; i < ord; i++)
   {
-    if(this->first_label[i] != another.first_label[i]) { return i; }
+    if(this->first_label[i] != another.last_label[i]) { return i; }
+  }
+  return ord;
+}
+
+size_type
+PathNode::max_lcp(const PathNode& another) const
+{
+  size_type ord = std::min(this->order(), another.order());
+  for(size_type i = 0; i < ord; i++)
+  {
+    if(this->last_label[i] != another.first_label[i]) { return i; }
   }
   return ord;
 }
@@ -449,6 +460,61 @@ operator<< (std::ostream& stream, const PathNode& pn)
   stream << "])";
 
   return stream;
+}
+
+//------------------------------------------------------------------------------
+
+LCP::LCP()
+{
+}
+
+LCP::LCP(const std::vector<key_type>& keys, size_type _kmer_length)
+{
+  this->kmer_length = _kmer_length;
+  this->total_keys = keys.size();
+  {
+    sdsl::int_vector<0> temp(keys.size(), 0, bit_length(this->kmer_length - 1));
+    for(size_type i = 1; i < keys.size(); i++)
+    {
+      temp[i] = Key::lcp(keys[i - 1], keys[i], this->kmer_length);
+    }
+    this->kmer_lcp.swap(temp);
+  }
+  sdsl::util::assign(this->lcp_rmq, sdsl::rmq_succinct_sct<>(&(this->kmer_lcp)));
+}
+
+size_type
+LCP::min_lcp(const PathNode& a, const PathNode& b) const
+{
+  size_type order = std::min(a.order(), b.order());
+  size_type lcp = a.min_lcp(b) * this->kmer_length;
+  if(lcp < order)
+  {
+    size_type right = std::min((size_type)(b.last_label[lcp]), this->total_keys - 1);
+    lcp += this->kmer_lcp[this->lcp_rmq(a.first_label[lcp] + 1, right)];
+  }
+  return lcp;
+}
+
+size_type
+LCP::max_lcp(const PathNode& a, const PathNode& b) const
+{
+  size_type order = std::min(a.order(), b.order());
+  size_type lcp = a.max_lcp(b) * this->kmer_length;
+  if(lcp < order)
+  {
+    lcp += this->kmer_lcp[this->lcp_rmq(a.last_label[lcp] + 1, b.first_label[lcp])];
+  }
+  return lcp;
+}
+
+void
+LCP::swap(LCP& another)
+{
+  std::swap(this->kmer_length, another.kmer_length);
+  std::swap(this->total_keys, another.total_keys);
+  this->kmer_lcp.swap(another.kmer_lcp);
+  this->lcp_rmq.swap(another.lcp_rmq);
 }
 
 //------------------------------------------------------------------------------
