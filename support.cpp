@@ -487,11 +487,11 @@ size_type
 LCP::min_lcp(const PathNode& a, const PathNode& b) const
 {
   size_type order = std::min(a.order(), b.order());
-  size_type lcp = a.min_lcp(b) * this->kmer_length;
+  size_type lcp = a.min_lcp(b);
   if(lcp < order)
   {
     size_type right = std::min((size_type)(b.last_label[lcp]), this->total_keys - 1);
-    lcp += this->kmer_lcp[this->lcp_rmq(a.first_label[lcp] + 1, right)];
+    lcp = lcp * this->kmer_length + this->kmer_lcp[this->lcp_rmq(a.first_label[lcp] + 1, right)];
   }
   return lcp;
 }
@@ -500,10 +500,10 @@ size_type
 LCP::max_lcp(const PathNode& a, const PathNode& b) const
 {
   size_type order = std::min(a.order(), b.order());
-  size_type lcp = a.max_lcp(b) * this->kmer_length;
+  size_type lcp = a.max_lcp(b);
   if(lcp < order)
   {
-    lcp += this->kmer_lcp[this->lcp_rmq(a.last_label[lcp] + 1, b.first_label[lcp])];
+    lcp = lcp * this->kmer_length + this->kmer_lcp[this->lcp_rmq(a.last_label[lcp] + 1, b.first_label[lcp])];
   }
   return lcp;
 }
