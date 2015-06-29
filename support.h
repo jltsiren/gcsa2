@@ -316,9 +316,9 @@ struct PathNode
   bool intersect(const PathNode& another) const;
 
   /*
-    Returns the length of the longest common prefix of path labels.
-    another must come after this in lexicographic order, and the ranges must either be
-    identical or not overlap at all.
+    Computes the length of the minimal/maximal longest common prefix of the kmer rank
+    sequences of this and another. another must come after this in lexicographic order,
+    and the ranges must not overlap.
   */
   size_type min_lcp(const PathNode& another) const;
   size_type max_lcp(const PathNode& another) const;
@@ -390,16 +390,18 @@ std::ostream& operator<< (std::ostream& stream, const PathNode& pn);
 
 struct LCP
 {
-  size_type                kmer_length, total_keys;
-  sdsl::int_vector<0>      kmer_lcp;
-  sdsl::rmq_succinct_sct<> lcp_rmq;
+  typedef sdsl::rmq_succinct_sada<> rmq_type; // Faster than rmq_support_sct.
+
+  size_type           kmer_length, total_keys;
+  sdsl::int_vector<0> kmer_lcp;
+  rmq_type            lcp_rmq;
 
   LCP();
   LCP(const std::vector<key_type>& keys, size_type _kmer_length);
 
   /*
-    Computes the minimal/maximal lcp of path nodes a and b. a must be before
-    b in lexicographic order, and the ranges must not overlap.
+    Computes the minimal/maximal lcp of the path labels corresponding to path nodes a and b.
+    a must be before b in lexicographic order, and the ranges must not overlap.
     FIXME Later: Do not use the rmq if the kmer ranks are close.
   */
   size_type min_lcp(const PathNode& a, const PathNode& b) const;

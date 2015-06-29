@@ -480,7 +480,7 @@ LCP::LCP(const std::vector<key_type>& keys, size_type _kmer_length)
     }
     this->kmer_lcp.swap(temp);
   }
-  sdsl::util::assign(this->lcp_rmq, sdsl::rmq_succinct_sct<>(&(this->kmer_lcp)));
+  sdsl::util::assign(this->lcp_rmq, rmq_type(&(this->kmer_lcp)));
 }
 
 size_type

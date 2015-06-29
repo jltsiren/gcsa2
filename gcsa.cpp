@@ -433,8 +433,6 @@ sameFrom(range_type range, const std::vector<PathNode>& paths)
   Extends the range forward into a maximal range of paths starting from the same node
   and sharing a common prefix that no other path has. Assumes that the input range only
   contains paths starting from the same node. Returns the lcp of the range.
-
-  FIXME Later: Call lcp() only when the label changes.
 */
 size_type
 extendRange(range_type& range, const std::vector<PathNode>& paths, const LCP& lcp)
@@ -442,15 +440,14 @@ extendRange(range_type& range, const std::vector<PathNode>& paths, const LCP& lc
   size_type min_lcp =
     (range.first == 0 ? 0 : lcp.max_lcp(paths[range.first - 1], paths[range.first]) + 1);
   size_type range_lcp = PathNode::LABEL_LENGTH * lcp.kmer_length;
-  size_type candidate_lcp = range_lcp;
 
-  for(size_type i = range.second + 1; i <= paths.size(); i++)
+  for(range_type next_range = nextRange(range, paths); next_range.first < paths.size();
+    next_range = nextRange(next_range, paths))
   {
-    if(i >= paths.size()) { range.second = paths.size() - 1; range_lcp = candidate_lcp; break; }
-    if(paths[i].from != paths[range.first].from) { break; }
-    size_type next_lcp = lcp.min_lcp(paths[range.first], paths[i]);
-    if(next_lcp < candidate_lcp) { range.second = i - 1; range_lcp = candidate_lcp; candidate_lcp = next_lcp; }
+    if(paths[next_range.first].from != paths[range.first].from || !sameFrom(next_range, paths)) { break; }
+    size_type next_lcp = lcp.min_lcp(paths[range.first], paths[next_range.second]);
     if(next_lcp < min_lcp) { break; }
+    range.second = next_range.second; range_lcp = next_lcp;
   }
 
   return range_lcp;
