@@ -253,13 +253,9 @@ struct PathNode
   // This should be at least 1 << GCSA::DOUBLING_STEPS.
   const static size_type LABEL_LENGTH = 8;
 
-  const static rank_type LOWER_PADDING = 0;
-  const static rank_type UPPER_PADDING = ~(rank_type)0;
-
   node_type from, to;
   rank_type first_label[LABEL_LENGTH];
   rank_type last_label[LABEL_LENGTH];
-
 
   /*
     From low-order to high-order bits:
@@ -350,12 +346,6 @@ struct PathNode
     return (another.order() < this->order());
   }
 
-  inline void pad()
-  {
-    for(size_type i = this->order(); i < LABEL_LENGTH; i++) { this->first_label[i] = LOWER_PADDING; }
-    for(size_type i = this->order(); i < LABEL_LENGTH; i++) { this->last_label[i] = UPPER_PADDING; }
-  }
-
 //------------------------------------------------------------------------------
 
   explicit PathNode(const KMer& kmer);
@@ -391,6 +381,7 @@ std::ostream& operator<< (std::ostream& stream, const PathNode& pn);
 struct LCP
 {
   typedef sdsl::rmq_succinct_sada<> rmq_type; // Faster than rmq_support_sct.
+  typedef std::pair<PathNode::rank_type, PathNode::rank_type> rank_range;
 
   size_type           kmer_length, total_keys;
   sdsl::int_vector<0> kmer_lcp;
@@ -402,10 +393,33 @@ struct LCP
   /*
     Computes the minimal/maximal lcp of the path labels corresponding to path nodes a and b.
     a must be before b in lexicographic order, and the ranges must not overlap.
+    The returned lcp value is a pair (x,y), where x is the lcp of the PathNode labels
+    and y is the lcp of the first diverging kmers.
+
     FIXME Later: Do not use the rmq if the kmer ranks are close.
   */
-  size_type min_lcp(const PathNode& a, const PathNode& b) const;
-  size_type max_lcp(const PathNode& a, const PathNode& b) const;
+  range_type min_lcp(const PathNode& a, const PathNode& b) const;
+  range_type max_lcp(const PathNode& a, const PathNode& b) const;
+
+  // Increments the lcp by 1.
+  inline range_type increment(range_type lcp) const
+  {
+    if(lcp.second + 1 < this->kmer_length) { lcp.second++; }
+    else { lcp.first++; lcp.second = 0; }
+    return lcp;
+  }
+
+  /*
+    Extends the given rank range into a maximal range having the given lcp.
+
+    FIXME Later: Build an LCP interval tree to do this faster.
+  */
+  inline rank_range extendRange(rank_range range, size_type lcp) const
+  {
+    while(range.first > 0 && this->kmer_lcp[range.first] >= lcp) { range.first--; }
+    while(range.second + 1 < this->total_keys && this->kmer_lcp[range.second + 1] >= lcp) { range.second++; }
+    return range;
+  }
 
   void swap(LCP& another);
 };

@@ -290,7 +290,6 @@ PathNode::PathNode(const KMer& kmer)
 
   this->first_label[0] = Key::label(kmer.key);
   this->last_label[0] = Key::label(kmer.key);
-  this->pad();
 }
 
 PathNode::PathNode(const PathNode& left, const PathNode& right)
@@ -309,7 +308,6 @@ PathNode::PathNode(const PathNode& left, const PathNode& right)
   for(size_type i = left_order; i < new_order; i++) { this->first_label[i] = right.first_label[i - left_order]; }
   for(size_type i = 0; i < left_order; i++) { this->last_label[i] = left.last_label[i]; }
   for(size_type i = left_order; i < new_order; i++) { this->last_label[i] = right.last_label[i - left_order]; }
-  this->pad();
 }
 
 /*
@@ -449,6 +447,7 @@ operator<< (std::ostream& stream, const PathNode& pn)
 {
   stream << "(" << Node::decode(pn.from) << " -> " << Node::decode(pn.to);
   size_type order = pn.order();
+  stream << "; o" << order;
   for(size_type i = 0; i < order; i++)
   {
     stream << (i == 0 ? "; [" : ", ") << pn.first_label[i];
@@ -483,27 +482,27 @@ LCP::LCP(const std::vector<key_type>& keys, size_type _kmer_length)
   sdsl::util::assign(this->lcp_rmq, rmq_type(&(this->kmer_lcp)));
 }
 
-size_type
+range_type
 LCP::min_lcp(const PathNode& a, const PathNode& b) const
 {
   size_type order = std::min(a.order(), b.order());
-  size_type lcp = a.min_lcp(b);
-  if(lcp < order)
+  range_type lcp(a.min_lcp(b), 0);
+  if(lcp.first < order)
   {
-    size_type right = std::min((size_type)(b.last_label[lcp]), this->total_keys - 1);
-    lcp = lcp * this->kmer_length + this->kmer_lcp[this->lcp_rmq(a.first_label[lcp] + 1, right)];
+    size_type right = std::min((size_type)(b.last_label[lcp.first]), this->total_keys - 1);
+    lcp.second = this->kmer_lcp[this->lcp_rmq(a.first_label[lcp.first] + 1, right)];
   }
   return lcp;
 }
 
-size_type
+range_type
 LCP::max_lcp(const PathNode& a, const PathNode& b) const
 {
   size_type order = std::min(a.order(), b.order());
-  size_type lcp = a.max_lcp(b);
-  if(lcp < order)
+  range_type lcp(a.max_lcp(b), 0);
+  if(lcp.first < order)
   {
-    lcp = lcp * this->kmer_length + this->kmer_lcp[this->lcp_rmq(a.last_label[lcp] + 1, b.first_label[lcp])];
+    lcp.second = this->kmer_lcp[this->lcp_rmq(a.last_label[lcp.first] + 1, b.first_label[lcp.first])];
   }
   return lcp;
 }

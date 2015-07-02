@@ -432,21 +432,36 @@ sameFrom(range_type range, const std::vector<PathNode>& paths)
 /*
   Extends the range forward into a maximal range of paths starting from the same node
   and sharing a common prefix that no other path has. Assumes that the input range only
-  contains paths starting from the same node. Returns the lcp of the range.
+  contains paths starting from the same node. Returns the lcp of the range as a pair
+  (a,b), where a is the lcp of the labels and b is the lcp of the first diverging kmers.
 */
-size_type
+range_type
 extendRange(range_type& range, const std::vector<PathNode>& paths, const LCP& lcp)
 {
-  size_type min_lcp =
-    (range.first == 0 ? 0 : lcp.max_lcp(paths[range.first - 1], paths[range.first]) + 1);
-  size_type range_lcp = PathNode::LABEL_LENGTH * lcp.kmer_length;
+  range_type min_lcp(0, 0);
+  if(range.first > 0)
+  {
+    min_lcp = lcp.increment(lcp.max_lcp(paths[range.first - 1], paths[range.first]));
+  }
+  range_type range_lcp(paths[range.first].order(), 0);
 
+  /*
+    Iterate over one range at a time, doing the following tests:
+    1. Is the from node still the same? Stop if not.
+    2. Is the LCP still high enough? Stop if not.
+    3. Is the LCP between the end of the range and the next path lower than the range lcp? Extend if true.
+  */
   for(range_type next_range = nextRange(range, paths); next_range.first < paths.size();
     next_range = nextRange(next_range, paths))
   {
     if(paths[next_range.first].from != paths[range.first].from || !sameFrom(next_range, paths)) { break; }
-    size_type next_lcp = lcp.min_lcp(paths[range.first], paths[next_range.second]);
+    range_type next_lcp = lcp.min_lcp(paths[range.first], paths[next_range.second]);
     if(next_lcp < min_lcp) { break; }
+    if(range.second + 1 < paths.size())
+    {
+      range_type border_lcp = lcp.max_lcp(paths[range.second], paths[range.second + 1]);
+      if(border_lcp >= next_lcp) { continue; }
+    }
     range.second = next_range.second; range_lcp = next_lcp;
   }
 
@@ -454,18 +469,32 @@ extendRange(range_type& range, const std::vector<PathNode>& paths, const LCP& lc
 }
 
 PathNode
-mergePathNodes(const std::vector<PathNode>& paths, range_type range)
+mergePathNodes(const std::vector<PathNode>& paths, range_type range, range_type range_lcp, const LCP& lcp)
 {
   PathNode res = paths[range.first];
-  for(size_type i = 0; i < PathNode::LABEL_LENGTH; i++)
-  {
-    res.last_label[i] = paths[range.second].last_label[i];
-  }
 
-  res.makeSorted();
-  res.setOrder(std::max(paths[range.first].order(), paths[range.second].order()));
+  size_type order = range_lcp.first;
+  if(range_lcp.second > 0)
+  {
+    LCP::rank_range ranks(paths[range.first].first_label[order], paths[range.second].last_label[order]);
+    ranks = lcp.extendRange(ranks, range_lcp.second);
+    res.first_label[order] = ranks.first; res.last_label[order] = ranks.second;
+    order++;
+  }
+  res.makeSorted(); res.setOrder(order);
   for(size_type i = range.first + 1; i <= range.second; i++) { res.addPredecessors(paths[i]); }
 
+  return res;
+}
+
+/*
+  This version assumes that the paths have identical labels.
+*/
+PathNode
+mergePathNodes(const std::vector<PathNode>& paths, range_type range)
+{
+  PathNode res = paths[range.first]; res.makeSorted();
+  for(size_type i = range.first + 1; i <= range.second; i++) { res.addPredecessors(paths[i]); }
   return res;
 }
 
@@ -488,8 +517,8 @@ mergePaths(std::vector<PathNode>& paths, const LCP& lcp)
   {
     if(sameFrom(range, paths))
     {
-      extendRange(range, paths, lcp);
-      paths[tail] = mergePathNodes(paths, range);
+      range_type range_lcp = extendRange(range, paths, lcp);
+      paths[tail] = mergePathNodes(paths, range, range_lcp, lcp);
       tail++; unique++;
     }
     else
@@ -568,10 +597,9 @@ PathNode
 predecessor(const PathNode& curr, comp_type comp, const GCSA& mapper, const sdsl::int_vector<0>& last_char)
 {
   PathNode pred;
-  size_type order = curr.order(), new_order = curr.order();
+  size_type i = 0, order = curr.order();
 
-  // Handle the common prefix.
-  size_type i = 0;
+  // Handle the common prefix of the labels.
   while(i < order && curr.first_label[i] == curr.last_label[i])
   {
     pred.first_label[i] = pred.last_label[i] = mapper.LF(curr.first_label[i], comp);
@@ -579,43 +607,24 @@ predecessor(const PathNode& curr, comp_type comp, const GCSA& mapper, const sdsl
     i++;
   }
 
-  // Handle the rest of first_label.
+  // Handle the diverging suffix of the labels.
+  comp_type first_comp = comp, last_comp = comp;
+  if(i < order)
   {
-    comp_type first_comp = comp;
-    size_type j = i;
-    while(j < order && curr.first_label[j] != PathNode::LOWER_PADDING)
-    {
-      pred.first_label[j] = mapper.LF(curr.first_label[j], first_comp);
-      first_comp = last_char[curr.first_label[j]];
-      j++;
-    }
-    if(j < PathNode::LABEL_LENGTH)
-    {
-      pred.first_label[j] = mapper.edge_rank(mapper.alpha.C[first_comp]);
-      j++; new_order = std::max(j, new_order);
-    }
-    while(j < order) { pred.first_label[j] = PathNode::LOWER_PADDING; j++; }
+    pred.first_label[i] = mapper.LF(curr.first_label[i], first_comp);
+    first_comp = last_char[curr.first_label[i]];
+    pred.last_label[i] = mapper.LF(curr.last_label[i], last_comp);
+    last_comp = last_char[curr.last_label[i]];
+    i++;
+  }
+  if(i < PathNode::LABEL_LENGTH)
+  {
+    pred.first_label[i] = mapper.edge_rank(mapper.alpha.C[first_comp]);
+    pred.last_label[i] = mapper.edge_rank(mapper.alpha.C[last_comp + 1]) - 1;
+    i++;
   }
 
-  // Handle the rest of last_label.
-  {
-    comp_type last_comp = comp;
-    size_type j = i;
-    while(j < order && curr.last_label[j] != PathNode::UPPER_PADDING)
-    {
-      pred.last_label[j] = mapper.LF(curr.last_label[j], last_comp);
-      last_comp = last_char[curr.last_label[j]];
-      j++;
-    }
-    if(j < PathNode::LABEL_LENGTH)
-    {
-      pred.last_label[j] = mapper.edge_rank(mapper.alpha.C[last_comp + 1]) - 1;
-      j++; new_order = std::max(j, new_order);
-    }
-    while(j < order) { pred.last_label[j] = PathNode::UPPER_PADDING; j++; }
-  }
-
-  pred.setOrder(new_order); pred.pad();
+  pred.setOrder(i);
   return pred;
 }
 
