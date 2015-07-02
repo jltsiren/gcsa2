@@ -328,9 +328,12 @@ struct ValueIndex
       }
     }
 
-    sdsl::sd_vector<> temp(buffer.begin(), buffer.end());
-    this->values.swap(temp);
-    sdsl::util::clear(buffer);
+    if(buffer.size() > 0) {
+        // Fills in values, but only works if there are any values to fill
+        sdsl::sd_vector<> temp(buffer.begin(), buffer.end());
+        this->values.swap(temp);
+        sdsl::util::clear(buffer);
+    }
 
     sdsl::util::init_support(this->value_rank, &(this->values));
     sdsl::util::init_support(this->first_select, &(this->first_occ));
