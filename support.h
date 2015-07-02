@@ -240,10 +240,7 @@ void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int
   in the original graph, denoting a path as a semiopen range [from, to). If
   from == -1, the path will not be extended, because it already has a unique label.
   rank_type is the integer type used to store ranks of the original kmers.
-  During edge generation, to will be used to store indegree and the outdegree.
-
-  FIXME Later: Use only one label. Separate labels are only needed when generating
-  predecessors.
+  During edge generation, 'to' node will be used to store indegree and the outdegree.
 */
 
 struct PathNode
@@ -261,8 +258,10 @@ struct PathNode
     From low-order to high-order bits:
 
     8 bits   which predecessor comp values exist
-    4 bits   length of the labels
-    52 bits  unused
+    4 bits   length of the kmer rank sequences representing the path label range
+    4 bits   lcp of the above sequences
+    8 bits   unused
+    40 bits  pointer to the label data FIXME implement
   */
   size_type fields;
 
@@ -284,12 +283,20 @@ struct PathNode
     this->fields |= another.predecessors();
   }
 
-  // Convention: The labels contain padding beyond the order of the path node.
+  // Order is the length of the kmer rank sequences representing the path label range.
   inline size_type order() const { return ((this->fields >> 8) & 0xF); }
   inline void setOrder(size_type new_order)
   {
     this->fields &= ~(size_type)0xF00;
     this->fields |= new_order << 8;
+  }
+
+  // LCP is the length of the common prefix of kmer rank sequences.
+  inline size_type lcp() const { return ((this->fields >> 12) & 0xF); }
+  inline void setLCP(size_type new_lcp)
+  {
+    this->fields &= ~(size_type)0xF000;
+    this->fields |= new_lcp << 12;
   }
 
   /*

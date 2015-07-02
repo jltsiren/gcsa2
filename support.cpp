@@ -286,7 +286,7 @@ PathNode::PathNode(const KMer& kmer)
 
   this->fields = 0;
   this->setPredecessors(Key::predecessors(kmer.key));
-  this->setOrder(1);
+  this->setOrder(1); this->setLCP(1);
 
   this->first_label[0] = Key::label(kmer.key);
   this->last_label[0] = Key::label(kmer.key);
@@ -302,7 +302,7 @@ PathNode::PathNode(const PathNode& left, const PathNode& right)
 
   size_type left_order = left.order();
   size_type new_order = left_order + right.order();
-  this->setOrder(new_order);
+  this->setOrder(new_order); this->setLCP(left_order + right.lcp());
 
   for(size_type i = 0; i < left_order; i++) { this->first_label[i] = left.first_label[i]; }
   for(size_type i = left_order; i < new_order; i++) { this->first_label[i] = right.first_label[i - left_order]; }

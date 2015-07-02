@@ -481,7 +481,7 @@ mergePathNodes(const std::vector<PathNode>& paths, range_type range, range_type 
     res.first_label[order] = ranks.first; res.last_label[order] = ranks.second;
     order++;
   }
-  res.makeSorted(); res.setOrder(order);
+  res.makeSorted(); res.setOrder(order); res.setLCP(range_lcp.first);
   for(size_type i = range.first + 1; i <= range.second; i++) { res.addPredecessors(paths[i]); }
 
   return res;
@@ -600,14 +600,15 @@ predecessor(const PathNode& curr, comp_type comp, const GCSA& mapper, const sdsl
   size_type i = 0, order = curr.order();
 
   // Handle the common prefix of the labels.
-  while(i < order && curr.first_label[i] == curr.last_label[i])
+  while(i < curr.lcp())
   {
     pred.first_label[i] = pred.last_label[i] = mapper.LF(curr.first_label[i], comp);
     comp = last_char[curr.first_label[i]];
     i++;
   }
+  pred.setLCP(i);
 
-  // Handle the diverging suffix of the labels.
+  // Handle the diverging suffixes of the labels.
   comp_type first_comp = comp, last_comp = comp;
   if(i < order)
   {
