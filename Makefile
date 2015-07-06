@@ -23,7 +23,7 @@ SOURCES=$(wildcard *.cpp)
 HEADERS=$(wildcard *.h)
 OBJS=$(SOURCES:.cpp=.o)
 LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
-LIBRARY=gcsa.a
+LIBRARY=libgcsa2.a
 PROGRAMS=build_gcsa
 
 all: $(LIBRARY) $(PROGRAMS)
@@ -31,7 +31,7 @@ all: $(LIBRARY) $(PROGRAMS)
 %.o:%.cpp $(HEADERS)
 	$(MY_CXX) $(CXX_FLAGS) -c $<
 
-gcsa.a:$(LIBOBJS)
+$(LIBRARY):$(LIBOBJS)
 	ar rcs $@ $(LIBOBJS)
 
 build_gcsa:build_gcsa.o $(LIBRARY)
