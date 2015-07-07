@@ -279,7 +279,7 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
 
 //------------------------------------------------------------------------------
 
-PathNode::PathNode(const KMer& kmer)
+PathNode::PathNode(const KMer& kmer, std::vector<PathNode::rank_type>& labels)
 {
   this->from = kmer.from; this->to = kmer.to;
   if(kmer.sorted()) { this->makeSorted(); }
@@ -288,11 +288,26 @@ PathNode::PathNode(const KMer& kmer)
   this->setPredecessors(Key::predecessors(kmer.key));
   this->setOrder(1); this->setLCP(1);
 
-  this->first_label[0] = Key::label(kmer.key);
-  this->last_label[0] = Key::label(kmer.key);
+  this->setPointer(labels.size());
+  labels.push_back(Key::label(kmer.key));
+  labels.push_back(0);  // Dummy value; the last label is not in use.
 }
 
-PathNode::PathNode(const PathNode& left, const PathNode& right)
+PathNode::PathNode(const PathNode& source,
+    const std::vector<PathNode::rank_type>& old_labels, std::vector<PathNode::rank_type>& new_labels)
+{
+  this->from = source.from; this->to = source.to;
+  this->fields = source.fields;
+
+  this->setPointer(new_labels.size());
+  for(size_type i = 0, j = source.pointer(); i < source.ranks(); i++, j++)
+  {
+    new_labels.push_back(old_labels[j]);
+  }
+}
+
+PathNode::PathNode(const PathNode& left, const PathNode& right,
+    const std::vector<PathNode::rank_type>& old_labels, std::vector<PathNode::rank_type>& new_labels)
 {
   this->from = left.from; this->to = right.to;
   if(right.sorted()) { this->makeSorted(); }
@@ -304,74 +319,38 @@ PathNode::PathNode(const PathNode& left, const PathNode& right)
   size_type new_order = left_order + right.order();
   this->setOrder(new_order); this->setLCP(left_order + right.lcp());
 
-  for(size_type i = 0; i < left_order; i++) { this->first_label[i] = left.first_label[i]; }
-  for(size_type i = left_order; i < new_order; i++) { this->first_label[i] = right.first_label[i - left_order]; }
-  for(size_type i = 0; i < left_order; i++) { this->last_label[i] = left.last_label[i]; }
-  for(size_type i = left_order; i < new_order; i++) { this->last_label[i] = right.last_label[i - left_order]; }
-}
-
-/*
-  Determines whether right starts before left ends.
-*/
-inline bool
-intersect(const PathNode& left, const PathNode& right)
-{
-  size_type ord = std::min(left.order(), right.order());
-  for(size_type i = 0; i < ord; i++)
+  this->setPointer(new_labels.size());
+  for(size_type i = 0, j = left.pointer(); i < left_order; i++, j++)
   {
-    if(left.last_label[i] != right.first_label[i]) { return (left.last_label[i] > right.first_label[i]); }
+    new_labels.push_back(old_labels[j]);
   }
-  return true;
-}
-
-bool
-PathNode::intersect(const PathNode& another) const
-{
-  if(*this < another) { return gcsa::intersect(*this, another); }
-  else { return gcsa::intersect(another, *this); }
-}
-
-size_type
-PathNode::min_lcp(const PathNode& another) const
-{
-  size_type ord = std::min(this->order(), another.order());
-  for(size_type i = 0; i < ord; i++)
+  for(size_type i = 0, j = right.pointer(); i < right.ranks(); i++, j++)
   {
-    if(this->first_label[i] != another.last_label[i]) { return i; }
+    new_labels.push_back(old_labels[j]);
   }
-  return ord;
 }
 
-size_type
-PathNode::max_lcp(const PathNode& another) const
-{
-  size_type ord = std::min(this->order(), another.order());
-  for(size_type i = 0; i < ord; i++)
-  {
-    if(this->last_label[i] != another.first_label[i]) { return i; }
-  }
-  return ord;
-}
-
-//------------------------------------------------------------------------------
-
-PathNode::PathNode(std::ifstream& in)
+PathNode::PathNode(std::ifstream& in, std::vector<PathNode::rank_type>& labels)
 {
   sdsl::read_member(this->from, in); sdsl::read_member(this->to, in);
-  in.read((char*)(this->first_label), LABEL_LENGTH * sizeof(rank_type));
-  in.read((char*)(this->last_label), LABEL_LENGTH * sizeof(rank_type));
   sdsl::read_member(this->fields, in);
+
+  rank_type buffer[this->ranks()];
+  in.read((char*)buffer, this->ranks() * sizeof(rank_type));
+  for(size_type i = 0; i < this->ranks(); i++) { labels.push_back(buffer[i]); }
 }
 
 size_type
-PathNode::serialize(std::ostream& out) const
+PathNode::serialize(std::ostream& out, const std::vector<PathNode::rank_type>& labels) const
 {
   size_type bytes = 0;
   bytes += sdsl::write_member(this->from, out); bytes += sdsl::write_member(this->to, out);
-  out.write((char*)(this->first_label), LABEL_LENGTH * sizeof(rank_type));
-  out.write((char*)(this->last_label), LABEL_LENGTH * sizeof(rank_type));
-  bytes += 2 * LABEL_LENGTH * sizeof(rank_type);
   bytes += sdsl::write_member(this->fields, out);
+
+  size_type buffer_size = (this->ranks()) * sizeof(rank_type);
+  out.write((char*)(labels.data() + this->pointer()), buffer_size);
+  bytes += buffer_size;
+
   return bytes;
 }
 
@@ -379,8 +358,13 @@ PathNode::PathNode()
 {
   this->from = 0; this->to = 0;
   this->fields = 0;
-  for(size_type i = 0; i < LABEL_LENGTH; i++) { this->first_label[i] = 0; }
-  for(size_type i = 0; i < LABEL_LENGTH; i++) { this->last_label[i] = 0; }
+}
+
+PathNode::PathNode(std::vector<rank_type>& labels)
+{
+  this->from = 0; this->to = 0;
+  this->fields = 0;
+  this->setPointer(labels.size());
 }
 
 PathNode::PathNode(const PathNode& source)
@@ -397,35 +381,21 @@ PathNode::~PathNode()
 {
 }
 
-void
-PathNode::copy(const PathNode& source)
-{
-  if(&source != this)
-  {
-    this->from = source.from; this->to = source.to;
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->first_label[i] = source.first_label[i]; }
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->last_label[i] = source.last_label[i]; }
-    this->fields = source.fields;
-  }
-}
-
-void
-PathNode::swap(PathNode& another)
-{
-  if(&another != this)
-  {
-    std::swap(this->from, another.from); std::swap(this->to, another.to);
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { std::swap(this->first_label[i], another.first_label[i]); }
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { std::swap(this->last_label[i], another.last_label[i]); }
-    std::swap(this->fields, another.fields);
-  }
-}
-
 PathNode&
 PathNode::operator= (const PathNode& source)
 {
-  this->copy(source);
+  if(&source != this)
+  {
+    this->copy(source);
+  }
   return *this;
+}
+
+void
+PathNode::copy(const PathNode& source)
+{
+  this->from = source.from; this->to = source.to;
+  this->fields = source.fields;
 }
 
 PathNode&
@@ -435,30 +405,66 @@ PathNode::operator= (PathNode&& source)
   {
     this->from = std::move(source.from);
     this->to = std::move(source.to);
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->first_label[i] = std::move(source.first_label[i]); }
-    for(size_type i = 0; i < LABEL_LENGTH; i++) { this->last_label[i] = std::move(source.last_label[i]); }
-    this-> fields = std::move(source.fields);
+    this->fields = std::move(source.fields);
   }
   return *this;
 }
 
-std::ostream&
-operator<< (std::ostream& stream, const PathNode& pn)
+void
+PathNode::print(std::ostream& out, const std::vector<PathNode::rank_type>& labels) const
 {
-  stream << "(" << Node::decode(pn.from) << " -> " << Node::decode(pn.to);
-  size_type order = pn.order();
-  stream << "; o" << order;
-  for(size_type i = 0; i < order; i++)
+  out << "(" << Node::decode(this->from) << " -> " << Node::decode(this->to);
+  out << "; o" << this->order();
+  for(size_type i = 0; i < this->order(); i++)
   {
-    stream << (i == 0 ? "; [" : ", ") << pn.first_label[i];
+    out << (i == 0 ? "; [" : ", ") << this->firstLabel(i, labels);
   }
-  for(size_type i = 0; i < order; i++)
+  for(size_type i = 0; i < this->order(); i++)
   {
-    stream << (i == 0 ? " to " : ", ") << pn.last_label[i];
+    out << (i == 0 ? " to " : ", ") << this->lastLabel(i, labels);
   }
-  stream << "])";
+  out << "])";
+}
 
-  return stream;
+//------------------------------------------------------------------------------
+
+bool
+PathNode::intersect(const PathLabel& first, const PathLabel& last,
+  const std::vector<PathNode::rank_type>& labels) const
+{
+  PathLabel my_first = this->firstLabel(labels);
+
+  if(my_first.compare(first))
+  {
+    PathLabel my_last = this->lastLabel(labels);
+    return !(my_last.compare(first));
+  }
+  else
+  {
+    return !(last.compare(my_first));
+  }
+}
+
+size_type
+PathNode::min_lcp(const PathNode& another, const std::vector<PathNode::rank_type>& labels) const
+{
+  size_type ord = std::min(this->order(), another.order());
+  for(size_type i = 0; i < ord; i++)
+  {
+    if(this->firstLabel(i, labels) != another.lastLabel(i, labels)) { return i; }
+  }
+  return ord;
+}
+
+size_type
+PathNode::max_lcp(const PathNode& another, const std::vector<PathNode::rank_type>& labels) const
+{
+  size_type ord = std::min(this->order(), another.order());
+  for(size_type i = 0; i < ord; i++)
+  {
+    if(this->lastLabel(i, labels) != another.firstLabel(i, labels)) { return i; }
+  }
+  return ord;
 }
 
 //------------------------------------------------------------------------------
@@ -483,26 +489,28 @@ LCP::LCP(const std::vector<key_type>& keys, size_type _kmer_length)
 }
 
 range_type
-LCP::min_lcp(const PathNode& a, const PathNode& b) const
+LCP::min_lcp(const PathNode& a, const PathNode& b, const std::vector<LCP::rank_type>& labels) const
 {
   size_type order = std::min(a.order(), b.order());
-  range_type lcp(a.min_lcp(b), 0);
+  range_type lcp(a.min_lcp(b, labels), 0);
   if(lcp.first < order)
   {
-    size_type right = std::min((size_type)(b.last_label[lcp.first]), this->total_keys - 1);
-    lcp.second = this->kmer_lcp[this->lcp_rmq(a.first_label[lcp.first] + 1, right)];
+    size_type right = std::min((size_type)(b.lastLabel(lcp.first, labels)), this->total_keys - 1);
+    lcp.second =
+      this->kmer_lcp[this->lcp_rmq(a.firstLabel(lcp.first, labels) + 1, right)];
   }
   return lcp;
 }
 
 range_type
-LCP::max_lcp(const PathNode& a, const PathNode& b) const
+LCP::max_lcp(const PathNode& a, const PathNode& b, const std::vector<LCP::rank_type>& labels) const
 {
   size_type order = std::min(a.order(), b.order());
-  range_type lcp(a.max_lcp(b), 0);
+  range_type lcp(a.max_lcp(b, labels), 0);
   if(lcp.first < order)
   {
-    lcp.second = this->kmer_lcp[this->lcp_rmq(a.last_label[lcp.first] + 1, b.first_label[lcp.first])];
+    lcp.second =
+      this->kmer_lcp[this->lcp_rmq(a.lastLabel(lcp.first, labels) + 1, b.firstLabel(lcp.first, labels))];
   }
   return lcp;
 }

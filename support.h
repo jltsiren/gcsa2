@@ -236,23 +236,71 @@ void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int
 //------------------------------------------------------------------------------
 
 /*
-  The node type used during doubling. As in the original GCSA, from and to are nodes
-  in the original graph, denoting a path as a semiopen range [from, to). If
-  from == -1, the path will not be extended, because it already has a unique label.
-  rank_type is the integer type used to store ranks of the original kmers.
-  During edge generation, 'to' node will be used to store indegree and the outdegree.
+  Convention: If a is a proper prefix of b, then
+  - a < b, if a is a first label; and
+  - a > b, if a is a last label.
 */
 
-struct PathNode
+struct PathLabel
 {
   typedef std::uint32_t rank_type;
 
   // This should be at least 1 << GCSA::DOUBLING_STEPS.
   const static size_type LABEL_LENGTH = 8;
 
+  size_type length;
+  rank_type label[LABEL_LENGTH];
+  bool      is_first; // First label or last label?
+
+  // Is *this < another?
+  inline bool compare(const PathLabel& another) const
+  {
+    size_type order = std::min(this->length, another.length);
+    for(size_type i = 0; i < order; i++)
+    {
+      if(this->label[i] != another.label[i]) { return (this->label[i] < another.label[i]); }
+    }
+    if(this->is_first) { return (this->length < another.length); }
+    else { return (another.length < this->length); }
+  }
+};
+
+//------------------------------------------------------------------------------
+
+/*
+  The node type used during doubling. As in the original GCSA, from and to are nodes
+  in the original graph, denoting a path as a semiopen range [from, to). If
+  from == -1, the path will not be extended, because it already has a unique label.
+  rank_type is the integer type used to store ranks of the original kmers.
+  During edge generation, 'to' node will be used to store indegree and the outdegree.
+
+  The rank sequences are stored in a separate array at position 'pointer()'. The stored
+  sequence consists of the first label ('order()' ranks) followed by one rank for the
+  diverging last rank of the last label. If the first and the last ranks are identical,
+  the last rank is a dummy value.
+*/
+
+struct PathNode
+{
+  typedef PathLabel::rank_type rank_type;
+
+  const static size_type LABEL_LENGTH = PathLabel::LABEL_LENGTH;
+
   node_type from, to;
-  rank_type first_label[LABEL_LENGTH];
-  rank_type last_label[LABEL_LENGTH];
+
+  inline bool sorted() const { return (this->to == ~(node_type)0); }
+  inline void makeSorted() { this->to = ~(node_type)0; }
+
+  /*
+    We reuse the to field for indegree (upper 32 bits) and outdegree (lower 32 bits).
+  */
+  inline void initDegree() { this->to = 0; }
+  inline void incrementOutdegree() { this->to++; }
+  inline size_type outdegree() const { return (this->to & 0xFFFFFFFF); }
+  inline void incrementIndegree() { this->to += ((size_type)1) << 32; }
+  inline size_type indegree() const { return (this->to >> 32); }
+
+//------------------------------------------------------------------------------
 
   /*
     From low-order to high-order bits:
@@ -261,12 +309,9 @@ struct PathNode
     4 bits   length of the kmer rank sequences representing the path label range
     4 bits   lcp of the above sequences
     8 bits   unused
-    40 bits  pointer to the label data FIXME implement
+    40 bits  pointer to the label data
   */
   size_type fields;
-
-  inline bool sorted() const { return (this->to == ~(node_type)0); }
-  inline void makeSorted() { this->to = ~(node_type)0; }
 
   inline byte_type predecessors() const { return (this->fields & 0xFF); }
   inline void setPredecessors(byte_type preds)
@@ -299,78 +344,127 @@ struct PathNode
     this->fields |= new_lcp << 12;
   }
 
-  /*
-    We reuse the to field for indegree (upper 32 bits) and outdegree (lower 32 bits).
-  */
-  inline void initDegree() { this->to = 0; }
-  inline void incrementOutdegree() { this->to++; }
-  inline size_type outdegree() const { return (this->to & 0xFFFFFFFF); }
-  inline void incrementIndegree() { this->to += ((size_type)1) << 32; }
-  inline size_type indegree() const { return (this->to >> 32); }
+  inline size_type pointer() const { return (this->fields >> 24); }
+  inline void setPointer(size_type new_pointer)
+  {
+    this->fields &= 0xFFFFFF;
+    this->fields |= new_pointer << 24;
+  }
 
 //------------------------------------------------------------------------------
 
-  /*
-    Convention: If a.first_label is a proper prefix of b.first_label, a < b. If
-    a.last_label is a proper prefix of b.last_label, a.last_label > b.last_label.
-  */
+  inline size_type ranks() const { return this->order() + 1; }
+
+  inline PathLabel firstLabel(const std::vector<rank_type>& labels) const
+  {
+    PathLabel res;
+    res.length = this->order();
+    for(size_type i = 0, j = this->pointer(); i < res.length; i++, j++)
+    {
+      res.label[i] = labels[j];
+    }
+    res.is_first = true;
+    return res;
+  }
+
+  inline PathLabel lastLabel(const std::vector<rank_type>& labels) const
+  {
+    PathLabel res;
+
+    res.length = this->lcp();
+    for(size_type i = 0, j = this->pointer(); i < res.length; i++, j++)
+    {
+      res.label[i] = labels[j];
+    }
+
+    if(this->lcp() < this->order())
+    {
+      res.label[res.length] = labels[this->pointer() + this->order()];
+      res.length++;
+    }
+
+    res.is_first = false;
+    return res;
+  }
+
+  inline rank_type firstLabel(size_type i, const std::vector<rank_type>& labels) const
+  {
+    return labels[this->pointer() + i];
+  }
+
+  inline rank_type lastLabel(size_type i, const std::vector<rank_type>& labels) const
+  {
+    if(i < this->lcp()) { return labels[this->pointer() + i]; }
+    else { return labels[this->pointer() + this->order()]; }
+  }
 
   // Do the two path nodes intersect?
-  bool intersect(const PathNode& another) const;
+  bool intersect(const PathLabel& first, const PathLabel& last, const std::vector<rank_type>& labels) const;
 
   /*
     Computes the length of the minimal/maximal longest common prefix of the kmer rank
     sequences of this and another. another must come after this in lexicographic order,
     and the ranges must not overlap.
   */
-  size_type min_lcp(const PathNode& another) const;
-  size_type max_lcp(const PathNode& another) const;
-
-  inline bool operator< (const PathNode& another) const
-  {
-    size_type ord = std::min(this->order(), another.order());
-    for(size_type i = 0; i < ord; i++)
-    {
-      if(this->first_label[i] != another.first_label[i])
-      {
-        return (this->first_label[i] < another.first_label[i]);
-      }
-    }
-    return (this->order() < another.order());
-  }
-
-  // Like operator<, but for the last labels.
-  inline bool compareLast(const PathNode& another) const
-  {
-    size_type ord = std::min(this->order(), another.order());
-    for(size_type i = 0; i < ord; i++)
-    {
-      if(this->last_label[i] != another.last_label[i])
-      {
-        return (this->last_label[i] < another.last_label[i]);
-      }
-    }
-    return (another.order() < this->order());
-  }
+  size_type min_lcp(const PathNode& another, const std::vector<rank_type>& labels) const;
+  size_type max_lcp(const PathNode& another, const std::vector<rank_type>& labels) const;
 
 //------------------------------------------------------------------------------
 
-  explicit PathNode(const KMer& kmer);
-  PathNode(const PathNode& left, const PathNode& right);
-  explicit PathNode(std::ifstream& in);
+  PathNode(const KMer& kmer, std::vector<rank_type>& labels);
 
-  size_type serialize(std::ostream& out) const;
+  PathNode(const PathNode& source,
+    const std::vector<rank_type>& old_labels, std::vector<rank_type>& new_labels);
+
+  PathNode(const PathNode& left, const PathNode& right,
+    const std::vector<rank_type>& old_labels, std::vector<rank_type>& new_labels);
+
+  PathNode(std::ifstream& in, std::vector<rank_type>& labels);
+
+  size_type serialize(std::ostream& out, const std::vector<rank_type>& labels) const;
+
+  void print(std::ostream& out, const std::vector<rank_type>& labels) const;
 
   PathNode();
-  PathNode(const PathNode& source);
+  explicit PathNode(std::vector<rank_type>& labels);
   PathNode(PathNode&& source);
   ~PathNode();
 
-  void copy(const PathNode& source);
-  void swap(PathNode& another);
+  inline void swap(PathNode& another)
+  {
+    if(&another != this)
+    {
+      std::swap(this->from, another.from); std::swap(this->to, another.to);
+      std::swap(this->fields, another.fields);
+    }
+  }
 
-  PathNode& operator= (const PathNode& source);
   PathNode& operator= (PathNode&& source);
+
+  /*
+    These are dangerous, because the nodes will share the same label. Changing one will
+    change the other as well.
+  */
+  PathNode(const PathNode& source);
+  PathNode& operator= (const PathNode& source);
+  void copy(const PathNode& source);
+};
+
+struct PathFirstComparator
+{
+  const std::vector<PathNode::rank_type>& labels;
+
+  explicit PathFirstComparator(const std::vector<PathNode::rank_type>& _labels) : labels(_labels) { }
+
+  inline bool operator() (const PathNode& a, const PathNode& b) const
+  {
+    size_type order = std::min(a.order(), b.order());
+    for(size_type i = 0, a_ptr = a.pointer(), b_ptr = b.pointer(); i < order; i++, a_ptr++, b_ptr++)
+    {
+      if(labels[a_ptr] != labels[b_ptr]) { return (labels[a_ptr] < labels[b_ptr]); }
+    }
+    return (a.order() < b.order());
+  }
 };
 
 struct PathFromComparator
@@ -381,14 +475,13 @@ struct PathFromComparator
   }
 };
 
-std::ostream& operator<< (std::ostream& stream, const PathNode& pn);
-
 //------------------------------------------------------------------------------
 
 struct LCP
 {
-  typedef sdsl::rmq_succinct_sada<> rmq_type; // Faster than rmq_support_sct.
-  typedef std::pair<PathNode::rank_type, PathNode::rank_type> rank_range;
+  typedef sdsl::rmq_succinct_sada<>       rmq_type; // Faster than rmq_support_sct.
+  typedef PathNode::rank_type             rank_type;
+  typedef std::pair<rank_type, rank_type> rank_range;
 
   size_type           kmer_length, total_keys;
   sdsl::int_vector<0> kmer_lcp;
@@ -405,8 +498,8 @@ struct LCP
 
     FIXME Later: Do not use the rmq if the kmer ranks are close.
   */
-  range_type min_lcp(const PathNode& a, const PathNode& b) const;
-  range_type max_lcp(const PathNode& a, const PathNode& b) const;
+  range_type min_lcp(const PathNode& a, const PathNode& b, const std::vector<rank_type>& labels) const;
+  range_type max_lcp(const PathNode& a, const PathNode& b, const std::vector<rank_type>& labels) const;
 
   // Increments the lcp by 1.
   inline range_type increment(range_type lcp) const

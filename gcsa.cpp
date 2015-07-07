@@ -270,17 +270,17 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, size_type doubling_s
   // Transform the kmers into PathNodes.
   // FIXME Later: Save memory by not having both KMers and PathNodes in memory.
   std::vector<PathNode> paths; paths.reserve(kmers.size());
-  for(size_type i = 0; i < kmers.size(); i++) { paths.push_back(PathNode(kmers[i])); }
+  std::vector<PathNode::rank_type> labels; labels.reserve(2 * kmers.size());
+  for(size_type i = 0; i < kmers.size(); i++) { paths.push_back(PathNode(kmers[i], labels)); }
   sdsl::util::clear(kmers);
 
   // Build the GCSA in PathNodes.
-  this->prefixDoubling(paths, kmer_length, doubling_steps, lcp);
+  this->prefixDoubling(paths, labels, kmer_length, doubling_steps, lcp);
   sdsl::util::clear(lcp);
   std::vector<range_type> from_nodes;
-  this->mergeByLabel(paths, from_nodes);
+  this->mergeByLabel(paths, labels, from_nodes);
 
-  this->build(paths, mapper, last_char);
-
+  this->build(paths, labels, mapper, last_char);
   this->sample(paths, from_nodes);
 }
 
@@ -328,11 +328,12 @@ struct ValueIndex
       }
     }
 
-    if(buffer.size() > 0) {
-        // Fills in values, but only works if there are any values to fill
-        sdsl::sd_vector<> temp(buffer.begin(), buffer.end());
-        this->values.swap(temp);
-        sdsl::util::clear(buffer);
+    // Fills in values, but only works if there are any values to fill
+    if(buffer.size() > 0)
+    {
+      sdsl::sd_vector<> temp(buffer.begin(), buffer.end());
+      this->values.swap(temp);
+      sdsl::util::clear(buffer);
     }
 
     sdsl::util::init_support(this->value_rank, &(this->values));
@@ -355,44 +356,52 @@ struct ValueIndex
   FIXME Later: parallelize
 */
 void
-joinPaths(std::vector<PathNode>& paths)
+joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels)
 {
   PathFromComparator pfc; // Sort the paths by from.
   parallelQuickSort(paths.begin(), paths.end(), pfc);
   size_type old_path_count = paths.size();
 
   ValueIndex<PathNode, FromGetter> from_index(paths);
-  size_type new_path_count = 0;
+  size_type new_path_count = 0, new_rank_count = 0;
   for(size_type i = 0; i < paths.size(); i++)
   {
-    if(paths[i].sorted()) { new_path_count++; }
+    if(paths[i].sorted()) { new_path_count++; new_rank_count += paths[i].ranks(); }
     else
     {
       size_type first = from_index.find(paths[i].to);
-      for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++) { new_path_count++; }
+      size_type left_order = paths[i].order();
+      for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
+      {
+        new_path_count++;
+        new_rank_count += left_order + paths[j].ranks();
+      }
     }
   }
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "  joinPaths(): Reserving space for " << new_path_count << " paths" << std::endl;
+  std::cerr << "  joinPaths(): Reserving space for " << new_path_count << " paths, "
+            << new_rank_count << " ranks" << std::endl;
 #endif
 
   std::vector<PathNode> next; next.reserve(new_path_count);
+  std::vector<PathNode::rank_type> next_labels; next_labels.reserve(new_rank_count);
   for(size_type i = 0; i < paths.size(); i++)
   {
-    if(paths[i].sorted()) { next.push_back(paths[i]); }
+    if(paths[i].sorted()) { next.push_back(PathNode(paths[i], labels, next_labels)); }
     else
     {
       size_type first = from_index.find(paths[i].to);
       for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
       {
-        next.push_back(PathNode(paths[i], paths[j]));
+        next.push_back(PathNode(paths[i], paths[j], labels, next_labels));
       }
     }
   }
 
-  paths.swap(next);
+  paths.swap(next); labels.swap(next_labels);
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "  joinPaths(): " << old_path_count << " -> " << paths.size() << " paths" << std::endl;
+  std::cerr << "  joinPaths(): " << old_path_count << " -> " << paths.size() << " paths ("
+            << labels.size() << " ranks)" << std::endl;
 #endif
 }
 
@@ -403,12 +412,13 @@ joinPaths(std::vector<PathNode>& paths)
   the beginning, while range.first >= paths.size() means the end.
 */
 range_type
-nextRange(range_type range, const std::vector<PathNode>& paths)
+nextRange(range_type range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels)
 {
   if(Range::empty(range)) { range.first = 0; range.second = 0; }
   else { range.first = range.second = range.second + 1; }
 
-  while(range.second + 1 < paths.size() && !(paths[range.first] < paths[range.second + 1]))
+  PathFirstComparator pfc(labels);
+  while(range.second + 1 < paths.size() && !pfc(paths[range.first], paths[range.second + 1]))
   {
     range.second++;
   }
@@ -417,12 +427,12 @@ nextRange(range_type range, const std::vector<PathNode>& paths)
 }
 
 range_type
-firstRange(const std::vector<PathNode>& paths)
+firstRange(const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels)
 {
-  return nextRange(range_type(1, 0), paths);
+  return nextRange(range_type(1, 0), paths, labels);
 }
 
-bool
+inline bool
 sameFrom(range_type range, const std::vector<PathNode>& paths)
 {
   for(size_type i = range.first + 1; i <= range.second; i++)
@@ -439,12 +449,13 @@ sameFrom(range_type range, const std::vector<PathNode>& paths)
   (a,b), where a is the lcp of the labels and b is the lcp of the first diverging kmers.
 */
 range_type
-extendRange(range_type& range, const std::vector<PathNode>& paths, const LCP& lcp)
+extendRange(range_type& range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+  const LCP& lcp)
 {
   range_type min_lcp(0, 0);
   if(range.first > 0)
   {
-    min_lcp = lcp.increment(lcp.max_lcp(paths[range.first - 1], paths[range.first]));
+    min_lcp = lcp.increment(lcp.max_lcp(paths[range.first - 1], paths[range.first], labels));
   }
   range_type range_lcp(paths[range.first].order(), 0);
 
@@ -454,15 +465,15 @@ extendRange(range_type& range, const std::vector<PathNode>& paths, const LCP& lc
     2. Is the LCP still high enough? Stop if not.
     3. Is the LCP between the end of the range and the next path lower than the range lcp? Extend if true.
   */
-  for(range_type next_range = nextRange(range, paths); next_range.first < paths.size();
-    next_range = nextRange(next_range, paths))
+  for(range_type next_range = nextRange(range, paths, labels); next_range.first < paths.size();
+    next_range = nextRange(next_range, paths, labels))
   {
     if(paths[next_range.first].from != paths[range.first].from || !sameFrom(next_range, paths)) { break; }
-    range_type next_lcp = lcp.min_lcp(paths[range.first], paths[next_range.second]);
+    range_type next_lcp = lcp.min_lcp(paths[range.first], paths[next_range.second], labels);
     if(next_lcp < min_lcp) { break; }
     if(range.second + 1 < paths.size())
     {
-      range_type border_lcp = lcp.max_lcp(paths[range.second], paths[range.second + 1]);
+      range_type border_lcp = lcp.max_lcp(paths[range.second], paths[range.second + 1], labels);
       if(border_lcp >= next_lcp) { continue; }
     }
     range.second = next_range.second; range_lcp = next_lcp;
@@ -471,34 +482,44 @@ extendRange(range_type& range, const std::vector<PathNode>& paths, const LCP& lc
   return range_lcp;
 }
 
-PathNode
-mergePathNodes(const std::vector<PathNode>& paths, range_type range, range_type range_lcp, const LCP& lcp)
+/*
+  Merges the path nodes into paths[range.first].
+*/
+void
+mergePathNodes(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+  range_type range, range_type range_lcp, const LCP& lcp)
 {
-  PathNode res = paths[range.first];
-
   size_type order = range_lcp.first;
   if(range_lcp.second > 0)
   {
-    LCP::rank_range ranks(paths[range.first].first_label[order], paths[range.second].last_label[order]);
+    LCP::rank_range
+      ranks(paths[range.first].firstLabel(order, labels), paths[range.second].lastLabel(order, labels));
     ranks = lcp.extendRange(ranks, range_lcp.second);
-    res.first_label[order] = ranks.first; res.last_label[order] = ranks.second;
+    size_type ptr = paths[range.first].pointer();
+    labels[ptr + order] = ranks.first;
+    labels[ptr + order + 1] = ranks.second;
     order++;
   }
-  res.makeSorted(); res.setOrder(order); res.setLCP(range_lcp.first);
-  for(size_type i = range.first + 1; i <= range.second; i++) { res.addPredecessors(paths[i]); }
 
-  return res;
+  paths[range.first].makeSorted();
+  paths[range.first].setOrder(order); paths[range.first].setLCP(range_lcp.first);
+  for(size_type i = range.first + 1; i <= range.second; i++)
+  {
+    paths[range.first].addPredecessors(paths[i]);
+  }
 }
 
 /*
   This version assumes that the paths have identical labels.
 */
-PathNode
-mergePathNodes(const std::vector<PathNode>& paths, range_type range)
+void
+mergePathNodes(std::vector<PathNode>& paths, range_type range)
 {
-  PathNode res = paths[range.first]; res.makeSorted();
-  for(size_type i = range.first + 1; i <= range.second; i++) { res.addPredecessors(paths[i]); }
-  return res;
+  paths[range.first].makeSorted();
+  for(size_type i = range.first + 1; i <= range.second; i++)
+  {
+    paths[range.first].addPredecessors(paths[i]);
+  }
 }
 
 /*
@@ -509,19 +530,21 @@ mergePathNodes(const std::vector<PathNode>& paths, range_type range)
   entire path can be marked sorted, even though its label is non-unique.
 */
 size_type
-mergePaths(std::vector<PathNode>& paths, const LCP& lcp)
+mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, const LCP& lcp)
 {
-  parallelQuickSort(paths.begin(), paths.end());
+  PathFirstComparator pfc(labels);
+  parallelQuickSort(paths.begin(), paths.end(), pfc);
   size_type old_path_count = paths.size();
 
-  std::vector<PathNode> new_last;
   size_type tail = 0, unique = 0, unsorted = 0, nondeterministic = 0;
-  for(range_type range = firstRange(paths); range.first < paths.size(); range = nextRange(range, paths))
+  for(range_type range = firstRange(paths, labels); range.first < paths.size();
+    range = nextRange(range, paths, labels))
   {
     if(sameFrom(range, paths))
     {
-      range_type range_lcp = extendRange(range, paths, lcp);
-      paths[tail] = mergePathNodes(paths, range, range_lcp, lcp);
+      range_type range_lcp = extendRange(range, paths, labels, lcp);
+      mergePathNodes(paths, labels, range, range_lcp, lcp);
+      paths[tail] = paths[range.first];
       tail++; unique++;
     }
     else
@@ -548,14 +571,15 @@ mergePaths(std::vector<PathNode>& paths, const LCP& lcp)
 //------------------------------------------------------------------------------
 
 void
-GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_type doubling_steps,
+GCSA::prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+  size_type kmer_length, size_type doubling_steps,
   const LCP& lcp)
 {
   size_type path_order = 1;
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "GCSA::prefixDoubling(): Initial path length " << kmer_length << std::endl;
 #endif
-  size_type unsorted = mergePaths(paths, lcp);
+  size_type unsorted = mergePaths(paths, labels, lcp);
 
   for(size_type step = 1; step <= doubling_steps && unsorted > 0; step++)
   {
@@ -563,8 +587,8 @@ GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_t
     std::cerr << "GCSA::prefixDoubling(): Step " << step << " (path length " << (path_order * kmer_length) << " -> "
               << (2 * path_order * kmer_length) << ")" << std::endl;
 #endif
-    joinPaths(paths); path_order *= 2;
-    unsorted = mergePaths(paths, lcp);
+    joinPaths(paths, labels); path_order *= 2;
+    unsorted = mergePaths(paths, labels, lcp);
   }
   this->max_query_length = (unsorted == 0 ? ~(size_type)0 : kmer_length << doubling_steps);
 }
@@ -572,14 +596,17 @@ GCSA::prefixDoubling(std::vector<PathNode>& paths, size_type kmer_length, size_t
 //------------------------------------------------------------------------------
 
 void
-GCSA::mergeByLabel(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
+GCSA::mergeByLabel(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+  std::vector<range_type>& from_nodes)
 {
   this->path_node_count = 0;
   size_type old_path_count = paths.size();
 
-  for(range_type range = firstRange(paths); range.first < paths.size(); range = nextRange(range, paths))
+  for(range_type range = firstRange(paths, labels); range.first < paths.size();
+    range = nextRange(range, paths, labels))
   {
-    paths[this->path_node_count] = mergePathNodes(paths, range);
+    mergePathNodes(paths, range);
+    paths[this->path_node_count] = paths[range.first];
     for(size_type i = range.first + 1; i <= range.second; i++)
     {
       from_nodes.push_back(range_type(this->path_node_count, paths[i].from));
@@ -596,40 +623,41 @@ GCSA::mergeByLabel(std::vector<PathNode>& paths, std::vector<range_type>& from_n
 
 //------------------------------------------------------------------------------
 
-PathNode
-predecessor(const PathNode& curr, comp_type comp, const GCSA& mapper, const sdsl::int_vector<0>& last_char)
+std::pair<PathLabel, PathLabel>
+predecessor(const PathNode& curr, std::vector<PathNode::rank_type>& labels,
+  comp_type comp, const GCSA& mapper, const sdsl::int_vector<0>& last_char)
 {
-  PathNode pred;
-  size_type i = 0, order = curr.order();
+  size_type i = 0, j = curr.pointer();
+  PathLabel first, last;
+  first.is_first = true; last.is_first = false;
 
   // Handle the common prefix of the labels.
   while(i < curr.lcp())
   {
-    pred.first_label[i] = pred.last_label[i] = mapper.LF(curr.first_label[i], comp);
-    comp = last_char[curr.first_label[i]];
-    i++;
+    first.label[i] = last.label[i] = mapper.LF(labels[j], comp);
+    comp = last_char[labels[j]];
+    i++; j++;
   }
-  pred.setLCP(i);
 
   // Handle the diverging suffixes of the labels.
   comp_type first_comp = comp, last_comp = comp;
-  if(i < order)
+  if(i < curr.order())
   {
-    pred.first_label[i] = mapper.LF(curr.first_label[i], first_comp);
-    first_comp = last_char[curr.first_label[i]];
-    pred.last_label[i] = mapper.LF(curr.last_label[i], last_comp);
-    last_comp = last_char[curr.last_label[i]];
+    first.label[i] = mapper.LF(labels[j], first_comp);
+    first_comp = last_char[labels[j]];
+    last.label[i] = mapper.LF(labels[j + 1], last_comp);
+    last_comp = last_char[labels[j + 1]];
     i++;
   }
-  if(i < PathNode::LABEL_LENGTH)
+  if(i < PathLabel::LABEL_LENGTH)
   {
-    pred.first_label[i] = mapper.edge_rank(mapper.alpha.C[first_comp]);
-    pred.last_label[i] = mapper.edge_rank(mapper.alpha.C[last_comp + 1]) - 1;
+    first.label[i] = mapper.edge_rank(mapper.alpha.C[first_comp]);
+    last.label[i] = mapper.edge_rank(mapper.alpha.C[last_comp + 1]) - 1;
     i++;
   }
 
-  pred.setOrder(i);
-  return pred;
+  first.length = last.length = i;
+  return std::make_pair(first, last);
 }
 
 /*
@@ -639,7 +667,8 @@ predecessor(const PathNode& curr, comp_type comp, const GCSA& mapper, const sdsl
   FIXME Later: parallelize
 */
 void
-GCSA::build(std::vector<PathNode>& paths, GCSA& mapper, sdsl::int_vector<0>& last_char)
+GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+  GCSA& mapper, sdsl::int_vector<0>& last_char)
 {
   for(size_type i = 0; i < paths.size(); i++) { paths[i].initDegree(); }
 
@@ -650,7 +679,7 @@ GCSA::build(std::vector<PathNode>& paths, GCSA& mapper, sdsl::int_vector<0>& las
   next[sigma] = ~(size_type)0;
   for(size_type i = 0, comp = 0; i < paths.size(); i++)
   {
-    while(paths[i].first_label[0] >= next[comp]) { next[comp] = i; comp++; }
+    while(paths[i].firstLabel(0, labels) >= next[comp]) { next[comp] = i; comp++; }
   }
 
   size_type total_edges = 0;
@@ -664,14 +693,14 @@ GCSA::build(std::vector<PathNode>& paths, GCSA& mapper, sdsl::int_vector<0>& las
       if(!(paths[i].hasPredecessor(comp))) { continue; }
 
       // Find the predecessor of paths[i] with comp and the first path intersecting it.
-      PathNode pred = predecessor(paths[i], comp, mapper, last_char);
-      while(!(pred.intersect(paths[next[comp]]))) { next[comp]++; }
+      std::pair<PathLabel, PathLabel> pred = predecessor(paths[i], labels, comp, mapper, last_char);
+      while(!(paths[next[comp]].intersect(pred.first, pred.second, labels))) { next[comp]++; }
       paths[i].incrementIndegree(); paths[next[comp]].incrementOutdegree(); total_edges++;
       if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + paths.size() / 2); }
       bwt_buffer[total_edges - 1] = comp; counts[comp]++;
 
       // Create additional edges if the next path nodes also intersect with the predecessor.
-      while(next[comp] + 1 < paths.size() && pred.intersect(paths[next[comp] + 1]))
+      while(next[comp] + 1 < paths.size() && paths[next[comp] + 1].intersect(pred.first, pred.second, labels))
       {
         next[comp]++;
         paths[i].incrementIndegree(); paths[next[comp]].incrementOutdegree(); total_edges++;
@@ -699,12 +728,18 @@ GCSA::build(std::vector<PathNode>& paths, GCSA& mapper, sdsl::int_vector<0>& las
   }
   this->initSupport();
 
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "GCSA::build(): " << total_edges << " edges" << std::endl;
+#endif
+
   // This is a useful test when something goes wrong.
 /*  for(size_type i = 0; i < paths.size(); i++)
   {
     if(paths[i].outdegree() == 0)
     {
-      std::cout << "Path " << i << ": " << paths[i] << " has outdegree 0" << std::endl;
+      std::cout << "Path " << i << ": ";
+      paths[i].print(std::cout, labels);
+      std::cout << " has outdegree 0" << std::endl;
     }
   }*/
 }
@@ -797,6 +832,11 @@ GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
   this->stored_samples = sdsl::int_vector<0>(sample_buffer.size(), 0, sample_bits);
   for(size_type i = 0; i < sample_buffer.size(); i++) { this->stored_samples[i] = sample_buffer[i]; }
   sdsl::util::clear(sample_buffer);
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "GCSA::sample(): " << this->sample_count() << " samples at "
+            << this->sampled_positions() << " positions" << std::endl;
+#endif
 }
 
 //------------------------------------------------------------------------------
