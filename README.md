@@ -24,6 +24,19 @@ In the current implementation, the graph must have exactly one **source** node a
 
 The nodes of the final transformed graph are called **path nodes**, as they correspond to sets of **paths** in the original graph. Path nodes are identified by their ranks in lexicographic order. All paths having the same label are represented by the same path node. A path node matches **pattern** *P*, if either *P* is a prefix of its label, or the corresponding path in the input graph can be extended to match the pattern. (The construction guarantees that all paths represented by the same path node have the same extensions up to the maximum query length.)
 
+## Construction
+
+The primary GCSA constructor takes up to four parameters:
+
+* `std::vector<KMer>& kmers` contains the graph as a list of paths of a fixed length.
+* `size_type kmer_length` is the length of the paths.
+* `size_type doubling_steps` (optional; default 3) is the number of doubling steps to perform. The implementation currently supports 1-3 steps.
+* `const Alphabet& _alpha` (optional) is an object that maps characters to a contiguous range of small integers.
+
+After the index has been built, it can be serialized and loaded by using the SDSL `serialize()` / `load()` interface.
+
+Each `KMer` object contains three integers: a key encoding the label of the path and its predecessor/successor characters, the starting node of the path, and a successor node. If the path has multiple successors, separate `KMer` objects must be created for each of them. The `KMer` construction interface has not been finalized yet.
+
 ## Interface
 
 Query `find(P)` returns the lexicographic range of path nodes matching pattern *P*. The pattern can be a pair of random-access iterators (e.g. those returned by `pattern.begin()` and `pattern.end()`), a container with random-access iterators (e.g. `std::string`, `std::vector`, or `sdsl::int_vector`), or a character pointer with string length.
@@ -51,9 +64,9 @@ The construction interface, the low-level interface and the graph navigation ope
 
 * Optimizations
   * Multi-threaded construction.
-  * More space-efficient construction.
+  * More space-efficient construction. The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for *(id,offset)* pairs. We can write the results of a doubling step to disk, and even do the merging step on disk if necessary.
   * More space-efficient index representation.
-  * Sample compression (if necessary).
+  * Sample compression. More efficient encoding for the *(id,offset)* pairs would already help.
   * Determine when nodes have to be prefix-sorted and when we can make them prefix-range-sorted.
 * Generalizations
   * Make index construction work with 0 doubling steps.
