@@ -43,7 +43,7 @@ Query `find(P)` returns the lexicographic range of path nodes matching pattern *
 
 Query `locate(i, results)` returns the identifiers of the input nodes at the beginning of the paths represented by the path node with lexicographic rank *i*. Query `locate(range_type(sp,ep), results)` does the same for lexicographic range *[sp,ep]*.
 
-The construction interface, the low-level interface and the graph navigation operations are still subject to change.
+The low-level interface and the graph navigation operations are still subject to change.
 
 ## Version history
 
@@ -56,7 +56,7 @@ The construction interface, the low-level interface and the graph navigation ope
 
 ### 0.1 (2015-05-27)
 
-* The first release.
+* The first pre-release.
 * Index construction from paths extracted from vg.
 * `find()` and `locate()` queries.
 
