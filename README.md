@@ -64,7 +64,7 @@ The low-level interface and the graph navigation operations are still subject to
 
 * Optimizations
   * Multi-threaded construction.
-  * More space-efficient construction. The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for *(id,offset)* pairs. We can write the results of a doubling step to disk, and even do the merging step on disk if necessary.
+  * More space-efficient construction. The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for the *(id,offset)* pairs. We can write the results of a doubling step to disk, and even do the merging step on disk if necessary.
   * More space-efficient index representation.
   * Sample compression. More efficient encoding for the *(id,offset)* pairs would already help.
   * Determine when nodes have to be prefix-sorted and when we can make them prefix-range-sorted.
@@ -74,8 +74,14 @@ The low-level interface and the graph navigation operations are still subject to
   * Support for inputs other than vg paths.
   * Sampling when starting positions are just node ids without offsets.
 * Interface
+  * Binary input format.
   * Low-level interface.
   * Graph navigation operations.
+* Construction parameters
+  * Memory limit, disk space limit.
+  * What to do when the limits are exceeded? (Index the previous generation or fail.)
+* Compilation options
+  * Use 32-bit or 64-bit node identifiers in PathNodes.
 * A paper describing the new algorithmic ideas.
 
 ## References

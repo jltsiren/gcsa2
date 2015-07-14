@@ -292,13 +292,20 @@ struct PathNode
   inline void makeSorted() { this->to = ~(node_type)0; }
 
   /*
-    We reuse the to field for indegree (upper 32 bits) and outdegree (lower 32 bits).
+    We reuse the 'to' field for indegree (upper 2 bits) and outdegree (lower 30 bits).
+    The only relevant states for indegree are 0, 1, and 2+, which we encode as 0, 1,
+    and 3+.
   */
   inline void initDegree() { this->to = 0; }
+
+  inline size_type outdegree() const { return (this->to & 0x3FFFFFFF); }
   inline void incrementOutdegree() { this->to++; }
-  inline size_type outdegree() const { return (this->to & 0xFFFFFFFF); }
-  inline void incrementIndegree() { this->to += ((size_type)1) << 32; }
-  inline size_type indegree() const { return (this->to >> 32); }
+
+  inline size_type indegree() const { return (this->to >> 30); }
+  inline void incrementIndegree()
+  {
+    this->to |= ((this->indegree() << 1) | 1) << 30;
+  }
 
 //------------------------------------------------------------------------------
 
