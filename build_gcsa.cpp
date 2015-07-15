@@ -64,14 +64,15 @@ main(int argc, char** argv)
     std::cerr << "Usage: build_gcsa [options] base_name" << std::endl;
     std::cerr << "  -b    Read the input in binary format" << std::endl;
     std::cerr << "  -d N  Doubling steps (default and max " << GCSA::DOUBLING_STEPS << ")" << std::endl;
+    std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default 200)" << std::endl;
     std::cerr << "  -t    Read the input in text format (default)" << std::endl;
     std::cerr << std::endl;
-    return 1;
+    exit(EXIT_SUCCESS);
   }
 
-  size_type doubling_steps = GCSA::DOUBLING_STEPS;
+  size_type doubling_steps = GCSA::DOUBLING_STEPS, size_limit = GCSA::SIZE_LIMIT;
   int c = 0; bool binary = false;
-  while((c = getopt(argc, argv, "bd:t")) != -1)
+  while((c = getopt(argc, argv, "bd:l:t")) != -1)
   {
     switch(c)
     {
@@ -82,15 +83,18 @@ main(int argc, char** argv)
       if(doubling_steps > GCSA::DOUBLING_STEPS)
       {
         std::cerr << "build_gcsa: Number of doubling steps is too high: " << doubling_steps << std::endl;
-        return 2;
+        exit(EXIT_FAILURE);
       }
+      break;
+    case 'l':
+      size_limit = std::stoul(optarg);
       break;
     case 't':
       binary = false; break;
     case '?':
-      return 3;
+      exit(EXIT_FAILURE);
     default:
-      return 4;
+      exit(EXIT_FAILURE);
     }
   }
   std::string base_name = argv[optind];
@@ -101,13 +105,14 @@ main(int argc, char** argv)
   if(binary) { std::cout << BINARY_EXTENSION << " (binary format)" << std::endl; }
   else { std::cout << TEXT_EXTENSION << " (text format)" << std::endl; }
   std::cout << "Doubling steps: " << doubling_steps << std::endl;
+  std::cout << "Size limit: " << size_limit << " GB" << std::endl;
   std::cout << std::endl;
 
 #ifdef VERIFY_GRAPH
   {
     std::vector<KMer> kmers;
     size_type kmer_length = readKMers(base_name, kmers, binary, true);
-    if(!(verifyGraph(kmers, kmer_length))) { return 2; }
+    if(!(verifyGraph(kmers, kmer_length))) { exit(EXIT_FAILURE); }
   }
 #endif
 
@@ -134,7 +139,7 @@ main(int argc, char** argv)
     std::vector<KMer> kmers;
     size_type kmer_length = readKMers(base_name, kmers, binary);
     double start = readTimer();
-    GCSA temp(kmers, kmer_length, doubling_steps); index.swap(temp);
+    GCSA temp(kmers, kmer_length, doubling_steps, size_limit); index.swap(temp);
     double seconds = readTimer() - start;
     std::cout << "Index built in " << seconds << " seconds" << std::endl;
     std::cout << std::endl;
@@ -183,7 +188,7 @@ tokenize(const std::string& line, std::vector<std::string>& tokens)
     }
     if(tokens.size() != 5)
     {
-      std::cerr << "KMer::tokenize(): The kmer line must contain 5 tokens." << std::endl;
+      std::cerr << "KMer::tokenize(): The kmer line must contain 5 tokens" << std::endl;
       std::cerr << "KMer::tokenize(): The line was: " << line << std::endl;
       return false;
     }

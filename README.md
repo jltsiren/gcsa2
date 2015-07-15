@@ -26,16 +26,19 @@ The nodes of the final transformed graph are called **path nodes**, as they corr
 
 ## Construction
 
-The primary GCSA constructor takes up to four parameters:
+**Warning:** The optional arguments and the `KMer` construction interface will eventually change.
+
+The primary GCSA constructor takes up to five parameters:
 
 * `std::vector<KMer>& kmers` contains the graph as a list of paths of a fixed length.
 * `size_type kmer_length` is the length of the paths.
 * `size_type doubling_steps` (optional; default 3) is the number of doubling steps to perform. The implementation currently supports 1-3 steps.
+* `size_type size_limit` (optional; in gigabytes; default 200) limits the size of temporary graphs.
 * `const Alphabet& _alpha` (optional) is an object that maps characters to a contiguous range of small integers.
 
-After the index has been built, it can be serialized and loaded by using the SDSL `serialize()` / `load()` interface.
+The constructor writes several large temporary files to disk to save memory. After the index has been built, it can be serialized and loaded by using the SDSL `serialize()` / `load()` interface.
 
-Each `KMer` object contains three integers: a key encoding the label of the path and its predecessor/successor characters, the starting node of the path, and a successor node. If the path has multiple successors, separate `KMer` objects must be created for each of them. The `KMer` construction interface has not been finalized yet.
+Each `KMer` object contains three integers: a key encoding the label of the path and its predecessor/successor characters, the starting node of the path, and a successor node. If the path has multiple successors, separate `KMer` objects must be created for each of them.
 
 ## Interface
 
@@ -78,10 +81,11 @@ The low-level interface and the graph navigation operations are still subject to
   * Low-level interface.
   * Graph navigation operations.
 * Construction parameters
-  * Memory limit, disk space limit.
+  * Split size limit into memory limit and disk space limit.
   * What to do when the limits are exceeded? (Index the previous generation or fail.)
+  * Temporary file location.
 * Compilation options
-  * Use 32-bit or 64-bit node identifiers in PathNodes.
+  * Use 32-bit or 64-bit node identifiers in `PathNode`.
 * A paper describing the new algorithmic ideas.
 
 ## References

@@ -418,6 +418,8 @@ struct PathNode
 
 //------------------------------------------------------------------------------
 
+  static std::vector<rank_type> dummyRankVector();
+
   PathNode(const KMer& kmer, std::vector<rank_type>& labels);
 
   PathNode(const PathNode& source,

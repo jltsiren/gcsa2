@@ -53,9 +53,11 @@ public:
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
 
-  const static std::string EXTENSION;  // .gcsa
+  const static std::string EXTENSION;       // .gcsa
 
   const static size_type DOUBLING_STEPS = 3;
+  const static size_type SIZE_LIMIT = 200;  // Gigabytes.
+  const static size_type ABSOLUTE_SIZE_LIMIT = 16384;
 
   const static char_type ENDMARKER = '$';
   const static comp_type ENDMARKER_COMP = 0;
@@ -74,7 +76,8 @@ public:
     the specified number of times (up to DOUBLING_STEPS). The kmer array will be cleared
     during the construction.
   */
-  GCSA(std::vector<KMer>& kmers, size_type kmer_length, size_type doubling_steps = DOUBLING_STEPS,
+  GCSA(std::vector<KMer>& kmers, size_type kmer_length,
+    size_type doubling_steps = DOUBLING_STEPS, size_type size_limit = SIZE_LIMIT,
     const Alphabet& _alpha = Alphabet());
 
 //------------------------------------------------------------------------------
@@ -210,7 +213,7 @@ private:
     max_query_length.
   */
   void prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-    size_type kmer_length, size_type doubling_steps, const LCP& lcp);
+    size_type kmer_length, size_type doubling_steps, size_type size_limit, const LCP& lcp);
 
   /*
     Merges path nodes having the same labels. Writes the additional from nodes to the given

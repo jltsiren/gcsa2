@@ -279,12 +279,20 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
 
 //------------------------------------------------------------------------------
 
+std::vector<PathNode::rank_type>
+PathNode::dummyRankVector()
+{
+  std::vector<rank_type> temp;
+  temp.reserve(LABEL_LENGTH + 1);
+  return temp;
+}
+
 PathNode::PathNode(const KMer& kmer, std::vector<PathNode::rank_type>& labels)
 {
   this->from = kmer.from; this->to = kmer.to;
-  if(kmer.sorted()) { this->makeSorted(); }
-
   this->fields = 0;
+
+  if(kmer.sorted()) { this->makeSorted(); }
   this->setPredecessors(Key::predecessors(kmer.key));
   this->setOrder(1); this->setLCP(1);
 
@@ -332,24 +340,23 @@ PathNode::PathNode(const PathNode& left, const PathNode& right,
 
 PathNode::PathNode(std::ifstream& in, std::vector<PathNode::rank_type>& labels)
 {
-  sdsl::read_member(this->from, in); sdsl::read_member(this->to, in);
-  sdsl::read_member(this->fields, in);
+  in.read((char*)this, sizeof(*this));
+  this->setPointer(labels.size());
 
-  rank_type buffer[this->ranks()];
+  rank_type buffer[LABEL_LENGTH + 1];
   in.read((char*)buffer, this->ranks() * sizeof(rank_type));
-  for(size_type i = 0; i < this->ranks(); i++) { labels.push_back(buffer[i]); }
+  labels.insert(labels.end(), buffer, buffer + this->ranks());
 }
 
 size_type
-PathNode::serialize(std::ostream& out, const std::vector<PathNode::rank_type>& labels) const
+PathNode::serialize(std::ostream& out, const std::vector<rank_type>& labels) const
 {
-  size_type bytes = 0;
-  bytes += sdsl::write_member(this->from, out); bytes += sdsl::write_member(this->to, out);
-  bytes += sdsl::write_member(this->fields, out);
+  size_type bytes = sizeof(*this);
+  out.write((char*)this, sizeof(*this));
 
-  size_type buffer_size = (this->ranks()) * sizeof(rank_type);
-  out.write((char*)(labels.data() + this->pointer()), buffer_size);
-  bytes += buffer_size;
+  size_type rank_bytes = this->ranks() * sizeof(rank_type);
+  out.write((char*)(labels.data() + this->pointer()), rank_bytes);
+  bytes += rank_bytes;
 
   return bytes;
 }

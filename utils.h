@@ -146,6 +146,8 @@ size_type memoryUsage(); // Peak memory usage in bytes.
 // Returns the total length of the rows, excluding line ends.
 size_type readRows(const std::string& filename, std::vector<std::string>& rows, bool skip_empty_rows);
 
+std::string tempFile(const std::string& name_part);
+
 template<class Iterator, class Comparator>
 void
 parallelQuickSort(Iterator first, Iterator last, const Comparator& comp)

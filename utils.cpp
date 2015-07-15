@@ -25,6 +25,7 @@
 #include <cstdlib>
 
 #include <sys/resource.h>
+#include <unistd.h>
 
 #include "utils.h"
 
@@ -100,6 +101,18 @@ readRows(const std::string& filename, std::vector<std::string>& rows, bool skip_
 
   input.close();
   return chars;
+}
+
+std::string
+tempFile(const std::string& name_part)
+{
+  char hostname[32];
+  gethostname(hostname, 32); hostname[31] = 0;
+
+  return name_part + '_'
+    + std::string(hostname) + '_'
+    + sdsl::util::to_string(sdsl::util::pid()) + '_'
+    + sdsl::util::to_string(sdsl::util::id());
 }
 
 //------------------------------------------------------------------------------

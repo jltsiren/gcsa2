@@ -22,6 +22,9 @@
   SOFTWARE.
 */
 
+#include <cstdio>
+#include <cstdlib>
+
 #include "gcsa.h"
 
 namespace gcsa
@@ -249,7 +252,31 @@ GCSA::GCSA(const std::vector<key_type>& keys, size_type kmer_length, const Alpha
   this->initSupport();
 }
 
-GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, size_type doubling_steps, const Alphabet& _alpha)
+//------------------------------------------------------------------------------
+
+void
+readPathNodes(const std::string& filename,
+  std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels)
+{
+  sdsl::util::clear(paths); sdsl::util::clear(labels);
+
+  std::ifstream in(filename.c_str(), std::ios_base::binary);
+  if(!in)
+  {
+    std::cerr << "readPathNodes(): Cannot open temporary file " << filename << std::endl;
+    std::cerr << "readPathNodes(): Construction aborted" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  size_type path_count = 0, rank_count = 0;
+  sdsl::read_member(path_count, in); sdsl::read_member(rank_count, in);
+  paths.reserve(path_count + 4); labels.reserve(rank_count + 4);
+  for(size_type i = 0; i < path_count; i++) { paths.push_back(PathNode(in, labels)); }
+  in.close(); remove(filename.c_str());
+}
+
+GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
+  size_type doubling_steps, size_type size_limit, const Alphabet& _alpha)
 {
   if(kmers.size() == 0) { return; }
   if(doubling_steps > DOUBLING_STEPS)
@@ -257,6 +284,20 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, size_type doubling_s
     std::cerr << "GCSA::GCSA(): The number of doubling steps is too high: " << doubling_steps << std::endl;
     std::cerr << "GCSA::GCSA(): Reverting the number of doubling steps to " << DOUBLING_STEPS << std::endl;
     doubling_steps = DOUBLING_STEPS;
+  }
+  if(size_limit > ABSOLUTE_SIZE_LIMIT)
+  {
+    std::cerr << "GCSA::GCSA(): The size limit is suspiciously high: " << size_limit << " GB" << std::endl;
+    std::cerr << "GCSA::GCSA(): Reverting the size limit to " << ABSOLUTE_SIZE_LIMIT << " GB" << std::endl;
+    size_limit = ABSOLUTE_SIZE_LIMIT;
+  }
+  size_type bytes_required =
+    2 * sizeof(size_type) + kmers.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
+  if(bytes_required > size_limit * GIGABYTE)
+  {
+    std::cerr << "GCSA::GCSA(): The input is too large: " << (bytes_required / GIGABYTE_DOUBLE) << " GB" << std::endl;
+    std::cerr << "GCSA::GCSA(): Construction aborted" << std::endl;
+    exit(EXIT_FAILURE);
   }
 
   // Sort the kmers, build the mapper GCSA for generating the edges.
@@ -268,14 +309,35 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length, size_type doubling_s
   sdsl::util::clear(keys);
 
   // Transform the kmers into PathNodes.
-  // FIXME Later: Save memory by not having both KMers and PathNodes in memory.
-  std::vector<PathNode> paths; paths.reserve(kmers.size());
-  std::vector<PathNode::rank_type> labels; labels.reserve(2 * kmers.size());
-  for(size_type i = 0; i < kmers.size(); i++) { paths.push_back(PathNode(kmers[i], labels)); }
-  sdsl::util::clear(kmers);
+  std::vector<PathNode> paths;
+  std::vector<PathNode::rank_type> labels;
+  {
+    std::string temp_file = tempFile(EXTENSION);
+    std::ofstream out(temp_file.c_str(), std::ios_base::binary);
+    if(!out)
+    {
+      std::cerr << "GCSA::GCSA(): Cannot open temporary file " << temp_file << std::endl;
+      std::cerr << "GCSA::GCSA(): Construction aborted" << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
+    size_type kmer_count = kmers.size(); sdsl::write_member(kmer_count, out);
+    size_type rank_count = 2 * kmer_count; sdsl::write_member(rank_count, out);
+    for(size_type i = 0; i < kmers.size(); i++)
+    {
+      PathNode temp(kmers[i], temp_labels);
+      temp.serialize(out, temp_labels);
+      temp_labels.resize(0);
+    }
+    out.close();
+
+    sdsl::util::clear(kmers);
+    readPathNodes(temp_file, paths, labels);
+  }
 
   // Build the GCSA in PathNodes.
-  this->prefixDoubling(paths, labels, kmer_length, doubling_steps, lcp);
+  this->prefixDoubling(paths, labels, kmer_length, doubling_steps, size_limit, lcp);
   sdsl::util::clear(lcp);
   std::vector<range_type> from_nodes;
   this->mergeByLabel(paths, labels, from_nodes);
@@ -352,11 +414,10 @@ struct ValueIndex
 
 /*
   Join paths by left.to == right.from.
-  FIXME Later: Write the next generation to disk.
   FIXME Later: parallelize
 */
 void
-joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels)
+joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type size_limit)
 {
   PathFromComparator pfc; // Sort the paths by from.
   parallelQuickSort(paths.begin(), paths.end(), pfc);
@@ -382,23 +443,46 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
   std::cerr << "  joinPaths(): Reserving space for " << new_path_count << " paths, "
             << new_rank_count << " ranks" << std::endl;
 #endif
+  size_type bytes_required =
+    2 * sizeof(size_type) + new_path_count * sizeof(PathNode) + new_rank_count * sizeof(PathNode::rank_type);
+  if(bytes_required > size_limit * GIGABYTE)
+  {
+    std::cerr << "joinPaths(): Size limit exceeded, construction aborted" << std::endl;
+    exit(EXIT_FAILURE);
+  }
 
-  std::vector<PathNode> next; next.reserve(new_path_count);
-  std::vector<PathNode::rank_type> next_labels; next_labels.reserve(new_rank_count);
+  std::string temp_file = tempFile(GCSA::EXTENSION);
+  std::ofstream out(temp_file.c_str(), std::ios_base::binary);
+  if(!out)
+  {
+    std::cerr << "joinPaths(): Cannot open temporary file " << temp_file << std::endl;
+    std::cerr << "joinPaths(): Construction aborted" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
+  sdsl::write_member(new_path_count, out); sdsl::write_member(new_rank_count, out);
   for(size_type i = 0; i < paths.size(); i++)
   {
-    if(paths[i].sorted()) { next.push_back(PathNode(paths[i], labels, next_labels)); }
+    if(paths[i].sorted())
+    {
+      PathNode temp(paths[i], labels, temp_labels);
+      temp.serialize(out, temp_labels);
+      temp_labels.resize(0);
+    }
     else
     {
       size_type first = from_index.find(paths[i].to);
       for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
       {
-        next.push_back(PathNode(paths[i], paths[j], labels, next_labels));
+        PathNode temp(paths[i], paths[j], labels, temp_labels);
+        temp.serialize(out, temp_labels);
+        temp_labels.resize(0);
       }
     }
   }
+  out.close();
 
-  paths.swap(next); labels.swap(next_labels);
+  readPathNodes(temp_file, paths, labels);
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "  joinPaths(): " << old_path_count << " -> " << paths.size() << " paths ("
             << labels.size() << " ranks)" << std::endl;
@@ -572,7 +656,7 @@ mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& label
 
 void
 GCSA::prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  size_type kmer_length, size_type doubling_steps,
+  size_type kmer_length, size_type doubling_steps, size_type size_limit,
   const LCP& lcp)
 {
   size_type path_order = 1;
@@ -587,7 +671,7 @@ GCSA::prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_ty
     std::cerr << "GCSA::prefixDoubling(): Step " << step << " (path length " << (path_order * kmer_length) << " -> "
               << (2 * path_order * kmer_length) << ")" << std::endl;
 #endif
-    joinPaths(paths, labels); path_order *= 2;
+    joinPaths(paths, labels, size_limit); path_order *= 2;
     unsorted = mergePaths(paths, labels, lcp);
   }
   this->max_query_length = (unsorted == 0 ? ~(size_type)0 : kmer_length << doubling_steps);
