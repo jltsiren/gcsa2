@@ -50,12 +50,12 @@ The low-level interface and the graph navigation operations are still subject to
 
 ## Version history
 
-### Current version
+### 0.2 (2015-07-16)
 
+* The second pre-release.
 * More space-efficient construction.
 * Support for cyclic graphs.
-* Binary format for input graphs.
-* Fixed a rare incompatibility between `mergePaths()` and `mergeByLabel()`.
+* Switched from prefix-range-sorted graphs to prefix-sorted graphs to fix issue #3.
 
 ### 0.1 (2015-05-27)
 
@@ -66,8 +66,9 @@ The low-level interface and the graph navigation operations are still subject to
 ## Todo
 
 * Optimizations
+  * Implement a simplified GCSA for de Bruijn Graphs. With indicator bitvectors like in the original GCSA, *LF()* queries on `mapper` will be much faster.
   * Multi-threaded construction.
-  * More space-efficient construction. The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for the *(id,offset)* pairs. We can write the results of a doubling step to disk, and even do the merging step on disk if necessary.
+  * More space-efficient construction. The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for the *(id,offset)* pairs. We can do the merging step on disk if necessary.
   * More space-efficient index representation.
   * Sample compression. More efficient encoding for the *(id,offset)* pairs would already help.
   * Determine when nodes have to be prefix-sorted and when we can make them prefix-range-sorted.
@@ -86,6 +87,9 @@ The low-level interface and the graph navigation operations are still subject to
   * Temporary file location.
 * Compilation options
   * Use 32-bit or 64-bit node identifiers in `PathNode`.
+* Alternative approaches
+  * Full GCSA.
+  * Determinize the graph, using the multi-sampling approach to map back to original positions.
 * A paper describing the new algorithmic ideas.
 
 ## References
