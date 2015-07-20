@@ -85,15 +85,17 @@ The low-level interface and the graph navigation operations are still subject to
   * Low-level interface.
   * Graph navigation operations.
 * Construction parameters
-  * Split size limit into memory limit and disk space limit.
+  * Split the size limit into memory limit and disk space limit.
   * What to do when the limits are exceeded? (Index the previous generation or fail.)
   * Temporary file location.
+  * Build an index for multiple input files.
 * Compilation options
   * Use 32-bit or 64-bit node identifiers in `PathNode`.
 * Alternative approaches
   * Full GCSA.
   * Determinize the graph, using the multi-sampling approach to map back to original positions.
 * A paper describing the new algorithmic ideas.
+* Documentation in the wiki.
 
 ## References
 
