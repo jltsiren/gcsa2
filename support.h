@@ -201,6 +201,11 @@ struct KMer
   KMer();
   KMer(const std::vector<std::string>& tokens, const Alphabet& alpha, size_type successor);
 
+  KMer(key_type _key, node_type _from, node_type _to) :
+    key(_key), from(_from), to(_to)
+  {
+  }
+
   inline bool
   operator< (const KMer& another) const
   {

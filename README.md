@@ -26,7 +26,7 @@ The nodes of the final transformed graph are called **path nodes**, as they corr
 
 ## Construction
 
-**Warning:** The optional arguments and the `KMer` construction interface will eventually change.
+**Warning:** The optional arguments will eventually change.
 
 The primary GCSA constructor takes up to five parameters:
 
@@ -38,7 +38,7 @@ The primary GCSA constructor takes up to five parameters:
 
 The constructor writes several large temporary files to disk to save memory. After the index has been built, it can be serialized and loaded by using the SDSL `serialize()` / `load()` interface.
 
-Each `KMer` object contains three integers: a key encoding the label of the path and its predecessor/successor characters, the starting node of the path, and a successor node. If the path has multiple successors, separate `KMer` objects must be created for each of them.
+Each `KMer` object contains three integers: a key encoding the label of the path and its predecessor/successor characters, the starting node of the path, and a successor node. If the path has multiple successors, separate `KMer` objects must be created for each of them. See issue #6 for partial documentation.
 
 ## Interface
 
@@ -93,6 +93,7 @@ The low-level interface and the graph navigation operations are still subject to
 * Alternative approaches
   * Full GCSA.
   * Determinize the graph, using the multi-sampling approach to map back to original positions.
+  * A "slow mode" that includes some/all missing edges that were pruned before indexing. One missing edge is easy to handle, while multiple edges make the search slower. Chris Thachuk: **Indexing hypertext.**  Journal of Discrete Algorithms 18:113-122, 2013.
 * A paper describing the new algorithmic ideas.
 * Documentation in the wiki.
 
