@@ -50,6 +50,10 @@ The low-level interface and the graph navigation operations are still subject to
 
 ## Version history
 
+### Current version
+
+* Support for binary graph format and multiple graph files.
+
 ### 0.2 (2015-07-16)
 
 * The second pre-release.
@@ -78,7 +82,6 @@ The low-level interface and the graph navigation operations are still subject to
   * Support for inputs other than vg paths.
   * Sampling when starting positions are just node ids without offsets.
 * Interface
-  * Binary input format.
   * Low-level interface.
   * Graph navigation operations.
 * Construction parameters

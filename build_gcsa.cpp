@@ -26,6 +26,7 @@
 #include <string>
 #include <unistd.h>
 
+#include "files.h"
 #include "gcsa.h"
 
 using namespace gcsa;
@@ -45,11 +46,6 @@ using namespace gcsa;
 
 //------------------------------------------------------------------------------
 
-const std::string BINARY_EXTENSION = ".graph";
-const std::string TEXT_EXTENSION = ".gcsa2";
-
-size_type readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool binary, bool print = false);
-
 bool verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length);
 bool verifyMapper(const GCSA& mapper, const std::vector<key_type>& keys, size_type kmer_length);
 void verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length);
@@ -61,18 +57,20 @@ main(int argc, char** argv)
 {
   if(argc < 2)
   {
-    std::cerr << "Usage: build_gcsa [options] base_name" << std::endl;
+    std::cerr << "Usage: build_gcsa [options] base_name [base_name2 ..]" << std::endl;
     std::cerr << "  -b    Read the input in binary format" << std::endl;
     std::cerr << "  -d N  Doubling steps (default and max " << GCSA::DOUBLING_STEPS << ")" << std::endl;
     std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default 200)" << std::endl;
+    std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
     std::cerr << "  -t    Read the input in text format (default)" << std::endl;
     std::cerr << std::endl;
-    exit(EXIT_SUCCESS);
+    std::exit(EXIT_SUCCESS);
   }
 
   size_type doubling_steps = GCSA::DOUBLING_STEPS, size_limit = GCSA::SIZE_LIMIT;
   int c = 0; bool binary = false;
-  while((c = getopt(argc, argv, "bd:l:t")) != -1)
+  std::string output_file;
+  while((c = getopt(argc, argv, "bd:l:o:t")) != -1)
   {
     switch(c)
     {
@@ -83,27 +81,42 @@ main(int argc, char** argv)
       if(doubling_steps > GCSA::DOUBLING_STEPS)
       {
         std::cerr << "build_gcsa: Number of doubling steps is too high: " << doubling_steps << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
       }
       break;
     case 'l':
       size_limit = std::stoul(optarg);
       break;
+    case 'o':
+      output_file = std::string(optarg) + GCSA::EXTENSION;
+      break;
     case 't':
       binary = false; break;
     case '?':
-      exit(EXIT_FAILURE);
+      std::exit(EXIT_FAILURE);
     default:
-      exit(EXIT_FAILURE);
+      std::exit(EXIT_FAILURE);
     }
   }
-  std::string base_name = argv[optind];
+  if(optind >= argc)
+  {
+    std::cerr << "build_gcsa: No input files specified" << std::endl;
+    std::exit(EXIT_SUCCESS);
+  }
+  if(output_file.length() == 0)
+  {
+    output_file = std::string(argv[optind]) + GCSA::EXTENSION;
+  }
 
   std::cout << "GCSA builder" << std::endl;
   std::cout << std::endl;
-  std::cout << "Input: " << base_name;
-  if(binary) { std::cout << BINARY_EXTENSION << " (binary format)" << std::endl; }
-  else { std::cout << TEXT_EXTENSION << " (text format)" << std::endl; }
+  for(int i = optind; i < argc; i++)
+  {
+    std::cout << "Input: " << argv[i];
+    if(binary) { std::cout << BINARY_EXTENSION << " (binary format)" << std::endl; }
+    else { std::cout << TEXT_EXTENSION << " (text format)" << std::endl; }
+  }
+  std::cout << "Output: " << output_file << std::endl;
   std::cout << "Doubling steps: " << doubling_steps << std::endl;
   std::cout << "Size limit: " << size_limit << " GB" << std::endl;
   std::cout << std::endl;
@@ -111,8 +124,8 @@ main(int argc, char** argv)
 #ifdef VERIFY_GRAPH
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(base_name, kmers, binary, true);
-    if(!(verifyGraph(kmers, kmer_length))) { exit(EXIT_FAILURE); }
+    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary, true);
+    if(!(verifyGraph(kmers, kmer_length))) { std::exit(EXIT_FAILURE); }
   }
 #endif
 
@@ -122,7 +135,7 @@ main(int argc, char** argv)
     std::vector<KMer> kmers;
     std::vector<key_type> keys;
     sdsl::int_vector<0> last_chars;
-    size_type kmer_length = readKMers(base_name, kmers, binary, true);
+    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary, true);
     uniqueKeys(kmers, keys, last_chars, true);
     GCSA mapper(keys, kmer_length);
     std::cout << "Nodes: " << mapper.size() << ", edges: " << mapper.edge_count() << std::endl;
@@ -133,17 +146,17 @@ main(int argc, char** argv)
 
   GCSA index;
 #ifdef LOAD_INDEX
-  sdsl::load_from_file(index, base_name + GCSA::EXTENSION);
+  sdsl::load_from_file(index, output_file);
 #else
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(base_name, kmers, binary);
+    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary, true);
     double start = readTimer();
     GCSA temp(kmers, kmer_length, doubling_steps, size_limit); index.swap(temp);
     double seconds = readTimer() - start;
     std::cout << "Index built in " << seconds << " seconds" << std::endl;
     std::cout << std::endl;
-    sdsl::store_to_file(index, base_name + GCSA::EXTENSION);
+    sdsl::store_to_file(index, output_file);
   }
 #endif
 
@@ -163,7 +176,7 @@ main(int argc, char** argv)
 #ifdef VERIFY_INDEX
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(base_name, kmers, binary);
+    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary, true);
     verifyIndex(index, kmers, kmer_length);
   }
 #endif
@@ -172,125 +185,6 @@ main(int argc, char** argv)
   std::cout << std::endl;
 
   return 0;
-}
-
-//------------------------------------------------------------------------------
-
-bool
-tokenize(const std::string& line, std::vector<std::string>& tokens)
-{
-  {
-    std::string token;
-    std::istringstream ss(line);
-    while(std::getline(ss, token, '\t'))
-    {
-      tokens.push_back(token);
-    }
-    if(tokens.size() != 5)
-    {
-      std::cerr << "KMer::tokenize(): The kmer line must contain 5 tokens" << std::endl;
-      std::cerr << "KMer::tokenize(): The line was: " << line << std::endl;
-      return false;
-    }
-  }
-
-  // Split the list of successor positions into separate tokens.
-  std::string destinations = tokens[4], token;
-  std::istringstream ss(destinations);
-  tokens.resize(4);
-  while(std::getline(ss, token, ','))
-  {
-    tokens.push_back(token);
-  }
-
-  return true;
-}
-
-size_type
-readText(const std::string& base_name, std::vector<KMer>& kmers)
-{
-  std::string filename = base_name + TEXT_EXTENSION;
-  std::ifstream input(filename.c_str(), std::ios_base::binary);
-  if(!input)
-  {
-    std::cerr << "build_gcsa: readText(): Cannot open input file " << filename << std::endl;
-    return 0;
-  }
-
-  Alphabet alpha;
-  size_type kmer_length = 0, sink_node = 0;
-  sdsl::util::clear(kmers);
-  while(input)
-  {
-    std::string line;
-    std::getline(input, line);
-    if(line.length() == 0) { continue; }
-
-    std::vector<std::string> tokens;
-    if(!tokenize(line, tokens)) { continue; }
-    if(kmer_length > 0 && tokens[0].length() != kmer_length)
-    {
-      std::cerr << "build_gcsa: readText(): kmer length changed from " << kmer_length
-                << " to " << tokens[0].length() << std::endl;
-    }
-    kmer_length = tokens[0].length();
-
-    for(size_type successor = 4; successor < tokens.size(); successor++)
-    {
-      KMer kmer(tokens, alpha, successor); kmers.push_back(kmer);
-      if(successor == 4)
-      {
-        if(Key::label(kmer.key) == 0) { sink_node = Node::id(kmer.from); }
-      }
-    }
-  }
-  input.close();
-
-  /*
-    If the kmer includes one or more endmarkers, the successor position is past
-    the GCSA sink node. Those kmers are marked as sorted, as they cannot be
-    extended.
-  */
-  for(size_type i = 0; i < kmers.size(); i++)
-  {
-    if(Node::id(kmers[i].to) == sink_node && Node::offset(kmers[i].to) > 0) { kmers[i].makeSorted(); }
-  }
-
-  return kmer_length;
-}
-
-size_type
-readBinary(const std::string& base_name, std::vector<KMer>& kmers)
-{
-  std::string filename = base_name + TEXT_EXTENSION;
-  std::ifstream input(filename.c_str(), std::ios_base::binary);
-  if(!input)
-  {
-    std::cerr << "build_gcsa: readBinary(): Cannot open input file " << filename << std::endl;
-    return 0;
-  }
-
-  size_type flags = 0;  // Currently unused.
-  size_type kmer_count = 0, kmer_length = 0;
-  sdsl::read_member(flags, input);
-  sdsl::read_member(kmer_count, input);
-  sdsl::read_member(kmer_length, input);
-  kmers.resize(kmer_count);
-  input.read((char*)kmers.data(), kmer_count * sizeof(KMer));
-
-  input.close();
-  return kmer_length;
-}
-
-size_type
-readKMers(const std::string& base_name, std::vector<KMer>& kmers, bool binary, bool print)
-{
-  size_type kmer_length = (binary ? readBinary(base_name, kmers) : readText(base_name, kmers));
-  if(print)
-  {
-    std::cout << "Read " << kmers.size() << " kmers of length " << kmer_length << std::endl;
-  }
-  return kmer_length;
 }
 
 //------------------------------------------------------------------------------

@@ -265,7 +265,7 @@ readPathNodes(const std::string& filename,
   {
     std::cerr << "readPathNodes(): Cannot open temporary file " << filename << std::endl;
     std::cerr << "readPathNodes(): Construction aborted" << std::endl;
-    exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
 
   size_type path_count = 0, rank_count = 0;
@@ -297,7 +297,7 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
   {
     std::cerr << "GCSA::GCSA(): The input is too large: " << (bytes_required / GIGABYTE_DOUBLE) << " GB" << std::endl;
     std::cerr << "GCSA::GCSA(): Construction aborted" << std::endl;
-    exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
 
   // Sort the kmers, build the mapper GCSA for generating the edges.
@@ -318,7 +318,7 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
     {
       std::cerr << "GCSA::GCSA(): Cannot open temporary file " << temp_file << std::endl;
       std::cerr << "GCSA::GCSA(): Construction aborted" << std::endl;
-      exit(EXIT_FAILURE);
+      std::exit(EXIT_FAILURE);
     }
 
     std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
@@ -448,7 +448,7 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
   if(bytes_required > size_limit * GIGABYTE)
   {
     std::cerr << "joinPaths(): Size limit exceeded, construction aborted" << std::endl;
-    exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
 
   std::string temp_file = tempFile(GCSA::EXTENSION);
@@ -457,7 +457,7 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
   {
     std::cerr << "joinPaths(): Cannot open temporary file " << temp_file << std::endl;
     std::cerr << "joinPaths(): Construction aborted" << std::endl;
-    exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
   std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
   sdsl::write_member(new_path_count, out); sdsl::write_member(new_rank_count, out);
