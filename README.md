@@ -88,7 +88,6 @@ The low-level interface and the graph navigation operations are still subject to
   * Split the size limit into memory limit and disk space limit.
   * What to do when the limits are exceeded? (Index the previous generation or fail.)
   * Temporary file location.
-  * Build an index for multiple input files.
 * Compilation options
   * Use 32-bit or 64-bit node identifiers in `PathNode`.
 * Alternative approaches
