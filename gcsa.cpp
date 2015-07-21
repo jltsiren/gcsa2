@@ -496,13 +496,14 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
   the beginning, while range.first >= paths.size() means the end.
 */
 range_type
-nextRange(range_type range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels)
+nextRange(range_type range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+  range_type bounds)
 {
-  if(Range::empty(range)) { range.first = 0; range.second = 0; }
+  if(Range::empty(range)) { range.first = bounds.first; range.second = bounds.first; }
   else { range.first = range.second = range.second + 1; }
 
   PathFirstComparator pfc(labels);
-  while(range.second + 1 < paths.size() && !pfc(paths[range.first], paths[range.second + 1]))
+  while(range.second + 1 <= bounds.second && !pfc(paths[range.first], paths[range.second + 1]))
   {
     range.second++;
   }
@@ -511,9 +512,9 @@ nextRange(range_type range, const std::vector<PathNode>& paths, std::vector<Path
 }
 
 range_type
-firstRange(const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels)
+firstRange(const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, range_type bounds)
 {
-  return nextRange(range_type(1, 0), paths, labels);
+  return nextRange(range_type(1, 0), paths, labels, bounds);
 }
 
 inline bool
@@ -531,10 +532,13 @@ sameFrom(range_type range, const std::vector<PathNode>& paths)
   and sharing a common prefix that no other path has. Assumes that the input range only
   contains paths starting from the same node. Returns the lcp of the range as a pair
   (a,b), where a is the lcp of the labels and b is the lcp of the first diverging kmers.
+
+  Looking at the previous PathNode may seem hairy, because it may belong to another thread.
+  However, the last PathNode in a range never gets overwritten, so this should be safe.
 */
 range_type
 extendRange(range_type& range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  const LCP& lcp)
+  const LCP& lcp, range_type bounds)
 {
   range_type min_lcp(0, 0);
   if(range.first > 0)
@@ -549,13 +553,13 @@ extendRange(range_type& range, const std::vector<PathNode>& paths, std::vector<P
     2. Is the LCP still high enough? Stop if not.
     3. Is the LCP between the end of the range and the next path lower than the range lcp? Extend if true.
   */
-  for(range_type next_range = nextRange(range, paths, labels); next_range.first < paths.size();
-    next_range = nextRange(next_range, paths, labels))
+  for(range_type next_range = nextRange(range, paths, labels, bounds); next_range.first <= bounds.second;
+    next_range = nextRange(next_range, paths, labels, bounds))
   {
     if(paths[next_range.first].from != paths[range.first].from || !sameFrom(next_range, paths)) { break; }
     range_type next_lcp = lcp.min_lcp(paths[range.first], paths[next_range.second], labels);
     if(next_lcp < min_lcp) { break; }
-    if(range.second + 1 < paths.size())
+    if(range.second + 1 <= bounds.second)
     {
       range_type border_lcp = lcp.max_lcp(paths[range.second], paths[range.second + 1], labels);
       if(border_lcp >= next_lcp) { continue; }
@@ -573,6 +577,12 @@ void
 mergePathNodes(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
   range_type range, range_type range_lcp, const LCP& lcp)
 {
+  if(Range::length(range) == 1)
+  {
+    paths[range.first].makeSorted();
+    return;
+  }
+
   size_type order = range_lcp.first;
   if(range_lcp.second > 0)
   {
@@ -620,36 +630,80 @@ mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& label
   parallelQuickSort(paths.begin(), paths.end(), pfc);
   size_type old_path_count = paths.size();
 
-  size_type tail = 0, unique = 0, unsorted = 0, nondeterministic = 0;
-  for(range_type range = firstRange(paths, labels); range.first < paths.size();
-    range = nextRange(range, paths, labels))
+  /*
+    Split the paths between threads so that the first rank is different at the border.
+  */
+  size_type threads = omp_get_max_threads();
+  range_type ranges[threads];
+  for(size_type thread = 0, start = 0; thread < threads; thread++)
   {
-    if(sameFrom(range, paths))
+    ranges[thread].first = start;
+    if(start < paths.size())
     {
-      range_type range_lcp = extendRange(range, paths, labels, lcp);
-      mergePathNodes(paths, labels, range, range_lcp, lcp);
-      paths[tail] = paths[range.first];
-      tail++; unique++;
-    }
-    else
-    {
-      for(size_type i = range.first; i <= range.second; i++)
+      start += std::max((size_type)1, (paths.size() - start) / (threads - thread));
+      while(start < paths.size() &&
+        paths[start].firstLabel(0, labels) == paths[start - 1].lastLabel(0, labels))
       {
-        if(paths[i].sorted()) { nondeterministic++; }
-        else { unsorted++; }
-        paths[tail] = paths[i];
-        tail++;
+        start++;
+      }
+    }
+    ranges[thread].second = start - 1;
+  }
+
+  size_type tail[threads], unique[threads], unsorted[threads], nondeterministic[threads];
+  for(size_type thread = 0; thread < threads; thread++)
+  {
+    tail[thread] = ranges[thread].first;
+    unique[thread] = unsorted[thread] = nondeterministic[thread] = 0;
+  }
+
+  #pragma omp parallel for schedule(static)
+  for(size_type thread = 0; thread < threads; thread++)
+  {
+    for(range_type range = firstRange(paths, labels, ranges[thread]); range.first <= ranges[thread].second;
+      range = nextRange(range, paths, labels, ranges[thread]))
+    {
+      if(sameFrom(range, paths))
+      {
+        range_type range_lcp = extendRange(range, paths, labels, lcp, ranges[thread]);
+        mergePathNodes(paths, labels, range, range_lcp, lcp);
+        paths[tail[thread]] = paths[range.first];
+        tail[thread]++; unique[thread]++;
+      }
+      else
+      {
+        for(size_type i = range.first; i <= range.second; i++)
+        {
+          if(paths[i].sorted()) { nondeterministic[thread]++; }
+          else { unsorted[thread]++; }
+          paths[tail[thread]] = paths[i];
+          tail[thread]++;
+        }
       }
     }
   }
 
-  paths.resize(tail);
+  /*
+    Combine the statistics and delete the gaps in the paths array.
+  */
+  for(size_type thread = 1; thread < threads; thread++)
+  {
+    for(size_type i = ranges[thread].first; i < tail[thread]; i++)
+    {
+      paths[tail[0]] = paths[i]; tail[0]++;
+    }
+    unique[0] += unique[thread];
+    unsorted[0] += unsorted[thread];
+    nondeterministic[0] += nondeterministic[thread];
+  }
+
+  paths.resize(tail[0]);
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "  mergePaths(): " << old_path_count << " -> " << paths.size() << " paths" << std::endl;
-  std::cerr << "  mergePaths(): " << unique << " unique, " << unsorted << " unsorted, "
-            << nondeterministic << " nondeterministic paths" << std::endl;
+  std::cerr << "  mergePaths(): " << unique[0] << " unique, " << unsorted[0] << " unsorted, "
+            << nondeterministic[0] << " nondeterministic paths" << std::endl;
 #endif
-  return unsorted;
+  return unsorted[0];
 }
 
 //------------------------------------------------------------------------------
@@ -686,8 +740,11 @@ GCSA::mergeByLabel(std::vector<PathNode>& paths, std::vector<PathNode::rank_type
   this->path_node_count = 0;
   size_type old_path_count = paths.size();
 
-  for(range_type range = firstRange(paths, labels); range.first < paths.size();
-    range = nextRange(range, paths, labels))
+  // FIXME Later: Parallelize
+  range_type bounds(0, paths.size() - 1);
+
+  for(range_type range = firstRange(paths, labels, bounds); range.first <= bounds.second;
+    range = nextRange(range, paths, labels, bounds))
   {
     mergePathNodes(paths, range);
     paths[this->path_node_count] = paths[range.first];
