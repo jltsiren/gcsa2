@@ -210,7 +210,7 @@ private:
 
   /*
     Increases path length to up to 2^doubling_steps times the original. Sets
-    max_query_length.
+    max_query_length. Pre-/postcondition: paths are sorted by labels.
   */
   void prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
     size_type kmer_length, size_type doubling_steps, size_type size_limit, const LCP& lcp);

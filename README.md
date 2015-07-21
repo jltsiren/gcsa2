@@ -53,6 +53,7 @@ The low-level interface and the graph navigation operations are still subject to
 ### Current version
 
 * Support for binary graph format and multiple graph files.
+* Multithreaded `mergePaths()`.
 
 ### 0.2 (2015-07-16)
 
@@ -71,7 +72,7 @@ The low-level interface and the graph navigation operations are still subject to
 
 * Optimizations
   * Implement a simplified GCSA for de Bruijn Graphs. With indicator bitvectors like in the original GCSA, *LF()* queries on `mapper` will be much faster.
-  * Multi-threaded construction.
+  * Multithreaded `joinPaths()`, `GCSA::mergeByLabel()`, `GCSA::build()`, and `GCSA::sample()`.
   * More space-efficient construction. The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for the *(id,offset)* pairs. We can do the merging step on disk if necessary.
   * More space-efficient index representation.
   * Sample compression. More efficient encoding for the *(id,offset)* pairs would already help.

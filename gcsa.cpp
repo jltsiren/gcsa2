@@ -413,14 +413,14 @@ struct ValueIndex
 //------------------------------------------------------------------------------
 
 /*
-  Join paths by left.to == right.from.
+  Join paths by left.to == right.from. Pre-/postcondition: paths are sorted by labels.
   FIXME Later: parallelize
 */
 void
 joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type size_limit)
 {
-  PathFromComparator pfc; // Sort the paths by from.
-  parallelQuickSort(paths.begin(), paths.end(), pfc);
+  PathFromComparator from_c; // Sort the paths by from.
+  parallelQuickSort(paths.begin(), paths.end(), from_c);
   size_type old_path_count = paths.size();
 
   ValueIndex<PathNode, FromGetter> from_index(paths);
@@ -487,13 +487,17 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
   std::cerr << "  joinPaths(): " << old_path_count << " -> " << paths.size() << " paths ("
             << labels.size() << " ranks)" << std::endl;
 #endif
+
+  // Restore the sorted order.
+  PathFirstComparator first_c(labels);
+  parallelQuickSort(paths.begin(), paths.end(), first_c);
 }
 
 //------------------------------------------------------------------------------
 
 /*
   Iterates through ranges of paths with the same label. Empty range means start from
-  the beginning, while range.first >= paths.size() means the end.
+  the beginning, while range.first > bounds.second means the end.
 */
 range_type
 nextRange(range_type range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
@@ -626,18 +630,16 @@ mergePathNodes(std::vector<PathNode>& paths, range_type range)
 size_type
 mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, const LCP& lcp)
 {
-  PathFirstComparator pfc(labels);
-  parallelQuickSort(paths.begin(), paths.end(), pfc);
   size_type old_path_count = paths.size();
 
   /*
     Split the paths between threads so that the first rank is different at the border.
   */
   size_type threads = omp_get_max_threads();
-  range_type ranges[threads];
+  range_type bounds[threads];
   for(size_type thread = 0, start = 0; thread < threads; thread++)
   {
-    ranges[thread].first = start;
+    bounds[thread].first = start;
     if(start < paths.size())
     {
       start += std::max((size_type)1, (paths.size() - start) / (threads - thread));
@@ -647,25 +649,25 @@ mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& label
         start++;
       }
     }
-    ranges[thread].second = start - 1;
+    bounds[thread].second = start - 1;
   }
 
   size_type tail[threads], unique[threads], unsorted[threads], nondeterministic[threads];
   for(size_type thread = 0; thread < threads; thread++)
   {
-    tail[thread] = ranges[thread].first;
+    tail[thread] = bounds[thread].first;
     unique[thread] = unsorted[thread] = nondeterministic[thread] = 0;
   }
 
   #pragma omp parallel for schedule(static)
   for(size_type thread = 0; thread < threads; thread++)
   {
-    for(range_type range = firstRange(paths, labels, ranges[thread]); range.first <= ranges[thread].second;
-      range = nextRange(range, paths, labels, ranges[thread]))
+    for(range_type range = firstRange(paths, labels, bounds[thread]); range.first <= bounds[thread].second;
+      range = nextRange(range, paths, labels, bounds[thread]))
     {
       if(sameFrom(range, paths))
       {
-        range_type range_lcp = extendRange(range, paths, labels, lcp, ranges[thread]);
+        range_type range_lcp = extendRange(range, paths, labels, lcp, bounds[thread]);
         mergePathNodes(paths, labels, range, range_lcp, lcp);
         paths[tail[thread]] = paths[range.first];
         tail[thread]++; unique[thread]++;
@@ -688,7 +690,7 @@ mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& label
   */
   for(size_type thread = 1; thread < threads; thread++)
   {
-    for(size_type i = ranges[thread].first; i < tail[thread]; i++)
+    for(size_type i = bounds[thread].first; i < tail[thread]; i++)
     {
       paths[tail[0]] = paths[i]; tail[0]++;
     }
