@@ -74,7 +74,7 @@ The low-level interface and the graph navigation operations are still subject to
   * Implement a simplified GCSA for de Bruijn Graphs. With indicator bitvectors like in the original GCSA, *LF()* queries on `mapper` will be much faster.
   * Multithreaded `joinPaths()`, `GCSA::build()`, and `GCSA::sample()`.
   * The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for the *(id,offset)* pairs.
-  * Semi-external construction. `joinPaths()` can be done for each chromosome separately. `mergePaths()`, `GCSA::mergeByLabel()`, `GCSA::build()` and `GCSA::sample()` are all essentially sequential scans.
+  * Semi-external construction. `joinPaths()` can be done for each chromosome separately. `mergePaths()`, `GCSA::mergeByLabel()`, `GCSA::build()`, and `GCSA::sample()` are all essentially sequential scans.
   * More space-efficient index representation.
   * Sample compression. More efficient encoding for the *(id,offset)* pairs would already help.
   * Determine when nodes have to be prefix-sorted and when we can make them prefix-range-sorted.
@@ -97,6 +97,9 @@ The low-level interface and the graph navigation operations are still subject to
   * Moves some complexity from index construction to queries.
   * Requires a partial index for the reverse graph and an edge matrix with 2d range queries for the optional edges.
   * Chris Thachuk: **Indexing hypertext.**  Journal of Discrete Algorithms 18:113-122, 2013.
+* Alternative approaches
+  * Full GCSA.
+  * Determinize the graph, using the multi-sampling approach to map back to original positions.
 * A paper describing the new algorithmic ideas.
 * Documentation in the wiki.
 
