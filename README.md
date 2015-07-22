@@ -73,7 +73,8 @@ The low-level interface and the graph navigation operations are still subject to
 * Optimizations
   * Implement a simplified GCSA for de Bruijn Graphs. With indicator bitvectors like in the original GCSA, *LF()* queries on `mapper` will be much faster.
   * Multithreaded `joinPaths()`, `GCSA::build()`, and `GCSA::sample()`.
-  * More space-efficient construction. The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for the *(id,offset)* pairs. We can do the merging step on disk if necessary.
+  * The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for the *(id,offset)* pairs.
+  * Semi-external construction. `joinPaths()` can be done for each chromosome separately. `mergePaths()`, `GCSA::mergeByLabel()`, `GCSA::build()` and `GCSA::sample()` are all essentially sequential scans.
   * More space-efficient index representation.
   * Sample compression. More efficient encoding for the *(id,offset)* pairs would already help.
   * Determine when nodes have to be prefix-sorted and when we can make them prefix-range-sorted.
