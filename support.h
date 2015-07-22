@@ -464,6 +464,7 @@ struct PathNode
   void copy(const PathNode& source);
 };
 
+// Compares the first labels.
 struct PathFirstComparator
 {
   const std::vector<PathNode::rank_type>& labels;
@@ -481,6 +482,7 @@ struct PathFirstComparator
   }
 };
 
+// Compares the 'from' nodes.
 struct PathFromComparator
 {
   inline bool operator() (const PathNode& a, const PathNode& b) const

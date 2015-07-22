@@ -413,6 +413,62 @@ struct ValueIndex
 //------------------------------------------------------------------------------
 
 /*
+  Helper functions for splitting the work between threads.
+
+  getBounds() splits the paths approximately evenly between the threads so that
+  the comparison is true at each border.
+*/
+
+template<class Comparator>
+std::vector<range_type>
+getBounds(const std::vector<PathNode>& paths, size_type threads, const Comparator& comp)
+{
+  std::vector<range_type> bounds(threads);
+  for(size_type thread = 0, start = 0; thread < threads; thread++)
+  {
+    bounds[thread].first = start;
+    if(start < paths.size())
+    {
+      start += std::max((size_type)1, (paths.size() - start) / (threads - thread));
+      while(start < paths.size() && !comp(paths[start - 1], paths[start])) { start++; }
+    }
+    bounds[thread].second = start - 1;
+  }
+  return bounds;
+}
+
+std::vector<size_type>
+getTails(const std::vector<range_type>& bounds)
+{
+  std::vector<size_type> tail(bounds.size());
+  for(size_type i = 0; i < bounds.size(); i++) { tail[i] = bounds[i].first; }
+  return tail;
+}
+
+void
+removeGaps(std::vector<PathNode>& paths, const std::vector<range_type>& bounds, std::vector<size_type>& tail)
+{
+  for(size_type thread = 1; thread < bounds.size(); thread++)
+  {
+    for(size_type i = bounds[thread].first; i < tail[thread]; i++)
+    {
+      paths[tail[0]] = paths[i]; tail[0]++;
+    }
+  }
+  paths.resize(tail[0]);
+}
+
+size_type
+sumOf(const std::vector<size_type>& statistics)
+{
+  size_type res = 0;
+  for(size_type i = 0; i < statistics.size(); i++) { res += statistics[i]; }
+  return res;
+}
+
+//------------------------------------------------------------------------------
+
+/*
   Join paths by left.to == right.from. Pre-/postcondition: paths are sorted by labels.
   FIXME Later: parallelize
 */
@@ -531,6 +587,27 @@ sameFrom(range_type range, const std::vector<PathNode>& paths)
   return true;
 }
 
+//------------------------------------------------------------------------------
+
+/*
+  Tells whether it is safe to split the path array (sorted by labels) between
+  'left' and 'right' (which should be adjacent). "Safe" means that the labels
+  are different (so they will not be included in the same range) and the 'from'
+  nodes are different (so a range cannot be extended to include both of them).
+*/
+struct SafeSplitComparator
+{
+  const std::vector<PathNode::rank_type>& labels;
+
+  explicit SafeSplitComparator(const std::vector<PathNode::rank_type>& _labels) : labels(_labels) { }
+
+  inline bool operator() (const PathNode& left, const PathNode& right) const
+  {
+    return ((left.firstLabel(0, labels) != right.firstLabel(0, labels))
+      && (left.from != right.from));
+  }
+};
+
 /*
   Extends the range forward into a maximal range of paths starting from the same node
   and sharing a common prefix that no other path has. Assumes that the input range only
@@ -608,19 +685,6 @@ mergePathNodes(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& l
 }
 
 /*
-  This version assumes that the paths have identical labels.
-*/
-void
-mergePathNodes(std::vector<PathNode>& paths, range_type range)
-{
-  paths[range.first].makeSorted();
-  for(size_type i = range.first + 1; i <= range.second; i++)
-  {
-    paths[range.first].addPredecessors(paths[i]);
-  }
-}
-
-/*
   Merges paths with adjacent labels and the same from node. Marks paths with unique
   labels sorted. Returns the number of unsorted path nodes.
 
@@ -632,32 +696,12 @@ mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& label
 {
   size_type old_path_count = paths.size();
 
-  /*
-    Split the paths between threads so that the first rank is different at the border.
-  */
+  // Split the work between the threads so that the first rank is different at thread boundaries.
   size_type threads = omp_get_max_threads();
-  range_type bounds[threads];
-  for(size_type thread = 0, start = 0; thread < threads; thread++)
-  {
-    bounds[thread].first = start;
-    if(start < paths.size())
-    {
-      start += std::max((size_type)1, (paths.size() - start) / (threads - thread));
-      while(start < paths.size() &&
-        paths[start].firstLabel(0, labels) == paths[start - 1].lastLabel(0, labels))
-      {
-        start++;
-      }
-    }
-    bounds[thread].second = start - 1;
-  }
-
-  size_type tail[threads], unique[threads], unsorted[threads], nondeterministic[threads];
-  for(size_type thread = 0; thread < threads; thread++)
-  {
-    tail[thread] = bounds[thread].first;
-    unique[thread] = unsorted[thread] = nondeterministic[thread] = 0;
-  }
+  SafeSplitComparator split_c(labels);
+  std::vector<range_type> bounds = getBounds(paths, threads, split_c);
+  std::vector<size_type> tail = getTails(bounds);
+  std::vector<size_type> unique(threads, 0), unsorted(threads, 0), nondeterministic(threads, 0);
 
   #pragma omp parallel for schedule(static)
   for(size_type thread = 0; thread < threads; thread++)
@@ -685,21 +729,12 @@ mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& label
     }
   }
 
-  /*
-    Combine the statistics and delete the gaps in the paths array.
-  */
-  for(size_type thread = 1; thread < threads; thread++)
-  {
-    for(size_type i = bounds[thread].first; i < tail[thread]; i++)
-    {
-      paths[tail[0]] = paths[i]; tail[0]++;
-    }
-    unique[0] += unique[thread];
-    unsorted[0] += unsorted[thread];
-    nondeterministic[0] += nondeterministic[thread];
-  }
+  // Remove the gaps and combine the statistics.
+  removeGaps(paths, bounds, tail);
+  unique[0] = sumOf(unique);
+  unsorted[0] = sumOf(unsorted);
+  nondeterministic[0] = sumOf(nondeterministic);
 
-  paths.resize(tail[0]);
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "  mergePaths(): " << old_path_count << " -> " << paths.size() << " paths" << std::endl;
   std::cerr << "  mergePaths(): " << unique[0] << " unique, " << unsorted[0] << " unsorted, "
@@ -735,29 +770,66 @@ GCSA::prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_ty
 
 //------------------------------------------------------------------------------
 
+/*
+  This version assumes that the paths have identical labels.
+*/
+void
+mergePathNodes(std::vector<PathNode>& paths, range_type range)
+{
+  paths[range.first].makeSorted();
+  for(size_type i = range.first + 1; i <= range.second; i++)
+  {
+    paths[range.first].addPredecessors(paths[i]);
+  }
+}
+
 void
 GCSA::mergeByLabel(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
   std::vector<range_type>& from_nodes)
 {
-  this->path_node_count = 0;
+  sdsl::util::clear(from_nodes);
   size_type old_path_count = paths.size();
 
-  // FIXME Later: Parallelize
-  range_type bounds(0, paths.size() - 1);
+  size_type threads = omp_get_max_threads();
+  PathFirstComparator first_c(labels);
+  std::vector<range_type> bounds = getBounds(paths, threads, first_c);
+  std::vector<size_type> tail = getTails(bounds);
+  std::vector<range_type> from_buffer[threads];
 
-  for(range_type range = firstRange(paths, labels, bounds); range.first <= bounds.second;
-    range = nextRange(range, paths, labels, bounds))
+  #pragma omp parallel for schedule(static)
+  for(size_type thread = 0; thread < threads; thread++)
   {
-    mergePathNodes(paths, range);
-    paths[this->path_node_count] = paths[range.first];
-    for(size_type i = range.first + 1; i <= range.second; i++)
+    for(range_type range = firstRange(paths, labels, bounds[thread]); range.first <= bounds[thread].second;
+      range = nextRange(range, paths, labels, bounds[thread]))
     {
-      from_nodes.push_back(range_type(this->path_node_count, paths[i].from));
+      mergePathNodes(paths, range);
+      paths[tail[thread]] = paths[range.first];
+      for(size_type i = range.first + 1; i <= range.second; i++)
+      {
+        from_buffer[thread].push_back(range_type(tail[thread], paths[i].from));
+      }
+      tail[thread]++;
     }
-    this->path_node_count++;
   }
 
-  paths.resize(this->path_node_count);
+  // Combine and correct the additional samples.
+  size_type total_from_nodes = 0;
+  for(size_type thread = 0; thread < threads; thread++) { total_from_nodes += from_buffer[thread].size(); }
+  from_nodes.reserve(total_from_nodes);
+  for(size_type thread = 0, gap = 0; thread < threads; thread++)
+  {
+    for(size_type i = 0; i < from_buffer[thread].size(); i++)
+    {
+      range_type temp = from_buffer[thread][i];
+      temp.first -= gap;
+      from_nodes.push_back(temp);
+    }
+    sdsl::util::clear(from_buffer[thread]);
+    if(thread + 1 < threads) { gap += bounds[thread + 1].first - tail[thread]; }
+  }
+
+  removeGaps(paths, bounds, tail);
+  this->path_node_count = paths.size();
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "GCSA::mergeByLabel(): " << old_path_count << " -> " << paths.size() << " paths" << std::endl;

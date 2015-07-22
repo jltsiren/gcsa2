@@ -53,7 +53,7 @@ The low-level interface and the graph navigation operations are still subject to
 ### Current version
 
 * Support for binary graph format and multiple graph files.
-* Multithreaded `mergePaths()`.
+* Multithreaded `mergePaths()` and `GCSA::mergeByLabel()`.
 
 ### 0.2 (2015-07-16)
 
@@ -72,7 +72,7 @@ The low-level interface and the graph navigation operations are still subject to
 
 * Optimizations
   * Implement a simplified GCSA for de Bruijn Graphs. With indicator bitvectors like in the original GCSA, *LF()* queries on `mapper` will be much faster.
-  * Multithreaded `joinPaths()`, `GCSA::mergeByLabel()`, `GCSA::build()`, and `GCSA::sample()`.
+  * Multithreaded `joinPaths()`, `GCSA::build()`, and `GCSA::sample()`.
   * More space-efficient construction. The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for the *(id,offset)* pairs. We can do the merging step on disk if necessary.
   * More space-efficient index representation.
   * Sample compression. More efficient encoding for the *(id,offset)* pairs would already help.
@@ -91,10 +91,11 @@ The low-level interface and the graph navigation operations are still subject to
   * Temporary file location.
 * Compilation options
   * Use 32-bit or 64-bit node identifiers in `PathNode`.
-* Alternative approaches
-  * Full GCSA.
-  * Determinize the graph, using the multi-sampling approach to map back to original positions.
-  * A "slow mode" that includes some/all missing edges that were pruned before indexing. One missing edge is easy to handle, while multiple edges make the search slower. Chris Thachuk: **Indexing hypertext.**  Journal of Discrete Algorithms 18:113-122, 2013.
+* "Slow mode"
+  * Include optional edges in the graph and find matches that contain exactly one optional edge.
+  * Moves some complexity from index construction to queries.
+  * Requires a partial index for the reverse graph and an edge matrix with 2d range queries for the optional edges.
+  * Chris Thachuk: **Indexing hypertext.**  Journal of Discrete Algorithms 18:113-122, 2013.
 * A paper describing the new algorithmic ideas.
 * Documentation in the wiki.
 
