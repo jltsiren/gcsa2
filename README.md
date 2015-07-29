@@ -4,7 +4,7 @@ This is a reimplementation of the Generalized Compressed Suffix Array (GCSA), a 
 
 [The old implementation](http://jltsiren.kapsi.fi/gcsa) indexed all paths in a directed acyclic graph, which had to be determinized before index construction. This implementation indexes paths of length at most 128 in any graph. The limit on path length should limit the combinatorial explosion often occurring in graphs containing regions with a lot of branching in a small area.
 
-The input to index construction is a set of paths of length up to *k* in the original graph. The prefix-doubling algorithm transforms the input into an equivalent of order-*8k* de Bruijn graph for the paths of the input graph. As such, the index supports path queries of length up to *8k*. As each doubling step is followed by a pruning step that merges lexicographically adjacent paths starting from the same node, the resulting graph should be smaller than a de Bruijn graph.
+The input to index construction is a set of paths of length up to *k* in the input graph. The prefix-doubling algorithm transforms the input into an equivalent of order-*8k* de Bruijn graph for the paths of the input graph. As such, the index supports path queries of length up to *8k*. As each doubling step is followed by a pruning step that merges lexicographically adjacent paths starting from the same node, the resulting graph should be smaller than a de Bruijn graph.
 
 At the moment, GCSA2 is being developed as a plugin to Erik Garrison's [variant graph tools](https://github.com/ekg/vg). The only implemented construction option is based on extracting *k*-mers from vg. Later, GCSA2 should become a more general graph indexing library.
 
@@ -18,7 +18,7 @@ Index construction can be set to output some status information to `stderr` by u
 
 ## Data model
 
-The input to GCSA2 is a directed graph. Each **node** of the input graph is a pair *(id,c)*, where integer *id* is the **unique identifier** of the node and character *c* is the **label** of the node. For best results, nodes on unary paths should have successive identifiers. Each node must have at least one incoming edge and one outgoing edge.
+The input to GCSA2 is a directed graph. Each **node** of the input graph is a pair *(id,c)*, where integer *id* is the **unique identifier** of the node and character *c* is the **label** of the node. For best results, nodes on unary paths should have successive identifiers. Each node must have at least one incoming edge and one outgoing edge. It can be useful to think the input graph as a **finite automaton**, encoding information of type "If we are in node *x* and observe character *c*, which nodes we can end up in?"
 
 In the current implementation, the graph must have exactly one **source** node and one **sink** node. There must be an edge from the sink node to the source node. The source node must not have any other incoming edges, and the sink node must not have any other outgoing edges. The source and the sink must have unique labels, which the `Alphabet` object must map to values that are smaller than larger, respectively, than for any real character. These additional restrictions are a matter of convenience. There are no fundamental or performance reasons for having them.
 
