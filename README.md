@@ -8,6 +8,8 @@ The input to index construction is a set of paths of length up to *k* in the inp
 
 At the moment, GCSA2 is being developed as a plugin to Erik Garrison's [variant graph tools](https://github.com/ekg/vg). The only implemented construction option is based on extracting *k*-mers from vg. Later, GCSA2 should become a more general graph indexing library.
 
+See the wiki for some further documentation.
+
 ## Compilation options
 
 The maximum resident size reported by `getrusage()` is in kilobytes in Linux and in bytes in OS X. By default, the implementation assumes Linux-like behavior. To get the correct memory usage reports in OS X, uncomment the line `RUSAGE_FLAGS=-DRUSAGE_IN_BYTES` in the makefile.
@@ -15,16 +17,6 @@ The maximum resident size reported by `getrusage()` is in kilobytes in Linux and
 There are some verification/debugging options in `build_gcsa`. To disable them, comment out the line `VERIFY_FLAGS=-DVERIFY_CONSTRUCTION` in the makefile.
 
 Index construction can be set to output some status information to `stderr` by uncommenting the line `OUTPUT_FLAGS=-DVERBOSE_STATUS_INFO` in the makefile.
-
-## Data model
-
-The input to GCSA2 is a directed graph. Each **node** of the input graph is a pair *(id,c)*, where integer *id* is the **unique identifier** of the node and character *c* is the **label** of the node. For best results, nodes on unary paths should have successive identifiers. Each node must have at least one incoming edge and one outgoing edge. It can be useful to think the input graph as a **finite automaton**, encoding information of type "If we are in node *x* and observe character *c*, which nodes we can end up in?"
-
-In the current implementation, the graph must have exactly one **source** node and one **sink** node. There must be an edge from the sink node to the source node. The source node must not have any other incoming edges, and the sink node must not have any other outgoing edges. The source and the sink must have unique labels, which the `Alphabet` object must map to values that are smaller than larger, respectively, than for any real character. These additional restrictions are a matter of convenience. There are no fundamental or performance reasons for having them.
-
-GCSA construction sees the input graph as a set of **paths**, and transforms the graph into an equivalent graph that can be indexed. Each path has a label, a **start** node, and a set of **extension** nodes. The label is the concatenation of node labels in the path. If path *B* starts from an extension node of path *A*, path *AB* is a valid path in the input graph.
-
-The nodes of the final transformed graph are called **path nodes**, and they correspond to sets of paths in the input graph. Path nodes are identified by the ranks of their labels in lexicographic order. All paths having the same label are represented by the same path node. A path node matches **pattern** *P*, if either *P* is a prefix of its label, or the corresponding path in the input graph can be extended to match the pattern. (The construction guarantees that all paths represented by the same path node have the same extensions up to the maximum query length.)
 
 ## Construction
 
@@ -49,61 +41,6 @@ Query `find(P)` returns the lexicographic range of path nodes matching pattern *
 Query `locate(i, results)` returns the identifiers of the input nodes at the beginning of the paths represented by the path node with lexicographic rank *i*. Query `locate(range_type(sp,ep), results)` does the same for lexicographic range *[sp,ep]*.
 
 The low-level interface and the graph navigation operations are still subject to change.
-
-## Version history
-
-### Current version
-
-* Support for binary graph format and multiple graph files.
-* Multithreaded `mergePaths()` and `GCSA::mergeByLabel()`.
-
-### 0.2 (2015-07-16)
-
-* The second pre-release.
-* More space-efficient construction.
-* Support for cyclic graphs.
-* Switched from prefix-range-sorted graphs to prefix-sorted graphs to fix issue #3.
-
-### 0.1 (2015-05-27)
-
-* The first pre-release.
-* Index construction from paths extracted from vg.
-* `find()` and `locate()` queries.
-
-## Todo
-
-* Optimizations
-  * Implement a simplified GCSA for de Bruijn Graphs. With indicator bitvectors like in the original GCSA, *LF()* queries on `mapper` will be much faster.
-  * Multithreaded `joinPaths()`, `GCSA::build()`, and `GCSA::sample()`.
-  * The size of a `PathNode` can be reduced to 16 bytes with a more efficient encoding for the *(id,offset)* pairs.
-  * Semi-external construction. `joinPaths()` can be done for each chromosome separately. `mergePaths()`, `GCSA::mergeByLabel()`, `GCSA::build()`, and `GCSA::sample()` are all essentially sequential scans.
-  * More space-efficient index representation.
-  * Sample compression. More efficient encoding for the *(id,offset)* pairs would already help.
-  * Determine when nodes have to be prefix-sorted and when we can make them prefix-range-sorted.
-* Generalizations
-  * Make index construction work with 0 doubling steps.
-  * Support for larger alphabets.
-  * Support for inputs other than vg paths.
-  * Sampling when starting positions are just node ids without offsets.
-* Interface
-  * Low-level interface.
-  * Graph navigation operations.
-* Construction parameters
-  * Split the size limit into memory limit and disk space limit.
-  * What to do when the limits are exceeded? (Index the previous generation or fail.)
-  * Temporary file location.
-* Compilation options
-  * Use 32-bit or 64-bit node identifiers in `PathNode`.
-* "Slow mode"
-  * Include optional edges in the graph and find matches that contain exactly one optional edge.
-  * Moves some complexity from index construction to queries.
-  * Requires a partial index for the reverse graph and an edge matrix with 2d range queries for the optional edges.
-  * Chris Thachuk: **Indexing hypertext.**  Journal of Discrete Algorithms 18:113-122, 2013.
-* Alternative approaches
-  * Full GCSA.
-  * Determinize the graph, using the multi-sampling approach to map back to original positions.
-* A paper describing the new algorithmic ideas.
-* Documentation in the wiki.
 
 ## References
 
