@@ -1019,10 +1019,7 @@ GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
       {
         for(size_type k = 0; k < curr.size(); k++)
         {
-          if(Node::id(curr[k]) != Node::id(prev[k]) || Node::offset(curr[k]) != Node::offset(prev[k]) + 1)
-          {
-            sample_this = true; break;
-          }
+          if(curr[k] != prev[k] + 1) { sample_this = true; break; }
         }
       }
     }

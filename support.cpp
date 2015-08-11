@@ -181,10 +181,17 @@ Node::encode(const std::string& token)
 {
   size_t separator = 0;
   size_type node = std::stoul(token, &separator);
-  if(separator >= token.length())
+  if(separator + 1 >= token.length())
   {
     std::cerr << "Node::encode(): Invalid position token " << token << std::endl;
     return 0;
+  }
+
+  bool reverse_complement = false;
+  if(token[separator + 1] == '-')
+  {
+    reverse_complement = true;
+    separator++;
   }
 
   std::string temp = token.substr(separator + 1);
@@ -195,14 +202,16 @@ Node::encode(const std::string& token)
     return 0;
   }
 
-  return encode(node, offset);
+  return encode(node, offset, reverse_complement);
 }
 
 std::string
 Node::decode(node_type node)
 {
   std::ostringstream ss;
-  ss << id(node) << ':' << offset(node);
+  ss << id(node) << ':';
+  if(rc(node)) { ss << '-'; }
+  ss << offset(node);
   return ss.str();
 }
 

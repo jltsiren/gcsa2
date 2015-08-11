@@ -172,22 +172,40 @@ struct Key
 
 //------------------------------------------------------------------------------
 
+/*
+  node_type is the identifier of a node in the input graph. It corresponds to a
+  position in the original graph.
+
+  The identifier contains 54 bits for node id, 1 bit for orientation (forward or
+  reverse complement, and 9 bits for node offset. The string representation of
+  a node_type is id:offset for forward positions and id:-offset for reverse
+  complement positions. If the forward offsets are 0 to k, the corresponding
+  reverse complement offsets are -k to -0 (in the same order).
+*/
+
 typedef std::uint64_t node_type;
 
 struct Node
 {
-  const static size_type OFFSET_BITS = 10;
-  const static size_type OFFSET_MASK = 0x3FF;
+  const static size_type ID_OFFSET        = 10;
+  const static size_type ORIENTATION_MASK = 0x200;
+  const static size_type OFFSET_MASK      = 0x1FF;
 
   inline static node_type encode(size_type node_id, size_type node_offset)
   {
-    return (node_id << OFFSET_BITS) | node_offset;
+    return (node_id << ID_OFFSET) | node_offset;
+  }
+
+  inline static node_type encode(size_type node_id, size_type node_offset, bool reverse_complement)
+  {
+    return encode(node_id, node_offset) | (reverse_complement ? ORIENTATION_MASK : 0);
   }
 
   static node_type encode(const std::string& token);
   static std::string decode(node_type node);
 
-  inline static size_type id(node_type node) { return node >> OFFSET_BITS; }
+  inline static size_type id(node_type node) { return node >> ID_OFFSET; }
+  inline static bool rc(node_type node) { return node & ORIENTATION_MASK; }
   inline static size_type offset(node_type node) { return node & OFFSET_MASK; }
 };
 
