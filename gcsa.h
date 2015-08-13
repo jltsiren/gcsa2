@@ -25,6 +25,7 @@
 #ifndef _GCSA_GCSA_H
 #define _GCSA_GCSA_H
 
+#include "dbg.h"
 #include "support.h"
 
 namespace gcsa
@@ -119,8 +120,11 @@ public:
     return this->find(pattern.begin(), pattern.end());
   }
 
-  range_type find(const char* pattern, size_type length) const;
-  range_type find(const char_type* pattern, size_type length) const;
+  template<class Element>
+  range_type find(const Element* pattern, size_type length) const
+  {
+    return this->find(pattern, pattern + length);
+  }
 
   void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;
   void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;
@@ -227,7 +231,7 @@ private:
     apart from the fields related to samples. Clears last_labels, mapper, and last_char.
   */
   void build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-    GCSA& mapper, sdsl::int_vector<0>& last_char);
+    DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char);
 
   void initSupport();
 
@@ -265,11 +269,11 @@ private:
     return path_node_range;
   }
 
-  inline range_type pathNodeRange(range_type incoming_range) const
+  inline range_type pathNodeRange(range_type outgoing_range) const
   {
-    incoming_range.first = this->edge_rank(incoming_range.first);
-    incoming_range.second = this->edge_rank(incoming_range.second);
-    return incoming_range;
+    outgoing_range.first = this->edge_rank(outgoing_range.first);
+    outgoing_range.second = this->edge_rank(outgoing_range.second);
+    return outgoing_range;
   }
 
   inline range_type sampleRange(size_type path_node) const

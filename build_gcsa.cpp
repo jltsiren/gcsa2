@@ -47,7 +47,7 @@ using namespace gcsa;
 //------------------------------------------------------------------------------
 
 bool verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length);
-bool verifyMapper(const GCSA& mapper, const std::vector<key_type>& keys, size_type kmer_length);
+bool verifyMapper(const DeBruijnGraph& mapper, const std::vector<key_type>& keys, size_type kmer_length);
 void verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length);
 
 //------------------------------------------------------------------------------
@@ -137,7 +137,7 @@ main(int argc, char** argv)
     sdsl::int_vector<0> last_chars;
     size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary, true);
     uniqueKeys(kmers, keys, last_chars, true);
-    GCSA mapper(keys, kmer_length);
+    DeBruijnGraph mapper(keys, kmer_length);
     std::cout << "Nodes: " << mapper.size() << ", edges: " << mapper.edge_count() << std::endl;
     std::cout << "Mapper size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
     verifyMapper(mapper, keys, kmer_length);
@@ -272,7 +272,7 @@ verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length)
 //------------------------------------------------------------------------------
 
 bool
-verifyMapper(const GCSA& mapper, const std::vector<key_type>& keys, size_type kmer_length)
+verifyMapper(const DeBruijnGraph& mapper, const std::vector<key_type>& keys, size_type kmer_length)
 {
   bool ok = true;
   for(size_type i = 0; i < keys.size(); i++)

@@ -304,7 +304,7 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
   std::vector<key_type> keys;
   sdsl::int_vector<0> last_char;
   uniqueKeys(kmers, keys, last_char);
-  GCSA mapper(keys, kmer_length, _alpha);
+  DeBruijnGraph mapper(keys, kmer_length, _alpha);
   LCP lcp(keys, kmer_length);
   sdsl::util::clear(keys);
 
@@ -840,7 +840,7 @@ GCSA::mergeByLabel(std::vector<PathNode>& paths, std::vector<PathNode::rank_type
 
 std::pair<PathLabel, PathLabel>
 predecessor(const PathNode& curr, std::vector<PathNode::rank_type>& labels,
-  comp_type comp, const GCSA& mapper, const sdsl::int_vector<0>& last_char)
+  comp_type comp, const DeBruijnGraph& mapper, const sdsl::int_vector<0>& last_char)
 {
   size_type i = 0, j = curr.pointer();
   PathLabel first, last;
@@ -866,8 +866,8 @@ predecessor(const PathNode& curr, std::vector<PathNode::rank_type>& labels,
   }
   if(i < PathLabel::LABEL_LENGTH)
   {
-    first.label[i] = mapper.edge_rank(mapper.alpha.C[first_comp]);
-    last.label[i] = mapper.edge_rank(mapper.alpha.C[last_comp + 1]) - 1;
+    first.label[i] = mapper.node_rank(mapper.alpha.C[first_comp]);
+    last.label[i] = mapper.node_rank(mapper.alpha.C[last_comp + 1]) - 1;
     i++;
   }
 
@@ -883,7 +883,7 @@ predecessor(const PathNode& curr, std::vector<PathNode::rank_type>& labels,
 */
 void
 GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  GCSA& mapper, sdsl::int_vector<0>& last_char)
+  DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char)
 {
   for(size_type i = 0; i < paths.size(); i++) { paths[i].initDegree(); }
 
@@ -1052,18 +1052,6 @@ GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
 }
 
 //------------------------------------------------------------------------------
-
-range_type
-GCSA::find(const char_type* pattern, size_type length) const
-{
-  return this->find(pattern, pattern + length);
-}
-
-range_type
-GCSA::find(const char* pattern, size_type length) const
-{
-  return this->find(pattern, pattern + length);
-}
 
 void
 GCSA::locate(size_type path_node, std::vector<node_type>& results, bool append, bool sort) const
