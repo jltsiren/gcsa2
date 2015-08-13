@@ -33,6 +33,7 @@
 
 #include <sdsl/wavelet_trees.hpp>
 
+// FIXME Later: Use named critical sections.
 #include <omp.h>
 
 namespace gcsa
@@ -221,6 +222,31 @@ removeDuplicates(std::vector<Element>& vec, bool parallel)
   if(parallel) { parallelQuickSort(vec.begin(), vec.end()); }
   else         { sequentialSort(vec.begin(), vec.end()); }
   vec.resize(std::unique(vec.begin(), vec.end()) - vec.begin());
+}
+
+//------------------------------------------------------------------------------
+
+/*
+  Split the vector approximately evenly between the given number of threads. The comparator
+  should return true when it is safe to split between the first argument and the second argument.
+*/
+
+template<class Element, class Comparator>
+std::vector<range_type>
+getBounds(const std::vector<Element>& vec, size_type threads, const Comparator& comp)
+{
+  std::vector<range_type> bounds(threads);
+  for(size_type thread = 0, start = 0; thread < threads; thread++)
+  {
+    bounds[thread].first = start;
+    if(start < vec.size())
+    {
+      start += std::max((size_type)1, (vec.size() - start) / (threads - thread));
+      while(start < vec.size() && !comp(vec[start - 1], vec[start])) { start++; }
+    }
+    bounds[thread].second = start - 1;
+  }
+  return bounds;
 }
 
 //------------------------------------------------------------------------------

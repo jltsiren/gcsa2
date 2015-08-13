@@ -379,28 +379,7 @@ struct ValueIndex
 
 /*
   Helper functions for splitting the work between threads.
-
-  getBounds() splits the paths approximately evenly between the threads so that
-  the comparison is true at each border.
 */
-
-template<class Comparator>
-std::vector<range_type>
-getBounds(const std::vector<PathNode>& paths, size_type threads, const Comparator& comp)
-{
-  std::vector<range_type> bounds(threads);
-  for(size_type thread = 0, start = 0; thread < threads; thread++)
-  {
-    bounds[thread].first = start;
-    if(start < paths.size())
-    {
-      start += std::max((size_type)1, (paths.size() - start) / (threads - thread));
-      while(start < paths.size() && !comp(paths[start - 1], paths[start])) { start++; }
-    }
-    bounds[thread].second = start - 1;
-  }
-  return bounds;
-}
 
 std::vector<size_type>
 getTails(const std::vector<range_type>& bounds)
