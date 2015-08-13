@@ -86,7 +86,7 @@ public:
 
   inline range_type charRange(comp_type comp) const
   {
-    return this->LF(range_type(0, this->size() - 1), comp);
+    return range_type(this->node_rank(this->alpha.C[comp]), this->node_rank(this->alpha.C[comp + 1]) - 1);
   }
 
   template<class Iterator>
