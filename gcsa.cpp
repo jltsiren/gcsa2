@@ -219,41 +219,6 @@ GCSA::load(std::istream& in)
 
 //------------------------------------------------------------------------------
 
-GCSA::GCSA(const std::vector<key_type>& keys, size_type kmer_length, const Alphabet& _alpha)
-{
-  this->path_node_count = keys.size();
-  this->max_query_length = kmer_length;
-
-  size_type total_edges = 0;
-  for(size_type i = 0; i < keys.size(); i++) { total_edges += sdsl::bits::lt_cnt[Key::predecessors(keys[i])]; }
-
-  sdsl::int_vector<64> counts(_alpha.sigma, 0);
-  sdsl::int_vector<8> buffer(total_edges, 0);
-  this->path_nodes = bit_vector(total_edges, 0);
-  this->edges = bit_vector(total_edges, 0);
-  for(size_type i = 0, bwt_pos = 0, edge_pos = 0; i < keys.size(); i++)
-  {
-    size_type pred = Key::predecessors(keys[i]);
-    for(size_type j = 0; j < _alpha.sigma; j++)
-    {
-      if(pred & (((size_type)1) << j))
-      {
-        buffer[bwt_pos] = j; bwt_pos++;
-        counts[j]++;
-      }
-    }
-    this->path_nodes[bwt_pos - 1] = 1;
-    edge_pos += sdsl::bits::lt_cnt[Key::successors(keys[i])];
-    this->edges[edge_pos - 1] = 1;
-  }
-  directConstruct(this->bwt, buffer);
-  this->alpha = Alphabet(counts, _alpha.char2comp, _alpha.comp2char);
-
-  this->initSupport();
-}
-
-//------------------------------------------------------------------------------
-
 void
 readPathNodes(const std::string& filename,
   std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels)

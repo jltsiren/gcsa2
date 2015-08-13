@@ -67,12 +67,6 @@ public:
 //------------------------------------------------------------------------------
 
   /*
-    The input vector must be sorted and contain only unique kmers of length 16 or less.
-    Each kmer must have at least one predecessor and one successor.
-  */
-  GCSA(const std::vector<key_type>& keys, size_type kmer_length, const Alphabet& _alpha = Alphabet());
-
-  /*
     This is the main constructor. We build GCSA from the kmers, doubling the path length
     the specified number of times (up to DOUBLING_STEPS). The kmer array will be cleared
     during the construction.
