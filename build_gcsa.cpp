@@ -68,7 +68,8 @@ main(int argc, char** argv)
   }
 
   size_type doubling_steps = GCSA::DOUBLING_STEPS, size_limit = GCSA::SIZE_LIMIT;
-  int c = 0; bool binary = false;
+  int c = 0;
+  bool binary = false;
   std::string output_file;
   while((c = getopt(argc, argv, "bd:l:o:t")) != -1)
   {

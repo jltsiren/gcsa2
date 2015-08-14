@@ -22,46 +22,37 @@
   SOFTWARE.
 */
 
-#ifndef _GCSA_FILES_H
-#define _GCSA_FILES_H
+#include "files.h"
+#include "gcsa.h"
 
-#include "support.h"
-
-namespace gcsa
-{
+using namespace gcsa;
 
 //------------------------------------------------------------------------------
 
-/*
-  FIXME Later: A more consistent interface for reading/writing one/multiple file(s)
-  in text/binary format.
-*/
-
-extern const std::string BINARY_EXTENSION;  // .graph
-extern const std::string TEXT_EXTENSION;    // .gcsa2
-
-size_type readKMers(size_type files, char** filenames, std::vector<KMer>& kmers,
-  bool binary, bool print = false);
-
-void writeKMers(std::vector<KMer>& kmers, size_type kmer_length, const std::string& base_name,
-  bool print = false);
-
-struct GraphFileHeader
+int
+main(int argc, char** argv)
 {
-  size_type flags;
-  size_type kmer_count;
-  size_type kmer_length;
+  if(argc < 2)
+  {
+    std::cerr << "Usage: convert_graph base_name [base_name2 ..]" << std::endl;
+    std::cerr << std::endl;
+    std::exit(EXIT_SUCCESS);
+  }
 
-  GraphFileHeader();
-  GraphFileHeader(size_type kmers, size_type length);
-  explicit GraphFileHeader(std::istream& in);
-  ~GraphFileHeader();
+  std::cout << "GCSA input converter" << std::endl;
+  std::cout << std::endl;
 
-  size_type serialize(std::ostream& out);
-};
+  for(int i = 1; i < argc; i++)
+  {
+    std::string base_name = argv[i];
+    std::cout << base_name << TEXT_EXTENSION << " -> " << base_name << BINARY_EXTENSION << std::endl;
+    std::vector<KMer> kmers;
+    size_type kmer_length = readKMers(1, argv + i, kmers, false, true);
+    writeKMers(kmers, kmer_length, base_name, true);
+    std::cout << std::endl;
+  }
+
+  return 0;
+}
 
 //------------------------------------------------------------------------------
-
-} // namespace gcsa
-
-#endif // _GCSA_UTILS_H

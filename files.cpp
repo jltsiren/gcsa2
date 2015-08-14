@@ -136,9 +136,10 @@ readBinary(size_type files, char** filenames, std::vector<KMer>& kmers)
     }
 
     size_type section = 0;
-    while(input)
+    while(true)
     {
       GraphFileHeader header(input);
+      if(input.eof()) { break; }
       if(header.flags != 0)
       {
         std::cerr << "readBinary(): Invalid flags in graph file " << filename
@@ -204,10 +205,37 @@ readKMers(size_type files, char** filenames, std::vector<KMer>& kmers, bool bina
   return kmer_length;
 }
 
+void
+writeKMers(std::vector<KMer>& kmers, size_type kmer_length, const std::string& base_name, bool print)
+{
+  std::string filename = base_name + BINARY_EXTENSION;
+  std::ofstream output(filename.c_str(), std::ios_base::binary);
+  if(!output)
+  {
+    std::cerr << "writeKMers(): Cannot open output file " << filename << std::endl;
+    return;
+  }
+
+  GraphFileHeader header(kmers.size(), kmer_length);
+  header.serialize(output);
+  output.write((char*)(kmers.data()), header.kmer_count * sizeof(KMer));
+  output.close();
+
+  if(print)
+  {
+    std::cout << "Wrote " << header.kmer_count << " kmers of length " << header.kmer_length << std::endl;
+  }
+}
+
 //------------------------------------------------------------------------------
 
 GraphFileHeader::GraphFileHeader() :
   flags(0), kmer_count(0), kmer_length(0)
+{
+}
+
+GraphFileHeader::GraphFileHeader(size_type kmers, size_type length) :
+  flags(0), kmer_count(kmers), kmer_length(length)
 {
 }
 
