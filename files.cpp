@@ -65,53 +65,40 @@ tokenize(const std::string& line, std::vector<std::string>& tokens)
 }
 
 size_type
-readText(size_type files, char** filenames, std::vector<KMer>& kmers)
+readText(std::istream& in, std::vector<KMer>& kmers, bool append)
 {
+  if(!append) { sdsl::util::clear(kmers); }
+
   Alphabet alpha;
   size_type kmer_length = ~(size_type)0;
-  sdsl::util::clear(kmers);
-
-  for(size_type i = 0; i < files; i++)
+  while(true)
   {
-    std::string filename = std::string(filenames[i]) + TEXT_EXTENSION;
-    std::ifstream input(filename.c_str(), std::ios_base::binary);
-    if(!input)
+    std::string line;
+    std::getline(in, line);
+    if(in.eof()) { break; }
+
+    std::vector<std::string> tokens;
+    if(!tokenize(line, tokens)) { continue; }
+    if(kmer_length == ~(size_type)0)
     {
-      std::cerr << "readText(): Cannot open graph file " << filename << std::endl;
+      kmer_length = tokens[0].length();
+      if(kmer_length == 0 || kmer_length > Key::MAX_LENGTH)
+      {
+        std::cerr << "readText(): Invalid kmer length: " << kmer_length << std::endl;
+        std::exit(EXIT_FAILURE);
+      }
+    }
+    else if(tokens[0].length() != kmer_length)
+    {
+      std::cerr << "readText(): Invalid kmer length: " << tokens[0].length()
+                << " (expected " << kmer_length << ")" << std::endl;
       std::exit(EXIT_FAILURE);
     }
 
-    while(input)
+    for(size_type successor = 4; successor < tokens.size(); successor++)
     {
-      std::string line;
-      std::getline(input, line);
-      if(line.length() == 0) { continue; }
-
-      std::vector<std::string> tokens;
-      if(!tokenize(line, tokens)) { continue; }
-      if(kmer_length == ~(size_type)0)
-      {
-        kmer_length = tokens[0].length();
-        if(kmer_length == 0 || kmer_length > Key::MAX_LENGTH)
-        {
-          std::cerr << "readText(): Invalid kmer length in graph file " << filename
-                    << ": " << kmer_length << std::endl;
-          std::exit(EXIT_FAILURE);
-        }
-      }
-      else if(tokens[0].length() != kmer_length)
-      {
-        std::cerr << "readText(): Invalid kmer length in graph file " << filename
-                  << ": expected " << kmer_length << ", got " << tokens[0].length() << std::endl;
-        std::exit(EXIT_FAILURE);
-      }
-
-      for(size_type successor = 4; successor < tokens.size(); successor++)
-      {
-        kmers.push_back(KMer(tokens, alpha, successor));
-      }
+      kmers.push_back(KMer(tokens, alpha, successor));
     }
-    input.close();
   }
 
   return kmer_length;
@@ -120,57 +107,42 @@ readText(size_type files, char** filenames, std::vector<KMer>& kmers)
 //------------------------------------------------------------------------------
 
 size_type
-readBinary(size_type files, char** filenames, std::vector<KMer>& kmers)
+readBinary(std::istream& in, std::vector<KMer>& kmers, bool append)
 {
-  sdsl::util::clear(kmers);
+  if(!append) { sdsl::util::clear(kmers); }
+
   size_type kmer_length = ~(size_type)0;
-
-  for(size_type i = 0; i < files; i++)
+  size_type section = 0;
+  while(true)
   {
-    std::string filename = std::string(filenames[i]) + BINARY_EXTENSION;
-    std::ifstream input(filename.c_str(), std::ios_base::binary);
-    if(!input)
+    GraphFileHeader header(in);
+    if(in.eof()) { break; }
+    if(header.flags != 0)
     {
-      std::cerr << "readBinary(): Cannot open graph file " << filename << std::endl;
+      std::cerr << "readBinary(): Invalid flags in section " << section << ": " << header.flags << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    if(kmer_length == ~(size_type)0)
+    {
+      kmer_length = header.kmer_length;
+      if(kmer_length == 0 || kmer_length > Key::MAX_LENGTH)
+      {
+        std::cerr << "readBinary(): Invalid kmer length in section " << section << ": "
+                  << kmer_length << std::endl;
+        std::exit(EXIT_FAILURE);
+      }
+    }
+    else if(header.kmer_length != kmer_length)
+    {
+      std::cerr << "readBinary(): Invalid kmer length in section " << section << ": "
+                << header.kmer_length << " (expected " << kmer_length << ")" << std::endl;
       std::exit(EXIT_FAILURE);
     }
 
-    size_type section = 0;
-    while(true)
-    {
-      GraphFileHeader header(input);
-      if(input.eof()) { break; }
-      if(header.flags != 0)
-      {
-        std::cerr << "readBinary(): Invalid flags in graph file " << filename
-                  << ", section " << section << std::endl;
-        std::cerr << "readBinary(): Expected 0, got " << header.flags << std::endl;
-        std::exit(EXIT_FAILURE);
-      }
-      if(kmer_length == ~(size_type)0)
-      {
-        kmer_length = header.kmer_length;
-        if(kmer_length == 0 || kmer_length > Key::MAX_LENGTH)
-        {
-          std::cerr << "readBinary(): Invalid kmer length in graph file " << filename
-                    << ", section " << section << ": " << kmer_length << std::endl;
-          std::exit(EXIT_FAILURE);
-        }
-      }
-      else if(header.kmer_length != kmer_length)
-      {
-        std::cerr << "readBinary(): Invalid kmer length in graph file " << filename
-                  << ", section " << section << std::endl;
-        std::cerr << "readBinary(): Expected " << kmer_length << ", got " << header.kmer_length << std::endl;
-        std::exit(EXIT_FAILURE);
-      }
-
-      size_type old_size = kmers.size();
-      kmers.resize(old_size + header.kmer_count);
-      input.read((char*)(kmers.data() + old_size), header.kmer_count * sizeof(KMer));
-      section++;
-    }
-    input.close();
+    size_type old_size = kmers.size();
+    kmers.resize(old_size + header.kmer_count);
+    in.read((char*)(kmers.data() + old_size), header.kmer_count * sizeof(KMer));
+    section++;
   }
 
   return kmer_length;
@@ -179,13 +151,35 @@ readBinary(size_type files, char** filenames, std::vector<KMer>& kmers)
 //------------------------------------------------------------------------------
 
 size_type
-readKMers(size_type files, char** filenames, std::vector<KMer>& kmers, bool binary, bool print)
+readKMers(size_type files, char** base_names, std::vector<KMer>& kmers, bool binary)
 {
-  size_type kmer_length = (binary ? readBinary(files, filenames, kmers) : readText(files, filenames, kmers));
-  if(print)
+  size_type kmer_length = ~(size_type)0;
+  sdsl::util::clear(kmers);
+
+  for(size_type i = 0; i < files; i++)
   {
-    std::cout << "Read " << kmers.size() << " kmers of length " << kmer_length << std::endl;
+    std::string filename = std::string(base_names[i]) + (binary ? BINARY_EXTENSION : TEXT_EXTENSION);
+    std::ifstream input(filename.c_str(), std::ios_base::binary);
+    if(!input)
+    {
+      std::cerr << "readKMers(): Cannot open graph file " << filename << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+
+    size_type new_length = (binary ? readBinary(input, kmers, true) : readText(input, kmers, true));
+    if(kmer_length == ~(size_type)0) { kmer_length = new_length; }
+    else if(new_length != kmer_length)
+    {
+      std::cerr << "readKMers(): Invalid kmer length in graph file " << filename << std::endl;
+      std::cerr << "readKMers(): Expected " << kmer_length << ", got " << new_length << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    input.close();
   }
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "readKMers(): Read " << kmers.size() << " kmers of length " << kmer_length << std::endl;
+#endif
 
   /*
     If the kmer includes one or more endmarkers, the successor position is past
@@ -205,8 +199,18 @@ readKMers(size_type files, char** filenames, std::vector<KMer>& kmers, bool bina
   return kmer_length;
 }
 
+//------------------------------------------------------------------------------
+
 void
-writeKMers(std::vector<KMer>& kmers, size_type kmer_length, const std::string& base_name, bool print)
+writeBinary(std::ostream& out, std::vector<KMer>& kmers, size_type kmer_length)
+{
+  GraphFileHeader header(kmers.size(), kmer_length);
+  header.serialize(out);
+  out.write((char*)(kmers.data()), header.kmer_count * sizeof(KMer));
+}
+
+void
+writeKMers(const std::string& base_name, std::vector<KMer>& kmers, size_type kmer_length)
 {
   std::string filename = base_name + BINARY_EXTENSION;
   std::ofstream output(filename.c_str(), std::ios_base::binary);
@@ -216,15 +220,12 @@ writeKMers(std::vector<KMer>& kmers, size_type kmer_length, const std::string& b
     return;
   }
 
-  GraphFileHeader header(kmers.size(), kmer_length);
-  header.serialize(output);
-  output.write((char*)(kmers.data()), header.kmer_count * sizeof(KMer));
+  writeBinary(output, kmers, kmer_length);
   output.close();
 
-  if(print)
-  {
-    std::cout << "Wrote " << header.kmer_count << " kmers of length " << header.kmer_length << std::endl;
-  }
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "writeKMers(): Wrote " << kmers.size() << " kmers of length " << kmer_length << std::endl;
+#endif
 }
 
 //------------------------------------------------------------------------------

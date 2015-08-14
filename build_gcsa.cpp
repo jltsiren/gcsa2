@@ -125,22 +125,24 @@ main(int argc, char** argv)
 #ifdef VERIFY_GRAPH
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary, true);
+    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary);
     if(!(verifyGraph(kmers, kmer_length))) { std::exit(EXIT_FAILURE); }
   }
 #endif
-
 
 #ifdef VERIFY_MAPPER
   {
     std::vector<KMer> kmers;
     std::vector<key_type> keys;
     sdsl::int_vector<0> last_chars;
-    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary, true);
+    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary);
     uniqueKeys(kmers, keys, last_chars, true);
     DeBruijnGraph mapper(keys, kmer_length);
-    std::cout << "Nodes: " << mapper.size() << ", edges: " << mapper.edge_count() << std::endl;
-    std::cout << "Mapper size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
+#ifdef VERBOSE_STATUS_INFO
+    std::cerr << "build_gcsa: Mapper has " << mapper.size() << " nodes, "
+              << mapper.edge_count << " edges" << std::endl;
+    std::cerr << "build_gcsa: Mapper size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
+#endif
     verifyMapper(mapper, keys, kmer_length);
   }
 #endif
@@ -151,7 +153,7 @@ main(int argc, char** argv)
 #else
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary, true);
+    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary);
     double start = readTimer();
     GCSA temp(kmers, kmer_length, doubling_steps, size_limit); index.swap(temp);
     double seconds = readTimer() - start;
@@ -177,7 +179,7 @@ main(int argc, char** argv)
 #ifdef VERIFY_INDEX
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary, true);
+    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary);
     verifyIndex(index, kmers, kmer_length);
   }
 #endif

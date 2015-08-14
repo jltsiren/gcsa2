@@ -32,24 +32,25 @@ using namespace gcsa;
 int
 main(int argc, char** argv)
 {
-  if(argc < 2)
+  if(argc < 2)  // From stdin to stdout.
   {
-    std::cerr << "Usage: convert_graph base_name [base_name2 ..]" << std::endl;
-    std::cerr << std::endl;
-    std::exit(EXIT_SUCCESS);
-  }
-
-  std::cout << "GCSA input converter" << std::endl;
-  std::cout << std::endl;
-
-  for(int i = 1; i < argc; i++)
-  {
-    std::string base_name = argv[i];
-    std::cout << base_name << TEXT_EXTENSION << " -> " << base_name << BINARY_EXTENSION << std::endl;
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(1, argv + i, kmers, false, true);
-    writeKMers(kmers, kmer_length, base_name, true);
+    size_type kmer_length = readText(std::cin, kmers);
+    writeBinary(std::cout, kmers, kmer_length);
+  }
+  else
+  {
+    std::cout << "GCSA input converter" << std::endl;
     std::cout << std::endl;
+    for(int i = 1; i < argc; i++)
+    {
+      std::string base_name = argv[i];
+      std::cout << base_name << TEXT_EXTENSION << " -> " << base_name << BINARY_EXTENSION << std::endl;
+      std::vector<KMer> kmers;
+      size_type kmer_length = readKMers(1, argv + i, kmers, false);
+      writeKMers(base_name, kmers, kmer_length);
+      std::cout << std::endl;
+    }
   }
 
   return 0;

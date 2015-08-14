@@ -32,19 +32,8 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
-/*
-  FIXME Later: A more consistent interface for reading/writing one/multiple file(s)
-  in text/binary format.
-*/
-
 extern const std::string BINARY_EXTENSION;  // .graph
 extern const std::string TEXT_EXTENSION;    // .gcsa2
-
-size_type readKMers(size_type files, char** filenames, std::vector<KMer>& kmers,
-  bool binary, bool print = false);
-
-void writeKMers(std::vector<KMer>& kmers, size_type kmer_length, const std::string& base_name,
-  bool print = false);
 
 struct GraphFileHeader
 {
@@ -59,6 +48,19 @@ struct GraphFileHeader
 
   size_type serialize(std::ostream& out);
 };
+
+//------------------------------------------------------------------------------
+
+/*
+  These functions read the input until eof. They do not close the input stream.
+*/
+size_type readBinary(std::istream& in, std::vector<KMer>& kmers, bool append = false);
+size_type readText(std::istream& in, std::vector<KMer>& kmers, bool append = false);
+
+size_type readKMers(size_type files, char** base_names, std::vector<KMer>& kmers, bool binary = true);
+
+void writeBinary(std::ostream& out, std::vector<KMer>& kmers, size_type kmer_length);
+void writeKMers(const std::string& base_name, std::vector<KMer>& kmers, size_type kmer_length);
 
 //------------------------------------------------------------------------------
 
