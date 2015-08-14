@@ -58,18 +58,18 @@ main(int argc, char** argv)
   if(argc < 2)
   {
     std::cerr << "Usage: build_gcsa [options] base_name [base_name2 ..]" << std::endl;
-    std::cerr << "  -b    Read the input in binary format" << std::endl;
+    std::cerr << "  -b    Read the input in binary format (default)" << std::endl;
     std::cerr << "  -d N  Doubling steps (default and max " << GCSA::DOUBLING_STEPS << ")" << std::endl;
     std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default 200)" << std::endl;
     std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
-    std::cerr << "  -t    Read the input in text format (default)" << std::endl;
+    std::cerr << "  -t    Read the input in text format" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
 
   size_type doubling_steps = GCSA::DOUBLING_STEPS, size_limit = GCSA::SIZE_LIMIT;
   int c = 0;
-  bool binary = false;
+  bool binary = true;
   std::string output_file;
   while((c = getopt(argc, argv, "bd:l:o:t")) != -1)
   {
