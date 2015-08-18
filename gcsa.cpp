@@ -413,11 +413,21 @@ sumOf(const std::vector<size_type>& statistics)
 //------------------------------------------------------------------------------
 
 void
-writePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, std::ostream& out)
+writePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+  std::ostream& out, size_type size_limit,
+  size_type& new_path_count, size_type& new_rank_count)
 {
+  size_type bytes_required = paths.size() * sizeof(PathNode) + labels.size() * sizeof(PathNode::rank_type);
   #pragma omp critical
   {
+    bytes_required += (size_type)(out.tellp());
+    if(bytes_required > size_limit * GIGABYTE)
+    {
+      std::cerr << "joinPaths(): Size limit exceeded, construction aborted" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
     for(auto& path : paths) { path.serialize(out, labels); }
+    new_path_count += paths.size(); new_rank_count += labels.size();
   }
   paths.clear(); labels.clear();
 }
@@ -431,52 +441,20 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
   // Initialization.
   PathFromComparator from_c; // Sort the paths by from.
   parallelQuickSort(paths.begin(), paths.end(), from_c);
+  ValueIndex<PathNode, FromGetter> from_index(paths);
   size_type old_path_count = paths.size();
   size_type threads = omp_get_max_threads();
-
-  // Determine the size of the next generation.
-  ValueIndex<PathNode, FromGetter> from_index(paths);
-  std::vector<size_type> path_counts(threads, 0), rank_counts(threads, 0);
-  #pragma omp parallel for schedule(static)
-  for(size_type i = 0; i < paths.size(); i++)
-  {
-    size_type thread = omp_get_thread_num();
-    if(paths[i].sorted()) { path_counts[thread]++; rank_counts[thread] += paths[i].ranks(); }
-    else
-    {
-      size_type first = from_index.find(paths[i].to);
-      size_type left_order = paths[i].order();
-      for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
-      {
-        path_counts[thread]++;
-        rank_counts[thread] += left_order + paths[j].ranks();
-      }
-    }
-  }
-
-  // Determine if the size is low enough.
-  size_type new_path_count = sumOf(path_counts), new_rank_count = sumOf(rank_counts);
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "  joinPaths(): There will be " << new_path_count << " paths, "
-            << new_rank_count << " ranks" << std::endl;
-#endif
-  size_type bytes_required =
-    2 * sizeof(size_type) + new_path_count * sizeof(PathNode) + new_rank_count * sizeof(PathNode::rank_type);
-  if(bytes_required > size_limit * GIGABYTE)
-  {
-    std::cerr << "joinPaths(): Size limit exceeded, construction aborted" << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
 
   // Create a temporary file.
   std::string temp_file = tempFile(GCSA::EXTENSION);
   std::ofstream out(temp_file.c_str(), std::ios_base::binary);
   if(!out)
   {
-    std::cerr << "joinPaths(): Cannot open temporary file " << temp_file << std::endl;
-    std::cerr << "joinPaths(): Construction aborted" << std::endl;
+    std::cerr << "joinPaths(): Cannot open temporary file " << temp_file
+              << ", construction aborted" << std::endl;
     std::exit(EXIT_FAILURE);
   }
+  size_type new_path_count = 0, new_rank_count = 0;
   sdsl::write_member(new_path_count, out); sdsl::write_member(new_rank_count, out);
 
   // Create the next generation.
@@ -500,13 +478,17 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
     }
     if(temp_nodes[thread].size() >= GCSA::WRITE_BUFFER_SIZE)
     {
-      writePaths(temp_nodes[thread], temp_labels[thread], out);
+      writePaths(temp_nodes[thread], temp_labels[thread], out, size_limit, new_path_count, new_rank_count);
     }
   }
   for(size_type thread = 0; thread < threads; thread++)
   {
-    writePaths(temp_nodes[thread], temp_labels[thread], out);
+    writePaths(temp_nodes[thread], temp_labels[thread], out, size_limit, new_path_count, new_rank_count);
   }
+
+  // Write the path/rank counts.
+  out.seekp(0);
+  sdsl::write_member(new_path_count, out); sdsl::write_member(new_rank_count, out);
   out.close();
 
   // Replace the current generation with the next generation.
