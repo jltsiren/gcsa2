@@ -412,35 +412,52 @@ sumOf(const std::vector<size_type>& statistics)
 
 //------------------------------------------------------------------------------
 
+void
+writePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, std::ostream& out)
+{
+  #pragma omp critical
+  {
+    for(auto& path : paths) { path.serialize(out, labels); }
+  }
+  paths.clear(); labels.clear();
+}
+
 /*
   Join paths by left.to == right.from. Pre-/postcondition: paths are sorted by labels.
-  FIXME Later: parallelize
 */
 void
 joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type size_limit)
 {
+  // Initialization.
   PathFromComparator from_c; // Sort the paths by from.
   parallelQuickSort(paths.begin(), paths.end(), from_c);
   size_type old_path_count = paths.size();
+  size_type threads = omp_get_max_threads();
 
+  // Determine the size of the next generation.
   ValueIndex<PathNode, FromGetter> from_index(paths);
-  size_type new_path_count = 0, new_rank_count = 0;
+  std::vector<size_type> path_counts(threads, 0), rank_counts(threads, 0);
+  #pragma omp parallel for schedule(static)
   for(size_type i = 0; i < paths.size(); i++)
   {
-    if(paths[i].sorted()) { new_path_count++; new_rank_count += paths[i].ranks(); }
+    size_type thread = omp_get_thread_num();
+    if(paths[i].sorted()) { path_counts[thread]++; rank_counts[thread] += paths[i].ranks(); }
     else
     {
       size_type first = from_index.find(paths[i].to);
       size_type left_order = paths[i].order();
       for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
       {
-        new_path_count++;
-        new_rank_count += left_order + paths[j].ranks();
+        path_counts[thread]++;
+        rank_counts[thread] += left_order + paths[j].ranks();
       }
     }
   }
+
+  // Determine if the size is low enough.
+  size_type new_path_count = sumOf(path_counts), new_rank_count = sumOf(rank_counts);
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "  joinPaths(): Reserving space for " << new_path_count << " paths, "
+  std::cerr << "  joinPaths(): There will be " << new_path_count << " paths, "
             << new_rank_count << " ranks" << std::endl;
 #endif
   size_type bytes_required =
@@ -451,6 +468,7 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
     std::exit(EXIT_FAILURE);
   }
 
+  // Create a temporary file.
   std::string temp_file = tempFile(GCSA::EXTENSION);
   std::ofstream out(temp_file.c_str(), std::ios_base::binary);
   if(!out)
@@ -459,29 +477,39 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
     std::cerr << "joinPaths(): Construction aborted" << std::endl;
     std::exit(EXIT_FAILURE);
   }
-  std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
   sdsl::write_member(new_path_count, out); sdsl::write_member(new_rank_count, out);
+
+  // Create the next generation.
+  std::vector<PathNode> temp_nodes[threads];
+  std::vector<PathNode::rank_type> temp_labels[threads];
+  #pragma omp parallel for schedule(static)
   for(size_type i = 0; i < paths.size(); i++)
   {
+    size_type thread = omp_get_thread_num();
     if(paths[i].sorted())
     {
-      PathNode temp(paths[i], labels, temp_labels);
-      temp.serialize(out, temp_labels);
-      temp_labels.resize(0);
+      temp_nodes[thread].push_back(PathNode(paths[i], labels, temp_labels[thread]));
     }
     else
     {
       size_type first = from_index.find(paths[i].to);
       for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
       {
-        PathNode temp(paths[i], paths[j], labels, temp_labels);
-        temp.serialize(out, temp_labels);
-        temp_labels.resize(0);
+        temp_nodes[thread].push_back(PathNode(paths[i], paths[j], labels, temp_labels[thread]));
       }
     }
+    if(temp_nodes[thread].size() >= GCSA::WRITE_BUFFER_SIZE)
+    {
+      writePaths(temp_nodes[thread], temp_labels[thread], out);
+    }
+  }
+  for(size_type thread = 0; thread < threads; thread++)
+  {
+    writePaths(temp_nodes[thread], temp_labels[thread], out);
   }
   out.close();
 
+  // Replace the current generation with the next generation.
   readPathNodes(temp_file, paths, labels);
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "  joinPaths(): " << old_path_count << " -> " << paths.size() << " paths ("
