@@ -48,7 +48,6 @@ using namespace gcsa;
 
 bool verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length);
 bool verifyMapper(const DeBruijnGraph& mapper, const std::vector<key_type>& keys, size_type kmer_length);
-void verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length);
 
 //------------------------------------------------------------------------------
 
@@ -180,7 +179,7 @@ main(int argc, char** argv)
   {
     std::vector<KMer> kmers;
     size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary);
-    verifyIndex(index, kmers, kmer_length);
+    index.verifyIndex(kmers, kmer_length);
   }
 #endif
 
@@ -298,117 +297,5 @@ verifyMapper(const DeBruijnGraph& mapper, const std::vector<key_type>& keys, siz
 }
 
 //------------------------------------------------------------------------------
-
-std::ostream&
-printOccs(const std::vector<node_type>& occs, std::ostream& out)
-{
-  out << "{";
-  for(size_type i = 0; i < occs.size(); i++)
-  {
-    out << (i == 0 ? " " : ", ") << Node::decode(occs[i]);
-  }
-  out << " }";
-  return out;
-}
-
-void
-printFailure(const std::string& kmer,
-  const std::vector<node_type>& expected, const std::vector<node_type>& occs)
-{
-  std::cerr << "build_gcsa: verifyIndex(): locate(" << kmer << ") failed" << std::endl;
-  std::cerr << "build_gcsa: verifyIndex(): Expected ";
-  printOccs(expected, std::cerr) << std::endl;
-  std::cerr << "build_gcsa: verifyIndex(): Got ";
-  printOccs(occs, std::cerr) << std::endl;
-}
-
-struct KMerSplitComparator
-{
-  inline bool operator() (const KMer& left, const KMer& right) const
-  {
-    return (Key::label(left.key) != Key::label(right.key));
-  }
-};
-
-void
-verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
-{
-  size_type threads = omp_get_max_threads();
-  parallelQuickSort(kmers.begin(), kmers.end());
-  KMerSplitComparator k_comp;
-  std::vector<range_type> bounds = getBounds(kmers, threads, k_comp);
-
-  size_type fails = 0;
-  #pragma omp parallel for schedule(static)
-  for(size_type thread = 0; thread < threads; thread++)
-  {
-    size_type i = bounds[thread].first;
-    while(i <= bounds[thread].second)
-    {
-      size_type next = i + 1;
-      while(next <= bounds[thread].second && Key::label(kmers[next].key) == Key::label(kmers[i].key)) { next++; }
-
-      std::string kmer = Key::decode(kmers[i].key, kmer_length, index.alpha);
-      size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
-      if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
-
-      range_type range = index.find(kmer);
-      if(Range::empty(range))
-      {
-        #pragma omp critical
-        {
-          std::cerr << "build_gcsa: verifyIndex(): find(" << kmer << ") returned empty range" << std::endl;
-          fails++;
-        }
-        i = next; continue;
-      }
-
-      std::vector<node_type> expected;
-      for(size_type j = i; j < next; j++) { expected.push_back(kmers[j].from); }
-      removeDuplicates(expected, false);
-      std::vector<node_type> occs;
-      index.locate(range, occs);
-
-      if(occs.size() != expected.size())
-      {
-        #pragma omp critical
-        {
-          std::cerr << "build_gcsa: verifyIndex(): Expected " << expected.size()
-                    << " occurrences, got " << occs.size() << std::endl;
-          printFailure(kmer, expected, occs); fails++;
-        }
-      }
-      else
-      {
-        for(size_type j = 0; j < occs.size(); j++)
-        {
-          if(occs[j] != expected[j])
-          {
-            #pragma omp critical
-            {
-              std::cerr << "build_gcsa: verifyIndex(): Failure at " << j << ": "
-                        << "expected " << Node::decode(expected[j])
-                        << ", got " << Node::decode(occs[j]) << std::endl;
-              printFailure(kmer, expected, occs); fails++;
-            }
-            break;
-          }
-        }
-      }
-
-      i = next;
-    }
-  }
-
-  if(fails == 0)
-  {
-    std::cout << "Index verification complete." << std::endl;
-  }
-  else
-  {
-    std::cout << "Index verification failed for " << fails << " patterns." << std::endl;
-  }
-  std::cout << std::endl;
-}
 
 //------------------------------------------------------------------------------

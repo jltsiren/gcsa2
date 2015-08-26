@@ -313,6 +313,123 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
 
 //------------------------------------------------------------------------------
 
+std::ostream&
+printOccs(const std::vector<node_type>& occs, std::ostream& out)
+{
+  out << "{";
+  for(size_type i = 0; i < occs.size(); i++)
+  {
+    out << (i == 0 ? " " : ", ") << Node::decode(occs[i]);
+  }
+  out << " }";
+  return out;
+}
+
+void
+printFailure(const std::string& kmer,
+             const std::vector<node_type>& expected, const std::vector<node_type>& occs)
+{
+  std::cerr << "build_gcsa: verifyIndex(): locate(" << kmer << ") failed" << std::endl;
+  std::cerr << "build_gcsa: verifyIndex(): Expected ";
+  printOccs(expected, std::cerr) << std::endl;
+  std::cerr << "build_gcsa: verifyIndex(): Got ";
+  printOccs(occs, std::cerr) << std::endl;
+}
+
+struct KMerSplitComparator
+{
+  inline bool operator() (const KMer& left, const KMer& right) const
+    {
+      return (Key::label(left.key) != Key::label(right.key));
+    }
+};
+
+void
+GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length)
+{
+  size_type threads = omp_get_max_threads();
+  parallelQuickSort(kmers.begin(), kmers.end());
+  KMerSplitComparator k_comp;
+  std::vector<range_type> bounds = getBounds(kmers, threads, k_comp);
+  assert(bounds.size() == threads);
+
+  size_type fails = 0;
+#pragma omp parallel for schedule(static)
+  for(size_type thread = 0; thread < threads; thread++)
+  {
+    size_type i = bounds[thread].first;
+    while(i <= bounds[thread].second)
+    {
+      size_type next = i + 1;
+      while(next <= bounds[thread].second && Key::label(kmers[next].key) == Key::label(kmers[i].key)) {
+          next++;
+      }
+
+      std::string kmer = Key::decode(kmers[i].key, kmer_length, alpha);
+      size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
+      if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
+
+      range_type range = find(kmer);
+      if(Range::empty(range))
+      {
+        #pragma omp critical
+        {
+          std::cerr << "build_gcsa: verifyIndex(): find(" << kmer << ") returned empty range" << std::endl;
+          fails++;
+        }
+        i = next; continue;
+      }
+
+      std::vector<node_type> expected;
+      for(size_type j = i; j < next; j++) { expected.push_back(kmers[j].from); }
+      removeDuplicates(expected, false);
+      std::vector<node_type> occs;
+      locate(range, occs);
+
+      if(occs.size() != expected.size())
+      {
+        #pragma omp critical
+        {
+          std::cerr << "build_gcsa: verifyIndex(): Expected " << expected.size()
+                    << " occurrences, got " << occs.size() << std::endl;
+          printFailure(kmer, expected, occs); fails++;
+        }
+      }
+      else
+      {
+        for(size_type j = 0; j < occs.size(); j++)
+        {
+          if(occs[j] != expected[j])
+          {
+            #pragma omp critical
+            {
+              std::cerr << "build_gcsa: verifyIndex(): Failure at " << j << ": "
+                        << "expected " << Node::decode(expected[j])
+                        << ", got " << Node::decode(occs[j]) << std::endl;
+              printFailure(kmer, expected, occs); fails++;
+            }
+            break;
+          }
+        }
+      }
+
+      i = next;
+    }
+  }
+
+  if(fails == 0)
+  {
+    std::cout << "Index verification complete." << std::endl;
+  }
+  else
+  {
+    std::cout << "Index verification failed for " << fails << " patterns." << std::endl;
+  }
+  std::cout << std::endl;
+}
+
+//------------------------------------------------------------------------------
+
 struct FromGetter
 {
   inline static size_type get(const PathNode& path)
@@ -863,7 +980,9 @@ GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labe
 
       // Find the predecessor of paths[i] with comp and the first path intersecting it.
       std::pair<PathLabel, PathLabel> pred = predecessor(paths[i], labels, comp, mapper, last_char);
-      while(!(paths[next[comp]].intersect(pred.first, pred.second, labels))) { next[comp]++; }
+      while(!(paths[next[comp]].intersect(pred.first, pred.second, labels))) {
+          next[comp]++;
+      }
       paths[i].incrementIndegree(); paths[next[comp]].incrementOutdegree(); total_edges++;
       if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + paths.size() / 2); }
       bwt_buffer[total_edges - 1] = comp; counts[comp]++;

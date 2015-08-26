@@ -77,6 +77,9 @@ public:
     size_type doubling_steps = DOUBLING_STEPS, size_type size_limit = SIZE_LIMIT,
     const Alphabet& _alpha = Alphabet());
 
+  // verify
+  void verifyIndex(std::vector<KMer>& kmers, size_type kmer_length);
+
 //------------------------------------------------------------------------------
 
   /*
