@@ -77,8 +77,16 @@ public:
     size_type doubling_steps = DOUBLING_STEPS, size_type size_limit = SIZE_LIMIT,
     const Alphabet& _alpha = Alphabet());
 
-  // verify
-  void verifyIndex(std::vector<KMer>& kmers, size_type kmer_length);
+  /*
+    Index verification. The index is queried with all unique kmer labels in the input, and
+    the list of occurrences is expected to be the same as the set of start nodes of the
+    kmers with that label. To guarantee this, the input should be the same as for the
+    constructor, or a subset where all kmers with a given label are either present or
+    absent.
+
+    Note: Verification uses multiple threads and sorts the kmer array.
+  */
+  void verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const;
 
 //------------------------------------------------------------------------------
 
@@ -90,6 +98,8 @@ public:
 
     The implementation of find() is based on random access iterators. Bidirectional
     iterators would be enough without the query length check.
+
+    Longer queries are technically possible, but they may produce false positives.
   */
 
   template<class Iterator>

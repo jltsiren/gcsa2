@@ -329,10 +329,10 @@ void
 printFailure(const std::string& kmer,
              const std::vector<node_type>& expected, const std::vector<node_type>& occs)
 {
-  std::cerr << "build_gcsa: verifyIndex(): locate(" << kmer << ") failed" << std::endl;
-  std::cerr << "build_gcsa: verifyIndex(): Expected ";
+  std::cerr << "GCSA::verifyIndex(): locate(" << kmer << ") failed" << std::endl;
+  std::cerr << "GCSA::verifyIndex(): Expected ";
   printOccs(expected, std::cerr) << std::endl;
-  std::cerr << "build_gcsa: verifyIndex(): Got ";
+  std::cerr << "GCSA::verifyIndex(): Got ";
   printOccs(occs, std::cerr) << std::endl;
 }
 
@@ -345,7 +345,7 @@ struct KMerSplitComparator
 };
 
 void
-GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length)
+GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
 {
   size_type threads = omp_get_max_threads();
   parallelQuickSort(kmers.begin(), kmers.end());
@@ -369,12 +369,12 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length)
       size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
       if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
 
-      range_type range = find(kmer);
+      range_type range = this->find(kmer);
       if(Range::empty(range))
       {
         #pragma omp critical
         {
-          std::cerr << "build_gcsa: verifyIndex(): find(" << kmer << ") returned empty range" << std::endl;
+          std::cerr << "GCSA::verifyIndex(): find(" << kmer << ") returned empty range" << std::endl;
           fails++;
         }
         i = next; continue;
@@ -384,13 +384,13 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length)
       for(size_type j = i; j < next; j++) { expected.push_back(kmers[j].from); }
       removeDuplicates(expected, false);
       std::vector<node_type> occs;
-      locate(range, occs);
+      this->locate(range, occs);
 
       if(occs.size() != expected.size())
       {
         #pragma omp critical
         {
-          std::cerr << "build_gcsa: verifyIndex(): Expected " << expected.size()
+          std::cerr << "GCSA::verifyIndex(): Expected " << expected.size()
                     << " occurrences, got " << occs.size() << std::endl;
           printFailure(kmer, expected, occs); fails++;
         }
@@ -403,7 +403,7 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length)
           {
             #pragma omp critical
             {
-              std::cerr << "build_gcsa: verifyIndex(): Failure at " << j << ": "
+              std::cerr << "GCSA::verifyIndex(): Failure at " << j << ": "
                         << "expected " << Node::decode(expected[j])
                         << ", got " << Node::decode(occs[j]) << std::endl;
               printFailure(kmer, expected, occs); fails++;

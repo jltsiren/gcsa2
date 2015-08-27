@@ -139,7 +139,7 @@ main(int argc, char** argv)
     DeBruijnGraph mapper(keys, kmer_length);
 #ifdef VERBOSE_STATUS_INFO
     std::cerr << "build_gcsa: Mapper has " << mapper.size() << " nodes, "
-              << mapper.edge_count << " edges" << std::endl;
+              << mapper.edge_count() << " edges" << std::endl;
     std::cerr << "build_gcsa: Mapper size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
 #endif
     verifyMapper(mapper, keys, kmer_length);
