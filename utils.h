@@ -33,6 +33,8 @@
 
 #include <sdsl/wavelet_trees.hpp>
 
+#include <stxxl/vector>
+
 // FIXME Later: Use named critical sections.
 #include <omp.h>
 
@@ -145,7 +147,7 @@ double readTimer();
 size_type memoryUsage(); // Peak memory usage in bytes.
 
 // Returns the total length of the rows, excluding line ends.
-size_type readRows(const std::string& filename, std::vector<std::string>& rows, bool skip_empty_rows);
+size_type readRows(const std::string& filename, stxxl::vector<std::string>& rows, bool skip_empty_rows);
 
 std::string tempFile(const std::string& name_part);
 
@@ -217,7 +219,7 @@ sequentialSort(Iterator first, Iterator last)
 
 template<class Element>
 void
-removeDuplicates(std::vector<Element>& vec, bool parallel)
+removeDuplicates(stxxl::vector<Element>& vec, bool parallel)
 {
   if(parallel) { parallelQuickSort(vec.begin(), vec.end()); }
   else         { sequentialSort(vec.begin(), vec.end()); }
@@ -241,7 +243,25 @@ getBounds(const std::vector<Element>& vec, size_type threads, const Comparator& 
     bounds[thread].first = start;
     if(start < vec.size())
     {
-      start += std::max((size_type)1, (vec.size() - start) / (threads - thread));
+      start += std::max((size_type)1, (size_type)(vec.size() - start) / (threads - thread));
+      while(start < vec.size() && !comp(vec[start - 1], vec[start])) { start++; }
+    }
+    bounds[thread].second = start - 1;
+  }
+  return bounds;
+}
+
+template<class Element, class Comparator>
+std::vector<range_type>
+getBounds(const stxxl::vector<Element>& vec, size_type threads, const Comparator& comp)
+{
+  std::vector<range_type> bounds(threads);
+  for(size_type thread = 0, start = 0; thread < threads; thread++)
+  {
+    bounds[thread].first = start;
+    if(start < vec.size())
+    {
+      start += std::max((size_type)1, (size_type)(vec.size() - start) / (threads - thread));
       while(start < vec.size() && !comp(vec[start - 1], vec[start])) { start++; }
     }
     bounds[thread].second = start - 1;
@@ -301,7 +321,7 @@ LF(const BWTType& bwt, const AlphabetType& alpha, range_type range, comp_type co
 
 template<class Element>
 size_type
-write_vector(const std::vector<Element>& vec, std::ostream& out, sdsl::structure_tree_node* v, std::string name)
+write_vector(const stxxl::vector<Element>& vec, std::ostream& out, sdsl::structure_tree_node* v, std::string name)
 {
   sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(vec));
   size_type written_bytes = 0;
@@ -314,12 +334,12 @@ write_vector(const std::vector<Element>& vec, std::ostream& out, sdsl::structure
 
 template<class Element>
 void
-read_vector(std::vector<Element>& vec, std::istream& in)
+read_vector(stxxl::vector<Element>& vec, std::istream& in)
 {
   sdsl::util::clear(vec);
   size_type size = 0;
   sdsl::read_member(size, in);
-  std::vector<Element> temp(size);
+  stxxl::vector<Element> temp(size);
   in.read((char*)(temp.data()), temp.size() * sizeof(Element));
   vec.swap(temp);
 }

@@ -1,4 +1,5 @@
 SDSL_DIR=../sdsl-lite
+STXXL_DIR=../stxxl
 
 # In OS X, getrusage() returns maximum resident set size in bytes.
 # In Linux, the value is in kilobytes, so this line should be commented out.
@@ -17,12 +18,12 @@ OUTPUT_FLAGS=-DVERBOSE_STATUS_INFO
 OTHER_FLAGS=$(RUSAGE_FLAGS) $(VERIFY_FLAGS) $(PARALLEL_FLAGS) $(OUTPUT_FLAGS)
 
 include $(SDSL_DIR)/Make.helper
-CXX_FLAGS=$(MY_CXX_FLAGS) $(OTHER_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(INC_DIR)
+CXX_FLAGS=$(MY_CXX_FLAGS) $(OTHER_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(INC_DIR) -I$(STXXL_DIR)/include -I$(STXXL_DIR)/build/include
 LIBOBJS=dbg.o files.o gcsa.o support.o utils.o
 SOURCES=$(wildcard *.cpp)
 HEADERS=$(wildcard *.h)
 OBJS=$(SOURCES:.cpp=.o)
-LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
+LIBS=-L$(LIB_DIR) -L$(STXXL_DIR)/build/lib -lsdsl -ldivsufsort -ldivsufsort64 -lstxxl
 LIBRARY=libgcsa2.a
 PROGRAMS=build_gcsa convert_graph
 

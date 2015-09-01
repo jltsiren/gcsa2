@@ -218,10 +218,10 @@ GCSA::load(std::istream& in)
 }
 
 //------------------------------------------------------------------------------
-
+/*
 void
 readPathNodes(const std::string& filename,
-  std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels)
+  stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels)
 {
   sdsl::util::clear(paths); sdsl::util::clear(labels);
 
@@ -239,6 +239,7 @@ readPathNodes(const std::string& filename,
   for(size_type i = 0; i < path_count; i++) { paths.push_back(PathNode(in, labels)); }
   in.close(); remove(filename.c_str());
 }
+*/
 
 GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
   size_type doubling_steps, size_type size_limit, const Alphabet& _alpha)
@@ -266,7 +267,7 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
   }
 
   // Sort the kmers, build the mapper GCSA for generating the edges.
-  std::vector<key_type> keys;
+  stxxl::vector<key_type> keys;
   sdsl::int_vector<0> last_char;
   uniqueKeys(kmers, keys, last_char);
   DeBruijnGraph mapper(keys, kmer_length, _alpha);
@@ -274,37 +275,47 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
   sdsl::util::clear(keys);
 
   // Transform the kmers into PathNodes.
-  std::vector<PathNode> paths;
-  std::vector<PathNode::rank_type> labels;
+  stxxl::vector<PathNode> paths;
+  stxxl::vector<PathNode::rank_type> labels;
   {
-    std::string temp_file = tempFile(EXTENSION);
-    std::ofstream out(temp_file.c_str(), std::ios_base::binary);
+      //std::string temp_file = tempFile(EXTENSION);
+      //std::ofstream out(temp_file.c_str(), std::ios_base::binary);
+      /*
     if(!out)
     {
       std::cerr << "GCSA::GCSA(): Cannot open temporary file " << temp_file << std::endl;
       std::cerr << "GCSA::GCSA(): Construction aborted" << std::endl;
       std::exit(EXIT_FAILURE);
     }
+      */
 
-    std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
-    size_type kmer_count = kmers.size(); sdsl::write_member(kmer_count, out);
-    size_type rank_count = 2 * kmer_count; sdsl::write_member(rank_count, out);
+    stxxl::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
+    size_type kmer_count = kmers.size();
+    size_type rank_count = 2 * kmer_count;
     for(size_type i = 0; i < kmers.size(); i++)
     {
       PathNode temp(kmers[i], temp_labels);
-      temp.serialize(out, temp_labels);
+      temp.setPointer(labels.size());
+      paths.push_back(temp);
+      for (auto& range : temp_labels) {
+          labels.push_back(range);
+      }
+      //temp.serialize(out, temp_labels);
       temp_labels.resize(0);
     }
-    out.close();
+    //out.close();
 
     sdsl::util::clear(kmers);
-    readPathNodes(temp_file, paths, labels);
+    //readPathNodes(temp_file, paths, labels);
+    //labels.reserve(rank_count + 4);
   }
+  //std::cerr << "before prefix doublin with " << paths.size() << " " << labels.size() << std::endl;
+  //for (auto& path : paths) { path.print(std::cerr, labels); std::cerr << std::endl; }
 
   // Build the GCSA in PathNodes.
   this->prefixDoubling(paths, labels, kmer_length, doubling_steps, size_limit, lcp);
   sdsl::util::clear(lcp);
-  std::vector<range_type> from_nodes;
+  stxxl::vector<range_type> from_nodes;
   this->mergeByLabel(paths, labels, from_nodes);
 
   this->build(paths, labels, mapper, last_char);
@@ -314,7 +325,7 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
 //------------------------------------------------------------------------------
 
 std::ostream&
-printOccs(const std::vector<node_type>& occs, std::ostream& out)
+printOccs(const stxxl::vector<node_type>& occs, std::ostream& out)
 {
   out << "{";
   for(size_type i = 0; i < occs.size(); i++)
@@ -327,7 +338,7 @@ printOccs(const std::vector<node_type>& occs, std::ostream& out)
 
 void
 printFailure(const std::string& kmer,
-             const std::vector<node_type>& expected, const std::vector<node_type>& occs)
+             const stxxl::vector<node_type>& expected, const stxxl::vector<node_type>& occs)
 {
   std::cerr << "GCSA::verifyIndex(): locate(" << kmer << ") failed" << std::endl;
   std::cerr << "GCSA::verifyIndex(): Expected ";
@@ -380,10 +391,10 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
         i = next; continue;
       }
 
-      std::vector<node_type> expected;
+      stxxl::vector<node_type> expected;
       for(size_type j = i; j < next; j++) { expected.push_back(kmers[j].from); }
       removeDuplicates(expected, false);
-      std::vector<node_type> occs;
+      stxxl::vector<node_type> occs;
       this->locate(range, occs);
 
       if(occs.size() != expected.size())
@@ -455,9 +466,9 @@ struct ValueIndex
   sdsl::bit_vector                first_occ;  // Marks the first occurrence of each rank.
   sdsl::bit_vector::select_1_type first_select;
 
-  ValueIndex(const std::vector<ValueType>& input)
+  ValueIndex(const stxxl::vector<ValueType>& input)
   {
-    std::vector<size_type> buffer;
+    stxxl::vector<size_type> buffer;
     this->first_occ = sdsl::bit_vector(input.size(), 0);
 
     size_type prev = ~(size_type)0;
@@ -507,7 +518,7 @@ getTails(const std::vector<range_type>& bounds)
 }
 
 void
-removeGaps(std::vector<PathNode>& paths, const std::vector<range_type>& bounds, std::vector<size_type>& tail)
+removeGaps(stxxl::vector<PathNode>& paths, const std::vector<range_type>& bounds, std::vector<size_type>& tail)
 {
   for(size_type thread = 1; thread < bounds.size(); thread++)
   {
@@ -528,9 +539,9 @@ sumOf(const std::vector<size_type>& statistics)
 }
 
 //------------------------------------------------------------------------------
-
+/*
 void
-writePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+writePaths(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels,
   std::ostream& out, size_type size_limit,
   size_type& new_path_count, size_type& new_rank_count)
 {
@@ -548,12 +559,13 @@ writePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& label
   }
   paths.clear(); labels.clear();
 }
+*/
 
 /*
   Join paths by left.to == right.from. Pre-/postcondition: paths are sorted by labels.
 */
 void
-joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type size_limit)
+joinPaths(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels, size_type size_limit)
 {
   // Initialization.
   PathFromComparator from_c; // Sort the paths by from.
@@ -563,6 +575,7 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
   size_type threads = omp_get_max_threads();
 
   // Create a temporary file.
+  /*
   std::string temp_file = tempFile(GCSA::EXTENSION);
   std::ofstream out(temp_file.c_str(), std::ios_base::binary);
   if(!out)
@@ -571,12 +584,12 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
               << ", construction aborted" << std::endl;
     std::exit(EXIT_FAILURE);
   }
-  size_type new_path_count = 0, new_rank_count = 0;
-  sdsl::write_member(new_path_count, out); sdsl::write_member(new_rank_count, out);
+  */
+  //sdsl::write_member(new_path_count, out); sdsl::write_member(new_rank_count, out);
 
   // Create the next generation.
-  std::vector<PathNode> temp_nodes[threads];
-  std::vector<PathNode::rank_type> temp_labels[threads];
+  stxxl::vector<PathNode> temp_nodes[threads];
+  stxxl::vector<PathNode::rank_type> temp_labels[threads];
   #pragma omp parallel for schedule(static)
   for(size_type i = 0; i < paths.size(); i++)
   {
@@ -593,23 +606,46 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
         temp_nodes[thread].push_back(PathNode(paths[i], paths[j], labels, temp_labels[thread]));
       }
     }
+    /*
     if(temp_nodes[thread].size() >= GCSA::WRITE_BUFFER_SIZE)
     {
       writePaths(temp_nodes[thread], temp_labels[thread], out, size_limit, new_path_count, new_rank_count);
     }
+    */
   }
+  
+  size_type new_path_count = 0, new_rank_count = 0;
+  for(size_type thread = 0; thread < threads; thread++) {
+    new_path_count += temp_nodes[thread].size();
+    new_rank_count += temp_labels[thread].size();
+  }
+
+  // now drop the results into our next iteration
+  paths.clear(); paths.reserve(new_path_count+4);
+  labels.clear(); labels.reserve(new_rank_count+4);
+  
   for(size_type thread = 0; thread < threads; thread++)
   {
-    writePaths(temp_nodes[thread], temp_labels[thread], out, size_limit, new_path_count, new_rank_count);
+    for (auto& path_node : temp_nodes[thread]) {
+      paths.push_back(path_node);
+    }
+    for (auto& label : temp_labels[thread]) {
+      labels.push_back(label);
+    }
+    //writePaths(temp_nodes[thread], temp_labels[thread], out, size_limit, new_path_count, new_rank_count);
   }
 
   // Write the path/rank counts.
+  /*
   out.seekp(0);
   sdsl::write_member(new_path_count, out); sdsl::write_member(new_rank_count, out);
   out.close();
+  */
 
   // Replace the current generation with the next generation.
-  readPathNodes(temp_file, paths, labels);
+  //readPathNodes(temp_file, paths, labels);
+  //labels.clear();
+  
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "  joinPaths(): " << old_path_count << " -> " << paths.size() << " paths ("
             << labels.size() << " ranks)" << std::endl;
@@ -627,29 +663,28 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
   the beginning, while range.first > bounds.second means the end.
 */
 range_type
-nextRange(range_type range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+nextRange(range_type range, const stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels,
   range_type bounds)
 {
-  if(Range::empty(range)) { range.first = bounds.first; range.second = bounds.first; }
+  if(Range::empty(range)) {
+      range.first = bounds.first; range.second = bounds.first; }
   else { range.first = range.second = range.second + 1; }
-
   PathFirstComparator pfc(labels);
   while(range.second + 1 <= bounds.second && !pfc(paths[range.first], paths[range.second + 1]))
   {
     range.second++;
   }
-
   return range;
 }
 
 range_type
-firstRange(const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, range_type bounds)
+firstRange(const stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels, range_type bounds)
 {
   return nextRange(range_type(1, 0), paths, labels, bounds);
 }
 
 inline bool
-sameFrom(range_type range, const std::vector<PathNode>& paths)
+sameFrom(range_type range, const stxxl::vector<PathNode>& paths)
 {
   for(size_type i = range.first + 1; i <= range.second; i++)
   {
@@ -668,9 +703,9 @@ sameFrom(range_type range, const std::vector<PathNode>& paths)
 */
 struct SafeSplitComparator
 {
-  const std::vector<PathNode::rank_type>& labels;
+  const stxxl::vector<PathNode::rank_type>& labels;
 
-  explicit SafeSplitComparator(const std::vector<PathNode::rank_type>& _labels) : labels(_labels) { }
+  explicit SafeSplitComparator(const stxxl::vector<PathNode::rank_type>& _labels) : labels(_labels) { }
 
   inline bool operator() (const PathNode& left, const PathNode& right) const
   {
@@ -689,7 +724,7 @@ struct SafeSplitComparator
   However, the last PathNode in a range never gets overwritten, so this should be safe.
 */
 range_type
-extendRange(range_type& range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+extendRange(range_type& range, const stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels,
   const LCP& lcp, range_type bounds)
 {
   range_type min_lcp(0, 0);
@@ -726,7 +761,7 @@ extendRange(range_type& range, const std::vector<PathNode>& paths, std::vector<P
   Merges the path nodes into paths[range.first].
 */
 void
-mergePathNodes(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+mergePathNodes(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels,
   range_type range, range_type range_lcp, const LCP& lcp)
 {
   if(Range::length(range) == 1)
@@ -763,7 +798,7 @@ mergePathNodes(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& l
   entire path can be marked sorted, even though its label is non-unique.
 */
 size_type
-mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, const LCP& lcp)
+mergePaths(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels, const LCP& lcp)
 {
   size_type old_path_count = paths.size();
 
@@ -817,7 +852,7 @@ mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& label
 //------------------------------------------------------------------------------
 
 void
-GCSA::prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+GCSA::prefixDoubling(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels,
   size_type kmer_length, size_type doubling_steps, size_type size_limit,
   const LCP& lcp)
 {
@@ -845,7 +880,7 @@ GCSA::prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_ty
   This version assumes that the paths have identical labels.
 */
 void
-mergePathNodes(std::vector<PathNode>& paths, range_type range)
+mergePathNodes(stxxl::vector<PathNode>& paths, range_type range)
 {
   paths[range.first].makeSorted();
   for(size_type i = range.first + 1; i <= range.second; i++)
@@ -855,8 +890,8 @@ mergePathNodes(std::vector<PathNode>& paths, range_type range)
 }
 
 void
-GCSA::mergeByLabel(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  std::vector<range_type>& from_nodes)
+GCSA::mergeByLabel(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels,
+  stxxl::vector<range_type>& from_nodes)
 {
   sdsl::util::clear(from_nodes);
   size_type old_path_count = paths.size();
@@ -910,7 +945,7 @@ GCSA::mergeByLabel(std::vector<PathNode>& paths, std::vector<PathNode::rank_type
 //------------------------------------------------------------------------------
 
 std::pair<PathLabel, PathLabel>
-predecessor(const PathNode& curr, std::vector<PathNode::rank_type>& labels,
+predecessor(const PathNode& curr, stxxl::vector<PathNode::rank_type>& labels,
   comp_type comp, const DeBruijnGraph& mapper, const sdsl::int_vector<0>& last_char)
 {
   size_type i = 0, j = curr.pointer();
@@ -953,7 +988,7 @@ predecessor(const PathNode& curr, std::vector<PathNode::rank_type>& labels,
   FIXME Later: parallelize
 */
 void
-GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+GCSA::build(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels,
   DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char)
 {
   for(size_type i = 0; i < paths.size(); i++) { paths[i].initDegree(); }
@@ -1045,11 +1080,11 @@ GCSA::initSupport()
 
 //------------------------------------------------------------------------------
 
-std::vector<node_type>
-fromNodes(size_type path, const std::vector<PathNode>& paths,
-  size_type& additional, const std::vector<range_type>& from_nodes)
+stxxl::vector<node_type>
+fromNodes(size_type path, const stxxl::vector<PathNode>& paths,
+  size_type& additional, const stxxl::vector<range_type>& from_nodes)
 {
-  std::vector<node_type> res;
+  stxxl::vector<node_type> res;
   res.push_back(paths[path].from);
 
   while(additional < from_nodes.size() && from_nodes[additional].first < path) { additional++; }
@@ -1063,18 +1098,18 @@ fromNodes(size_type path, const std::vector<PathNode>& paths,
 }
 
 void
-GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
+GCSA::sample(stxxl::vector<PathNode>& paths, stxxl::vector<range_type>& from_nodes)
 {
   this->sampled_paths = bit_vector(paths.size(), 0);
   this->samples = bit_vector(paths.size() + from_nodes.size(), 0);
 
   size_type sample_bits = 0;
-  std::vector<node_type> sample_buffer;
+  stxxl::vector<node_type> sample_buffer;
   ValueIndex<range_type, FirstGetter> from_index(from_nodes);
   for(size_type i = 0, j = 0; i < paths.size(); i++)
   {
     bool sample_this = false;
-    std::vector<node_type> curr = fromNodes(i, paths, j, from_nodes);
+    stxxl::vector<node_type> curr = fromNodes(i, paths, j, from_nodes);
     if(paths[i].indegree() > 1) { sample_this = true; }
     if(paths[i].hasPredecessor(ENDMARKER_COMP)) { sample_this = true; }
     for(size_type k = 0; k < curr.size(); k++)
@@ -1086,7 +1121,7 @@ GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
     {
       size_type pred = this->LF(i);
       size_type temp = from_index.find(pred);
-      std::vector<node_type> prev = fromNodes(pred, paths, temp, from_nodes);
+      stxxl::vector<node_type> prev = fromNodes(pred, paths, temp, from_nodes);
       if(prev.size() != curr.size()) { sample_this = true; }
       else
       {
@@ -1127,7 +1162,7 @@ GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
 //------------------------------------------------------------------------------
 
 void
-GCSA::locate(size_type path_node, std::vector<node_type>& results, bool append, bool sort) const
+GCSA::locate(size_type path_node, stxxl::vector<node_type>& results, bool append, bool sort) const
 {
   if(!append) { sdsl::util::clear(results); }
   if(path_node >= this->size())
@@ -1141,7 +1176,7 @@ GCSA::locate(size_type path_node, std::vector<node_type>& results, bool append, 
 }
 
 void
-GCSA::locate(range_type range, std::vector<node_type>& results, bool append, bool sort) const
+GCSA::locate(range_type range, stxxl::vector<node_type>& results, bool append, bool sort) const
 {
   if(!append) { sdsl::util::clear(results); }
   if(Range::empty(range) || range.second >= this->size())
@@ -1158,7 +1193,7 @@ GCSA::locate(range_type range, std::vector<node_type>& results, bool append, boo
 }
 
 void
-GCSA::locateInternal(size_type path_node, std::vector<node_type>& results) const
+GCSA::locateInternal(size_type path_node, stxxl::vector<node_type>& results) const
 {
   size_type steps = 0;
   while(this->sampled_paths[path_node] == 0)
