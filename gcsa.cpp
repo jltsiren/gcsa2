@@ -344,7 +344,7 @@ struct KMerSplitComparator
     }
 };
 
-void
+bool
 GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
 {
   size_type threads = omp_get_max_threads();
@@ -426,6 +426,8 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
     std::cout << "Index verification failed for " << fails << " patterns." << std::endl;
   }
   std::cout << std::endl;
+  
+  return fails == 0;
 }
 
 //------------------------------------------------------------------------------
