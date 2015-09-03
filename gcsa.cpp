@@ -628,11 +628,13 @@ joinPaths(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& la
   for(size_type thread = 0; thread < threads; thread++)
   {
     for (auto& path_node : temp_nodes[thread]) {
-      paths.push_back(path_node);
+      paths.push_back(PathNode(path_node, temp_labels[thread], labels));
     }
+    /*
     for (auto& label : temp_labels[thread]) {
       labels.push_back(label);
     }
+    */
     //writePaths(temp_nodes[thread], temp_labels[thread], out, size_limit, new_path_count, new_rank_count);
   }
 

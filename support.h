@@ -473,6 +473,10 @@ struct PathNode
 
   PathNode& operator= (PathNode&& source);
 
+  PathNode(PathNode& source,
+           stxxl::vector<PathNode::rank_type>& source_labels,
+           stxxl::vector<PathNode::rank_type>& dest_labels);
+
   /*
     These are dangerous, because the nodes will share the same label. Changing one will
     change the other as well.

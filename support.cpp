@@ -348,17 +348,21 @@ PathNode::PathNode(const PathNode& left, const PathNode& right,
   }
 }
 
-/*
-PathNode::PathNode(std::ifstream& in, stxxl::vector<PathNode::rank_type>& labels)
+PathNode::PathNode(PathNode& source,
+                   stxxl::vector<PathNode::rank_type>& source_labels,
+                   stxxl::vector<PathNode::rank_type>& dest_labels)
 {
-  in.read((char*)this, sizeof(*this));
-  this->setPointer(labels.size());
-
-  rank_type buffer[LABEL_LENGTH + 1];
-  in.read((char*)buffer, this->ranks() * sizeof(rank_type));
-  labels.insert(labels.end(), buffer, buffer + this->ranks());
+  this->copy(source);
+  this->setPointer(dest_labels.size());
+  for (size_type i = 0; i < source.ranks(); ++i) {
+      dest_labels.push_back(source_labels[source.pointer()+i]);
+  }
+  //rank_type buffer[LABEL_LENGTH + 1];
+  //in.read((char*)buffer, this->ranks() * sizeof(rank_type));
+  //labels.insert(labels.end(), buffer, buffer + this->ranks());
 }
 
+/*
 size_type
 PathNode::serialize(std::ostream& out, const stxxl::vector<rank_type>& labels) const
 {
