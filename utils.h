@@ -219,7 +219,7 @@ sequentialSort(Iterator first, Iterator last)
 
 template<class Element>
 void
-removeDuplicates(stxxl::vector<Element>& vec, bool parallel)
+removeDuplicates(std::vector<Element>& vec, bool parallel)
 {
   if(parallel) { parallelQuickSort(vec.begin(), vec.end()); }
   else         { sequentialSort(vec.begin(), vec.end()); }

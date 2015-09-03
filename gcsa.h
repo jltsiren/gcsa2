@@ -135,8 +135,8 @@ public:
     return this->find(pattern, pattern + length);
   }
 
-  void locate(size_type path, stxxl::vector<node_type>& results, bool append = false, bool sort = true) const;
-  void locate(range_type range, stxxl::vector<node_type>& results, bool append = false, bool sort = true) const;
+  void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;
+  void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;
 
 //------------------------------------------------------------------------------
 
@@ -257,7 +257,7 @@ private:
   */
   void sample(stxxl::vector<PathNode>& paths, stxxl::vector<range_type>& from_nodes);
 
-  void locateInternal(size_type path, stxxl::vector<node_type>& results) const;
+  void locateInternal(size_type path, std::vector<node_type>& results) const;
 
 //------------------------------------------------------------------------------
 

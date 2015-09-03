@@ -290,8 +290,8 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
       */
 
     stxxl::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
-    size_type kmer_count = kmers.size();
-    size_type rank_count = 2 * kmer_count;
+    //size_type kmer_count = kmers.size();
+    //size_type rank_count = 2 * kmer_count;
     for(size_type i = 0; i < kmers.size(); i++)
     {
       PathNode temp(kmers[i], temp_labels);
@@ -325,7 +325,7 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
 //------------------------------------------------------------------------------
 
 std::ostream&
-printOccs(const stxxl::vector<node_type>& occs, std::ostream& out)
+printOccs(const std::vector<node_type>& occs, std::ostream& out)
 {
   out << "{";
   for(size_type i = 0; i < occs.size(); i++)
@@ -338,7 +338,7 @@ printOccs(const stxxl::vector<node_type>& occs, std::ostream& out)
 
 void
 printFailure(const std::string& kmer,
-             const stxxl::vector<node_type>& expected, const stxxl::vector<node_type>& occs)
+             const std::vector<node_type>& expected, const std::vector<node_type>& occs)
 {
   std::cerr << "GCSA::verifyIndex(): locate(" << kmer << ") failed" << std::endl;
   std::cerr << "GCSA::verifyIndex(): Expected ";
@@ -391,10 +391,10 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
         i = next; continue;
       }
 
-      stxxl::vector<node_type> expected;
+      std::vector<node_type> expected;
       for(size_type j = i; j < next; j++) { expected.push_back(kmers[j].from); }
       removeDuplicates(expected, false);
-      stxxl::vector<node_type> occs;
+      std::vector<node_type> occs;
       this->locate(range, occs);
 
       if(occs.size() != expected.size())
@@ -596,6 +596,7 @@ joinPaths(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& la
     size_type thread = omp_get_thread_num();
     if(paths[i].sorted())
     {
+        // broken for multithreaded case
       temp_nodes[thread].push_back(PathNode(paths[i], labels, temp_labels[thread]));
     }
     else
@@ -1080,11 +1081,11 @@ GCSA::initSupport()
 
 //------------------------------------------------------------------------------
 
-stxxl::vector<node_type>
+std::vector<node_type>
 fromNodes(size_type path, const stxxl::vector<PathNode>& paths,
   size_type& additional, const stxxl::vector<range_type>& from_nodes)
 {
-  stxxl::vector<node_type> res;
+  std::vector<node_type> res;
   res.push_back(paths[path].from);
 
   while(additional < from_nodes.size() && from_nodes[additional].first < path) { additional++; }
@@ -1104,12 +1105,12 @@ GCSA::sample(stxxl::vector<PathNode>& paths, stxxl::vector<range_type>& from_nod
   this->samples = bit_vector(paths.size() + from_nodes.size(), 0);
 
   size_type sample_bits = 0;
-  stxxl::vector<node_type> sample_buffer;
+  std::vector<node_type> sample_buffer;
   ValueIndex<range_type, FirstGetter> from_index(from_nodes);
   for(size_type i = 0, j = 0; i < paths.size(); i++)
   {
     bool sample_this = false;
-    stxxl::vector<node_type> curr = fromNodes(i, paths, j, from_nodes);
+    std::vector<node_type> curr = fromNodes(i, paths, j, from_nodes);
     if(paths[i].indegree() > 1) { sample_this = true; }
     if(paths[i].hasPredecessor(ENDMARKER_COMP)) { sample_this = true; }
     for(size_type k = 0; k < curr.size(); k++)
@@ -1121,7 +1122,7 @@ GCSA::sample(stxxl::vector<PathNode>& paths, stxxl::vector<range_type>& from_nod
     {
       size_type pred = this->LF(i);
       size_type temp = from_index.find(pred);
-      stxxl::vector<node_type> prev = fromNodes(pred, paths, temp, from_nodes);
+      std::vector<node_type> prev = fromNodes(pred, paths, temp, from_nodes);
       if(prev.size() != curr.size()) { sample_this = true; }
       else
       {
@@ -1162,7 +1163,7 @@ GCSA::sample(stxxl::vector<PathNode>& paths, stxxl::vector<range_type>& from_nod
 //------------------------------------------------------------------------------
 
 void
-GCSA::locate(size_type path_node, stxxl::vector<node_type>& results, bool append, bool sort) const
+GCSA::locate(size_type path_node, std::vector<node_type>& results, bool append, bool sort) const
 {
   if(!append) { sdsl::util::clear(results); }
   if(path_node >= this->size())
@@ -1176,7 +1177,7 @@ GCSA::locate(size_type path_node, stxxl::vector<node_type>& results, bool append
 }
 
 void
-GCSA::locate(range_type range, stxxl::vector<node_type>& results, bool append, bool sort) const
+GCSA::locate(range_type range, std::vector<node_type>& results, bool append, bool sort) const
 {
   if(!append) { sdsl::util::clear(results); }
   if(Range::empty(range) || range.second >= this->size())
@@ -1193,7 +1194,7 @@ GCSA::locate(range_type range, stxxl::vector<node_type>& results, bool append, b
 }
 
 void
-GCSA::locateInternal(size_type path_node, stxxl::vector<node_type>& results) const
+GCSA::locateInternal(size_type path_node, std::vector<node_type>& results) const
 {
   size_type steps = 0;
   while(this->sampled_paths[path_node] == 0)
