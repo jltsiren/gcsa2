@@ -559,8 +559,10 @@ joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels
   PathFromComparator from_c; // Sort the paths by from.
   parallelQuickSort(paths.begin(), paths.end(), from_c);
   ValueIndex<PathNode, FromGetter> from_index(paths);
-  size_type old_path_count = paths.size();
   size_type threads = omp_get_max_threads();
+#ifdef VERBOSE_STATUS_INFO
+  size_type old_path_count = paths.size();
+#endif
 
   // Create a temporary file.
   std::string temp_file = tempFile(GCSA::EXTENSION);
@@ -765,7 +767,9 @@ mergePathNodes(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& l
 size_type
 mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, const LCP& lcp)
 {
+#ifdef VERBOSE_STATUS_INFO
   size_type old_path_count = paths.size();
+#endif
 
   // Split the work between the threads so that the first rank is different at thread boundaries.
   size_type threads = omp_get_max_threads();
@@ -859,7 +863,9 @@ GCSA::mergeByLabel(std::vector<PathNode>& paths, std::vector<PathNode::rank_type
   std::vector<range_type>& from_nodes)
 {
   sdsl::util::clear(from_nodes);
+#ifdef VERBOSE_STATUS_INFO
   size_type old_path_count = paths.size();
+#endif
 
   size_type threads = omp_get_max_threads();
   PathFirstComparator first_c(labels);

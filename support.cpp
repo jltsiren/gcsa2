@@ -431,6 +431,7 @@ PathNode::print(std::ostream& out, const std::vector<PathNode::rank_type>& label
 {
   out << "(" << Node::decode(this->from) << " -> " << Node::decode(this->to);
   out << "; o" << this->order();
+  out << "; l" << this->lcp();
   for(size_type i = 0; i < this->order(); i++)
   {
     out << (i == 0 ? "; [" : ", ") << this->firstLabel(i, labels);
