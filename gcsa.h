@@ -85,8 +85,10 @@ public:
     absent.
 
     Note: Verification uses multiple threads and sorts the kmer array.
+
+    Returns false if the index fails verification, and true otherwise.
   */
-  void verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const;
+  bool verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const;
 
 //------------------------------------------------------------------------------
 
