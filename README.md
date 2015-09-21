@@ -8,7 +8,7 @@ The input to index construction is a set of paths of length *k* in the input gra
 
 At the moment, GCSA2 is being developed as a plugin to Erik Garrison's [variant graph tools](https://github.com/ekg/vg). The only implemented construction option is based on extracting *k*-mers from vg. Later, GCSA2 should become a more general graph indexing library.
 
-See the wiki for further documentation.
+See [the wiki](https://github.com/jltsiren/gcsa2/wiki) for further documentation.
 
 ## Compilation options
 
