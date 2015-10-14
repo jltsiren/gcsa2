@@ -162,7 +162,7 @@ DeBruijnGraph::load(std::istream& in)
 
 //------------------------------------------------------------------------------
 
-DeBruijnGraph::DeBruijnGraph(const std::vector<key_type>& keys, size_type kmer_length, const Alphabet& _alpha)
+DeBruijnGraph::DeBruijnGraph(const stxxl::vector<key_type>& keys, size_type kmer_length, const Alphabet& _alpha)
 {
   this->node_count = keys.size();
   this->graph_order = kmer_length;

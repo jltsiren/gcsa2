@@ -221,7 +221,7 @@ KMer::KMer()
 {
 }
 
-KMer::KMer(const std::vector<std::string>& tokens, const Alphabet& alpha, size_type successor)
+KMer::KMer(const stxxl::vector<std::string>& tokens, const Alphabet& alpha, size_type successor)
 {
   byte_type predecessors = chars(tokens[2], alpha);
   byte_type successors = chars(tokens[3], alpha);
@@ -250,7 +250,7 @@ operator<< (std::ostream& out, const KMer& kmer)
 }
 
 void
-uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_char, bool print)
+uniqueKeys(std::vector<KMer>& kmers, stxxl::vector<key_type>& keys, sdsl::int_vector<0>& last_char, bool print)
 {
   if(kmers.empty()) { return; }
   parallelQuickSort(kmers.begin(), kmers.end());
@@ -268,7 +268,8 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
 
   // Pass 2: Create the merged key array and the last character array for edge generation.
   // Replace the kmer values with ranks in the key array.
-  keys = std::vector<key_type>(total_keys, 0);
+  //keys = stxxl::vector<key_type>(total_keys, 0);
+  keys.clear(); keys.resize(total_keys);
   last_char = sdsl::int_vector<0>(total_keys, 0, Key::CHAR_WIDTH);
   keys[0] = kmers[0].key; last_char[0] = Key::last(kmers[0].key);
   kmers[0].key = Key::replace(kmers[0].key, 0);
@@ -288,15 +289,15 @@ uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vect
 
 //------------------------------------------------------------------------------
 
-std::vector<PathNode::rank_type>
+stxxl::vector<PathNode::rank_type>
 PathNode::dummyRankVector()
 {
-  std::vector<rank_type> temp;
+  stxxl::vector<rank_type> temp;
   temp.reserve(LABEL_LENGTH + 1);
   return temp;
 }
 
-PathNode::PathNode(const KMer& kmer, std::vector<PathNode::rank_type>& labels)
+PathNode::PathNode(const KMer& kmer, stxxl::vector<PathNode::rank_type>& labels)
 {
   this->from = kmer.from; this->to = kmer.to;
   this->fields = 0;
@@ -311,7 +312,7 @@ PathNode::PathNode(const KMer& kmer, std::vector<PathNode::rank_type>& labels)
 }
 
 PathNode::PathNode(const PathNode& source,
-    const std::vector<PathNode::rank_type>& old_labels, std::vector<PathNode::rank_type>& new_labels)
+    const stxxl::vector<PathNode::rank_type>& old_labels, stxxl::vector<PathNode::rank_type>& new_labels)
 {
   this->from = source.from; this->to = source.to;
   this->fields = source.fields;
@@ -324,7 +325,7 @@ PathNode::PathNode(const PathNode& source,
 }
 
 PathNode::PathNode(const PathNode& left, const PathNode& right,
-    const std::vector<PathNode::rank_type>& old_labels, std::vector<PathNode::rank_type>& new_labels)
+    const stxxl::vector<PathNode::rank_type>& old_labels, stxxl::vector<PathNode::rank_type>& new_labels)
 {
   this->from = left.from; this->to = right.to;
   if(right.sorted()) { this->makeSorted(); }
@@ -347,18 +348,23 @@ PathNode::PathNode(const PathNode& left, const PathNode& right,
   }
 }
 
-PathNode::PathNode(std::ifstream& in, std::vector<PathNode::rank_type>& labels)
+PathNode::PathNode(PathNode& source,
+                   stxxl::vector<PathNode::rank_type>& source_labels,
+                   stxxl::vector<PathNode::rank_type>& dest_labels)
 {
-  in.read((char*)this, sizeof(*this));
-  this->setPointer(labels.size());
-
-  rank_type buffer[LABEL_LENGTH + 1];
-  in.read((char*)buffer, this->ranks() * sizeof(rank_type));
-  labels.insert(labels.end(), buffer, buffer + this->ranks());
+  this->copy(source);
+  this->setPointer(dest_labels.size());
+  for (size_type i = 0; i < source.ranks(); ++i) {
+      dest_labels.push_back(source_labels[source.pointer()+i]);
+  }
+  //rank_type buffer[LABEL_LENGTH + 1];
+  //in.read((char*)buffer, this->ranks() * sizeof(rank_type));
+  //labels.insert(labels.end(), buffer, buffer + this->ranks());
 }
 
+/*
 size_type
-PathNode::serialize(std::ostream& out, const std::vector<rank_type>& labels) const
+PathNode::serialize(std::ostream& out, const stxxl::vector<rank_type>& labels) const
 {
   size_type bytes = sizeof(*this);
   out.write((char*)this, sizeof(*this));
@@ -369,6 +375,7 @@ PathNode::serialize(std::ostream& out, const std::vector<rank_type>& labels) con
 
   return bytes;
 }
+*/
 
 PathNode::PathNode()
 {
@@ -376,7 +383,7 @@ PathNode::PathNode()
   this->fields = 0;
 }
 
-PathNode::PathNode(std::vector<rank_type>& labels)
+PathNode::PathNode(stxxl::vector<rank_type>& labels)
 {
   this->from = 0; this->to = 0;
   this->fields = 0;
@@ -427,7 +434,7 @@ PathNode::operator= (PathNode&& source)
 }
 
 void
-PathNode::print(std::ostream& out, const std::vector<PathNode::rank_type>& labels) const
+PathNode::print(std::ostream& out, const stxxl::vector<PathNode::rank_type>& labels) const
 {
   out << "(" << Node::decode(this->from) << " -> " << Node::decode(this->to);
   out << "; o" << this->order();
@@ -447,7 +454,7 @@ PathNode::print(std::ostream& out, const std::vector<PathNode::rank_type>& label
 
 bool
 PathNode::intersect(const PathLabel& first, const PathLabel& last,
-  const std::vector<PathNode::rank_type>& labels) const
+  const stxxl::vector<PathNode::rank_type>& labels) const
 {
   PathLabel my_first = this->firstLabel(labels);
 
@@ -463,7 +470,7 @@ PathNode::intersect(const PathLabel& first, const PathLabel& last,
 }
 
 size_type
-PathNode::min_lcp(const PathNode& another, const std::vector<PathNode::rank_type>& labels) const
+PathNode::min_lcp(const PathNode& another, const stxxl::vector<PathNode::rank_type>& labels) const
 {
   size_type ord = std::min(this->order(), another.order());
   for(size_type i = 0; i < ord; i++)
@@ -474,7 +481,7 @@ PathNode::min_lcp(const PathNode& another, const std::vector<PathNode::rank_type
 }
 
 size_type
-PathNode::max_lcp(const PathNode& another, const std::vector<PathNode::rank_type>& labels) const
+PathNode::max_lcp(const PathNode& another, const stxxl::vector<PathNode::rank_type>& labels) const
 {
   size_type ord = std::min(this->order(), another.order());
   for(size_type i = 0; i < ord; i++)
@@ -490,7 +497,7 @@ LCP::LCP()
 {
 }
 
-LCP::LCP(const std::vector<key_type>& keys, size_type _kmer_length)
+LCP::LCP(const stxxl::vector<key_type>& keys, size_type _kmer_length)
 {
   this->kmer_length = _kmer_length;
   this->total_keys = keys.size();
@@ -506,7 +513,7 @@ LCP::LCP(const std::vector<key_type>& keys, size_type _kmer_length)
 }
 
 range_type
-LCP::min_lcp(const PathNode& a, const PathNode& b, const std::vector<LCP::rank_type>& labels) const
+LCP::min_lcp(const PathNode& a, const PathNode& b, const stxxl::vector<LCP::rank_type>& labels) const
 {
   size_type order = std::min(a.order(), b.order());
   range_type lcp(a.min_lcp(b, labels), 0);
@@ -520,7 +527,7 @@ LCP::min_lcp(const PathNode& a, const PathNode& b, const std::vector<LCP::rank_t
 }
 
 range_type
-LCP::max_lcp(const PathNode& a, const PathNode& b, const std::vector<LCP::rank_type>& labels) const
+LCP::max_lcp(const PathNode& a, const PathNode& b, const stxxl::vector<LCP::rank_type>& labels) const
 {
   size_type order = std::min(a.order(), b.order());
   range_type lcp(a.max_lcp(b, labels), 0);

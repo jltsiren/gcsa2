@@ -35,7 +35,7 @@ const std::string TEXT_EXTENSION = ".gcsa2";
 //------------------------------------------------------------------------------
 
 bool
-tokenize(const std::string& line, std::vector<std::string>& tokens)
+tokenize(const std::string& line, stxxl::vector<std::string>& tokens)
 {
   {
     std::string token;
@@ -77,7 +77,7 @@ readText(std::istream& in, std::vector<KMer>& kmers, bool append)
     std::getline(in, line);
     if(in.eof()) { break; }
 
-    std::vector<std::string> tokens;
+    stxxl::vector<std::string> tokens;
     if(!tokenize(line, tokens)) { continue; }
     if(kmer_length == ~(size_type)0)
     {

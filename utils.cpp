@@ -80,7 +80,7 @@ memoryUsage()
 //------------------------------------------------------------------------------
 
 size_type
-readRows(const std::string& filename, std::vector<std::string>& rows, bool skip_empty_rows)
+readRows(const std::string& filename, stxxl::vector<std::string>& rows, bool skip_empty_rows)
 {
   std::ifstream input(filename.c_str(), std::ios_base::binary);
   if(!input)

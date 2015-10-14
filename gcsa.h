@@ -227,21 +227,21 @@ private:
     Increases path length to up to 2^doubling_steps times the original. Sets
     max_query_length. Pre-/postcondition: paths are sorted by labels.
   */
-  void prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+  void prefixDoubling(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels,
     size_type kmer_length, size_type doubling_steps, size_type size_limit, const LCP& lcp);
 
   /*
     Merges path nodes having the same labels. Writes the additional from nodes to the given
     vector as pairs (path rank, node). Sets path_node_count.
   */
-  void mergeByLabel(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-    std::vector<range_type>& from_nodes);
+  void mergeByLabel(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels,
+    stxxl::vector<range_type>& from_nodes);
 
   /*
     Store the number of outgoing edges in the to fields of each node. Then build the GCSA,
     apart from the fields related to samples. Clears last_labels, mapper, and last_char.
   */
-  void build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+  void build(stxxl::vector<PathNode>& paths, stxxl::vector<PathNode::rank_type>& labels,
     DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char);
 
   void initSupport();
@@ -257,7 +257,7 @@ private:
     FIXME Later: An alternate sampling scheme for graphs where nodes are not (id, offset)
     pairs.
   */
-  void sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes);
+  void sample(stxxl::vector<PathNode>& paths, stxxl::vector<range_type>& from_nodes);
 
   void locateInternal(size_type path, std::vector<node_type>& results) const;
 

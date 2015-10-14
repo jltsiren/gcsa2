@@ -217,7 +217,7 @@ struct KMer
   node_type from, to;
 
   KMer();
-  KMer(const std::vector<std::string>& tokens, const Alphabet& alpha, size_type successor);
+  KMer(const stxxl::vector<std::string>& tokens, const Alphabet& alpha, size_type successor);
 
   KMer(key_type _key, node_type _from, node_type _to) :
     key(_key), from(_from), to(_to)
@@ -253,7 +253,7 @@ operator< (key_type key, const KMer& kmer)
   3. Stores the last character of each unique kmer label in an array.
   4. Replaces the kmer labels in the keys by their ranks.
 */
-void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_char,
+void uniqueKeys(std::vector<KMer>& kmers, stxxl::vector<key_type>& keys, sdsl::int_vector<0>& last_char,
   bool print = false);
 
 //------------------------------------------------------------------------------
@@ -385,7 +385,7 @@ struct PathNode
 
   inline size_type ranks() const { return this->order() + 1; }
 
-  inline PathLabel firstLabel(const std::vector<rank_type>& labels) const
+  inline PathLabel firstLabel(const stxxl::vector<rank_type>& labels) const
   {
     PathLabel res;
     res.length = this->order();
@@ -397,7 +397,7 @@ struct PathNode
     return res;
   }
 
-  inline PathLabel lastLabel(const std::vector<rank_type>& labels) const
+  inline PathLabel lastLabel(const stxxl::vector<rank_type>& labels) const
   {
     PathLabel res;
 
@@ -417,48 +417,48 @@ struct PathNode
     return res;
   }
 
-  inline rank_type firstLabel(size_type i, const std::vector<rank_type>& labels) const
+  inline rank_type firstLabel(size_type i, const stxxl::vector<rank_type>& labels) const
   {
     return labels[this->pointer() + i];
   }
 
-  inline rank_type lastLabel(size_type i, const std::vector<rank_type>& labels) const
+  inline rank_type lastLabel(size_type i, const stxxl::vector<rank_type>& labels) const
   {
     if(i < this->lcp()) { return labels[this->pointer() + i]; }
     else { return labels[this->pointer() + this->order()]; }
   }
 
   // Do the two path nodes intersect?
-  bool intersect(const PathLabel& first, const PathLabel& last, const std::vector<rank_type>& labels) const;
+  bool intersect(const PathLabel& first, const PathLabel& last, const stxxl::vector<rank_type>& labels) const;
 
   /*
     Computes the length of the minimal/maximal longest common prefix of the kmer rank
     sequences of this and another. another must come after this in lexicographic order,
     and the ranges must not overlap.
   */
-  size_type min_lcp(const PathNode& another, const std::vector<rank_type>& labels) const;
-  size_type max_lcp(const PathNode& another, const std::vector<rank_type>& labels) const;
+  size_type min_lcp(const PathNode& another, const stxxl::vector<rank_type>& labels) const;
+  size_type max_lcp(const PathNode& another, const stxxl::vector<rank_type>& labels) const;
 
 //------------------------------------------------------------------------------
 
-  static std::vector<rank_type> dummyRankVector();
+  static stxxl::vector<rank_type> dummyRankVector();
 
-  PathNode(const KMer& kmer, std::vector<rank_type>& labels);
+  PathNode(const KMer& kmer, stxxl::vector<rank_type>& labels);
 
   PathNode(const PathNode& source,
-    const std::vector<rank_type>& old_labels, std::vector<rank_type>& new_labels);
+    const stxxl::vector<rank_type>& old_labels, stxxl::vector<rank_type>& new_labels);
 
   PathNode(const PathNode& left, const PathNode& right,
-    const std::vector<rank_type>& old_labels, std::vector<rank_type>& new_labels);
+    const stxxl::vector<rank_type>& old_labels, stxxl::vector<rank_type>& new_labels);
 
-  PathNode(std::ifstream& in, std::vector<rank_type>& labels);
+    //PathNode(std::ifstream& in, stxxl::vector<rank_type>& labels);
 
-  size_type serialize(std::ostream& out, const std::vector<rank_type>& labels) const;
+    //size_type serialize(std::ostream& out, const stxxl::vector<rank_type>& labels) const;
 
-  void print(std::ostream& out, const std::vector<rank_type>& labels) const;
+  void print(std::ostream& out, const stxxl::vector<rank_type>& labels) const;
 
   PathNode();
-  explicit PathNode(std::vector<rank_type>& labels);
+  explicit PathNode(stxxl::vector<rank_type>& labels);
   PathNode(PathNode&& source);
   ~PathNode();
 
@@ -473,6 +473,10 @@ struct PathNode
 
   PathNode& operator= (PathNode&& source);
 
+  PathNode(PathNode& source,
+           stxxl::vector<PathNode::rank_type>& source_labels,
+           stxxl::vector<PathNode::rank_type>& dest_labels);
+
   /*
     These are dangerous, because the nodes will share the same label. Changing one will
     change the other as well.
@@ -485,9 +489,9 @@ struct PathNode
 // Compares the first labels.
 struct PathFirstComparator
 {
-  const std::vector<PathNode::rank_type>& labels;
+  const stxxl::vector<PathNode::rank_type>& labels;
 
-  explicit PathFirstComparator(const std::vector<PathNode::rank_type>& _labels) : labels(_labels) { }
+  explicit PathFirstComparator(const stxxl::vector<PathNode::rank_type>& _labels) : labels(_labels) { }
 
   inline bool operator() (const PathNode& a, const PathNode& b) const
   {
@@ -522,7 +526,7 @@ struct LCP
   rmq_type            lcp_rmq;
 
   LCP();
-  LCP(const std::vector<key_type>& keys, size_type _kmer_length);
+  LCP(const stxxl::vector<key_type>& keys, size_type _kmer_length);
 
   /*
     Computes the minimal/maximal lcp of the path labels corresponding to path nodes a and b.
@@ -532,8 +536,8 @@ struct LCP
 
     FIXME Later: Do not use the rmq if the kmer ranks are close.
   */
-  range_type min_lcp(const PathNode& a, const PathNode& b, const std::vector<rank_type>& labels) const;
-  range_type max_lcp(const PathNode& a, const PathNode& b, const std::vector<rank_type>& labels) const;
+  range_type min_lcp(const PathNode& a, const PathNode& b, const stxxl::vector<rank_type>& labels) const;
+  range_type max_lcp(const PathNode& a, const PathNode& b, const stxxl::vector<rank_type>& labels) const;
 
   // Increments the lcp by 1.
   inline range_type increment(range_type lcp) const
