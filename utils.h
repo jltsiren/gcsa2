@@ -46,6 +46,7 @@ typedef std::uint8_t  char_type;
 typedef std::uint8_t  comp_type;
 typedef std::uint8_t  byte_type;
 
+const size_type BYTE_BITS = 8;
 const size_type WORD_BITS = 64;
 
 const size_type KILOBYTE     = 1024;
@@ -78,6 +79,21 @@ struct Range
   inline static bool empty(range_type range)
   {
     return (range.first + 1 > range.second + 1);
+  }
+
+  inline static size_type bound(size_type value, range_type bounds)
+  {
+    return bound(value, bounds.first, bounds.second);
+  }
+
+  inline static size_type bound(size_type value, size_type low, size_type high)
+  {
+    return std::max(std::min(value, high), low);
+  }
+
+  inline static range_type empty_range()
+  {
+    return range_type(1, 0);
   }
 };
 
@@ -113,12 +129,26 @@ inline size_type fnv1a_hash(size_type val, size_type seed)
   return seed;
 }
 
+template<class ByteArray>
+size_type fnv1a_hash(ByteArray& array)
+{
+  size_type res = FNV_OFFSET_BASIS;
+  for(size_type i = 0; i < array.size(); i++) { res = fnv1a_hash((byte_type)(array[i]), res); }
+  return res;
+}
+
 //------------------------------------------------------------------------------
 
 inline double
 inMegabytes(size_type bytes)
 {
   return bytes / MEGABYTE_DOUBLE;
+}
+
+inline double
+inGigabytes(size_type bytes)
+{
+  return bytes / GIGABYTE_DOUBLE;
 }
 
 inline double
@@ -141,13 +171,20 @@ void printTime(const std::string& header, size_type queries, double seconds, siz
 
 //------------------------------------------------------------------------------
 
-double readTimer();
-size_type memoryUsage(); // Peak memory usage in bytes.
+double readTimer();       // Seconds from an arbitrary time point.
+size_type memoryUsage();  // Peak memory usage in bytes.
+
+//------------------------------------------------------------------------------
 
 // Returns the total length of the rows, excluding line ends.
 size_type readRows(const std::string& filename, std::vector<std::string>& rows, bool skip_empty_rows);
 
 std::string tempFile(const std::string& name_part);
+
+size_type fileSize(std::ifstream& file);
+size_type fileSize(std::ofstream& file);
+
+//------------------------------------------------------------------------------
 
 template<class Iterator, class Comparator>
 void
@@ -298,48 +335,6 @@ LF(const BWTType& bwt, const AlphabetType& alpha, range_type range, comp_type co
 /*
   Some SDSL extensions.
 */
-
-template<class Element>
-size_type
-write_vector(const std::vector<Element>& vec, std::ostream& out, sdsl::structure_tree_node* v, std::string name)
-{
-  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(vec));
-  size_type written_bytes = 0;
-  written_bytes += sdsl::write_member(vec.size(), out, child, "size");
-  out.write((char*)(vec.data()), vec.size() * sizeof(Element));
-  written_bytes += vec.size() * sizeof(Element);
-  sdsl::structure_tree::add_size(v, written_bytes);
-  return written_bytes;
-}
-
-template<class Element>
-void
-read_vector(std::vector<Element>& vec, std::istream& in)
-{
-  sdsl::util::clear(vec);
-  size_type size = 0;
-  sdsl::read_member(size, in);
-  std::vector<Element> temp(size);
-  in.read((char*)(temp.data()), temp.size() * sizeof(Element));
-  vec.swap(temp);
-}
-
-/*
-  Extracts the given range from source, overwriting target.
-*/
-template<class VectorType>
-void
-extractBits(const VectorType& source, range_type range, sdsl::bit_vector& target)
-{
-  if(Range::empty(range) || range.second >= source.size()) { return; }
-
-  target = sdsl::bit_vector(Range::length(range), 0);
-  for(size_type i = 0; i < target.size(); i += WORD_BITS)
-  {
-    size_type len = std::min(WORD_BITS, target.size() - i);
-    target.set_int(i, source.get_int(range.first + i, len), len);
-  }
-}
 
 /*
   Generic in-memory construction from int_vector_buffer<8> and size. Not very space-efficient, as it

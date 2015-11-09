@@ -98,21 +98,17 @@ public:
     If append is true, the results are appended to the existing vector.
     If sort is true, the results are sorted and the duplicates are removed.
 
-    The implementation of find() is based on random access iterators. Bidirectional
-    iterators would be enough without the query length check.
+    The implementation of find() is based on bidirectional iterators.
 
-    Longer queries are technically possible, but they may produce false positives.
+    If the pattern is longer than the order of the index, there may be false
+    positives (but no false negatives). The results of such queries must be
+    verified in the original graph.
   */
 
   template<class Iterator>
   range_type find(Iterator begin, Iterator end) const
   {
     if(begin == end) { return range_type(0, this->size() - 1); }
-    if((size_type)(end - begin) > this->order())
-    {
-      std::cerr << "GCSA::find(): Query length exceeds " << this->order() << std::endl;
-      return range_type(1, 0);
-    }
 
     --end;
     range_type range = this->charRange(this->alpha.char2comp[*end]);
@@ -158,13 +154,6 @@ public:
   inline range_type charRange(comp_type comp) const
   {
     return this->pathNodeRange(gcsa::charRange(this->alpha, comp));
-  }
-
-  inline size_type LF(size_type path_node, comp_type comp) const
-  {
-    path_node = this->startPos(path_node);
-    path_node = gcsa::LF(this->bwt, this->alpha, path_node, comp);
-    return this->edge_rank(path_node);
   }
 
   inline range_type LF(range_type range, comp_type comp) const

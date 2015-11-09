@@ -115,6 +115,34 @@ tempFile(const std::string& name_part)
     + sdsl::util::to_string(sdsl::util::id());
 }
 
+size_type
+fileSize(std::ifstream& file)
+{
+  std::streamoff curr = file.tellg();
+
+  file.seekg(0, std::ios::end);
+  std::streamoff size = file.tellg();
+  file.seekg(0, std::ios::beg);
+  size -= file.tellg();
+
+  file.seekg(curr, std::ios::beg);
+  return size;
+}
+
+size_type
+fileSize(std::ofstream& file)
+{
+  std::streamoff curr = file.tellp();
+
+  file.seekp(0, std::ios::end);
+  std::streamoff size = file.tellp();
+  file.seekp(0, std::ios::beg);
+  size -= file.tellp();
+
+  file.seekp(curr, std::ios::beg);
+  return size;
+}
+
 //------------------------------------------------------------------------------
 
 } // namespace gcsa
