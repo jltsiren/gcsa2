@@ -202,61 +202,73 @@ GraphFileHeader::serialize(std::ostream& out)
 
 //------------------------------------------------------------------------------
 
+range_type
+parseKMer(const std::string& kmer_line)
+{
+  std::string extensions;
+  range_type result(InputGraph::UNKNOWN, 0);
+  {
+    std::string token;
+    std::istringstream ss(kmer_line);
+    if(!std::getline(ss, token, '\t')) { return result; }
+    result.first = token.length();  // kmer length
+    for(size_type i = 0; i < 3; i++)
+    {
+      if(!std::getline(ss, token, '\t')) { return result; }
+    }
+    if(!std::getline(ss, extensions, '\t')) { return result; }
+  }
+
+  {
+    std::string token;
+    std::istringstream ss(extensions);
+    while(std::getline(ss, token, ',')) { result.second++; }
+  }
+
+  return result;
+}
+
+/*
+  If the kmer includes one or more endmarkers, the successor position is past
+  the GCSA sink node. Those kmers are marked as sorted, as they cannot be
+  extended.
+
+  FIXME Later: Is this really needed?
+*/
+void
+markSinkNode(std::vector<KMer>& kmers)
+{
+  size_type sink_node = InputGraph::UNKNOWN;
+  for(size_type i = 0; i < kmers.size(); i++)
+  {
+    if(Key::label(kmers[i].key) == 0) { sink_node = Node::id(kmers[i].from); break; }
+  }
+  for(size_type i = 0; i < kmers.size(); i++)
+  {
+    if(Node::id(kmers[i].to) == sink_node && Node::offset(kmers[i].to) > 0) { kmers[i].makeSorted(); }
+  }
+}
+
+//------------------------------------------------------------------------------
+
 const std::string InputGraph::BINARY_EXTENSION = ".graph";
 const std::string InputGraph::TEXT_EXTENSION = ".gcsa2";
 
 InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format)
 {
   this->binary = binary_format;
-  this->kmer_count = UNKNOWN;
-
-  for(size_type i = 0; i < file_count; i++)
+  this->kmer_count = 0; this->kmer_length = UNKNOWN;
+  for(size_type file = 0; file < file_count; file++)
   {
-    std::string filename = std::string(base_names[i]) + (binary ? BINARY_EXTENSION : TEXT_EXTENSION);
+    std::string filename = std::string(base_names[file]) + (binary ? BINARY_EXTENSION : TEXT_EXTENSION);
     this->filenames.push_back(filename);
   }
   this->sizes = std::vector<size_type>(file_count, 0);
-}
 
-size_type
-extensionNodeCount(const std::string& kmer_line)
-{
-  std::string extensions;
+  // Read the files and determine kmer_count, kmer_length.
+  for(size_type file = 0; file < this->files(); file++)
   {
-    std::string token;
-    std::istringstream ss(kmer_line);
-    for(size_type i = 0; i < 4; i++)
-    {
-      if(!std::getline(ss, token, '\t')) { return 0; }
-    }
-    if(!std::getline(ss, extensions, '\t')) { return 0; }
-  }
-
-  size_type extension_count = 0;
-  {
-    std::string token;
-    std::istringstream ss(extensions);
-    while(std::getline(ss, token, ',')) { extension_count++; }
-  }
-
-  return extension_count;
-}
-
-size_type
-InputGraph::size()
-{
-  if(this->kmer_count != UNKNOWN) { return this->kmer_count; }
-
-  this->kmer_count = 0;
-  for(size_type i = 0; i < this->files(); i++)
-  {
-    std::ifstream input(this->filenames[i].c_str(), std::ios_base::binary);
-    if(!input)
-    {
-      std::cerr << "InputGraph::size(): Cannot open graph file " << this->filenames[i] << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
-
+    std::ifstream input; this->open(input, file);
     if(this->binary)
     {
       while(true)
@@ -264,7 +276,8 @@ InputGraph::size()
         GraphFileHeader header(input);
         if(input.eof()) { break; }
         this->kmer_count += header.kmer_count;
-        this->sizes[i] += header.kmer_count;
+        this->setK(header.kmer_length, file);
+        this->sizes[file] += header.kmer_count;
         input.seekg(header.kmer_count * sizeof(KMer), std::ios_base::cur);
       }
     }
@@ -275,8 +288,9 @@ InputGraph::size()
         std::string line;
         std::getline(input, line);
         if(input.eof()) { break; }
-        size_type temp = extensionNodeCount(line);
-        this->kmer_count += temp; this->sizes[i] += temp;
+        range_type temp = parseKMer(line);
+        this->setK(temp.first, file);
+        this->kmer_count += temp.second; this->sizes[file] += temp.second;
       }
 
     }
@@ -284,102 +298,121 @@ InputGraph::size()
   }
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "InputGraph::size(): " << this->kmer_count << " kmers in "
-            << this->filenames.size() << " file(s)" << std::endl;
+  std::cerr << "InputGraph::InputGraph(): " << this->size() << " kmers in "
+            << this->files() << " file(s)" << std::endl;
 #endif
 
-  return this->kmer_count;
 }
 
 void
-InputGraph::read(std::vector<KMer>& kmers, size_type& kmer_length)
-{
-  kmer_length = UNKNOWN;
-  kmers.clear();
-  kmers.reserve(this->size());
-
-  for(size_type i = 0; i < this->files(); i++)
-  {
-    std::ifstream input(this->filenames[i].c_str(), std::ios_base::binary);
-    if(!input)
-    {
-      std::cerr << "InputGraph::read(): Cannot open graph file " << this->filenames[i] << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
-
-    size_type new_length = (this->binary ? readBinary(input, kmers, true) : readText(input, kmers, true));
-    if(kmer_length == UNKNOWN) { kmer_length = new_length; }
-    else if(new_length != kmer_length)
-    {
-      std::cerr << "InputGraph::read(): Invalid kmer length in graph file " << this->filenames[i] << std::endl;
-      std::cerr << "InputGraph::read(): Expected " << kmer_length << ", got " << new_length << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
-    input.close();
-  }
-
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "InputGraph::read(): Read " << kmers.size() << " kmers of length " << kmer_length << std::endl;
-#endif
-
-  /*
-    If the kmer includes one or more endmarkers, the successor position is past
-    the GCSA sink node. Those kmers are marked as sorted, as they cannot be
-    extended.
-  */
-  size_type sink_node = UNKNOWN;
-  for(size_type i = 0; i < kmers.size(); i++)
-  {
-    if(Key::label(kmers[i].key) == 0) { sink_node = Node::id(kmers[i].from); break; }
-  }
-  for(size_type i = 0; i < kmers.size(); i++)
-  {
-    if(Node::id(kmers[i].to) == sink_node && Node::offset(kmers[i].to) > 0) { kmers[i].makeSorted(); }
-  }
-}
-
-void
-InputGraph::read(std::vector<KMer>& kmers, size_type& kmer_length, size_type file)
+InputGraph::open(std::ifstream& input, size_type file) const
 {
   if(file >= this->files())
   {
-    std::cerr << "InputGraph::read(): Invalid file number: " << file << std::endl;
+    std::cerr << "InputGraph::open(): Invalid file number: " << file << std::endl;
     std::exit(EXIT_FAILURE);
   }
 
-  kmer_length = UNKNOWN;
-  kmers.clear();
-  kmers.reserve(this->sizes[file]);
-
-  std::ifstream input(this->filenames[file].c_str(), std::ios_base::binary);
+  input.open(this->filenames[file].c_str(), std::ios_base::binary);
   if(!input)
   {
-    std::cerr << "InputGraph::read(): Cannot open graph file " << this->filenames[file] << std::endl;
+    std::cerr << "InputGraph::open(): Cannot open graph file " << this->filenames[file] << std::endl;
     std::exit(EXIT_FAILURE);
   }
+}
 
-  kmer_length = (this->binary ? readBinary(input, kmers, true) : readText(input, kmers, true));
+void
+InputGraph::setK(size_type new_k, size_type file)
+{
+  if(this->k() == UNKNOWN) { this->kmer_length = new_k; }
+  this->checkK(new_k, file);
+}
+
+void
+InputGraph::checkK(size_type new_k, size_type file) const
+{
+  if(new_k != this->k())
+  {
+    std::cerr << "InputGraph::checkK(): Invalid kmer length in graph file " << this->filenames[file] << std::endl;
+    std::cerr << "InputGraph::checkK(): Expected " << this->k() << ", got " << new_k << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+}
+
+//------------------------------------------------------------------------------
+
+void
+InputGraph::read(std::vector<KMer>& kmers) const
+{
+  sdsl::util::clear(kmers);
+  kmers.reserve(this->size());
+
+  for(size_type file = 0; file < this->files(); file++)
+  {
+    this->read(kmers, file, true);
+  }
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "InputGraph::read(): Read " << kmers.size() << " kmers of length " << this->k() << std::endl;
+#endif
+
+  markSinkNode(kmers);
+}
+
+void
+InputGraph::read(std::vector<KMer>& kmers, size_type file, bool append) const
+{
+  if(!append) { sdsl::util::clear(kmers); }
+
+  std::ifstream input; this->open(input, file);
+  if(!append) { kmers.reserve(this->sizes[file]); }
+  size_type new_k = (this->binary ? readBinary(input, kmers, append) : readText(input, kmers, append));
+  this->checkK(new_k, file);
   input.close();
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "InputGraph::read(): Read " << kmers.size() << " kmers of length " << kmer_length
-            << " from " << this->filenames[file] << std::endl;
+  if(!append)
+  {
+      std::cerr << "InputGraph::read(): Read " << kmers.size() << " kmers of length " << this->k()
+              << " from " << this->filenames[file] << std::endl;
+  }
 #endif
 
-  /*
-    If the kmer includes one or more endmarkers, the successor position is past
-    the GCSA sink node. Those kmers are marked as sorted, as they cannot be
-    extended.
-  */
-  size_type sink_node = UNKNOWN;
-  for(size_type i = 0; i < kmers.size(); i++)
+  if(!append) { markSinkNode(kmers); }
+}
+
+//------------------------------------------------------------------------------
+
+void
+InputGraph::read(std::vector<key_type>& keys) const
+{
+  sdsl::util::clear(keys);
+  keys.reserve(this->size());
+
+  // Read the keys.
+  for(size_type file = 0; file < this->files(); file++)
   {
-    if(Key::label(kmers[i].key) == 0) { sink_node = Node::id(kmers[i].from); break; }
+    std::vector<KMer> kmers;
+    this->read(kmers, file, false);
+    for(size_type i = 0; i < this->sizes[file]; i++)
+    {
+      keys.push_back(kmers[i].key);
+    }
   }
-  for(size_type i = 0; i < kmers.size(); i++)
+
+  // Sort the keys and merge the ones sharing the same label.
+  parallelQuickSort(keys.begin(), keys.end());
+  size_type i = 0;
+  for(size_type j = 1; j < keys.size(); j++)
   {
-    if(Node::id(kmers[i].to) == sink_node && Node::offset(kmers[i].to) > 0) { kmers[i].makeSorted(); }
+    if(Key::label(keys[i]) == Key::label(keys[j])) { keys[i] = Key::merge(keys[i], keys[j]); }
+    else { i++; keys[i] = keys[j]; }
   }
+  keys.resize(i + 1);
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "InputGraph::read(): " << keys.size() << " unique keys" << std::endl;
+#endif
 }
 
 //------------------------------------------------------------------------------

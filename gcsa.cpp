@@ -241,7 +241,7 @@ readPathNodes(const std::string& filename,
   in.close(); remove(filename.c_str());
 }
 
-GCSA::GCSA(InputGraph& graph,
+GCSA::GCSA(const InputGraph& graph,
   size_type doubling_steps, size_type size_limit, const Alphabet& _alpha)
 {
   if(graph.size() == 0) { return; }
@@ -269,8 +269,7 @@ GCSA::GCSA(InputGraph& graph,
   /*
     FIXME: New preparations
 
-    2. Scan the KMer files and load all Keys in memory
-    3. Sort the Key array and remove duplicates
+    3. Read the Keys using graph.read(keys) - implemented
     4. Create the following structures: mapper, lcp, last_char
     5. Create an sd_vector that maps keys to their ranks (Keys can be deleted)
     6. For each KMer file
@@ -282,13 +281,12 @@ GCSA::GCSA(InputGraph& graph,
 
   // Sort the kmers, build the mapper GCSA for generating the edges.
   std::vector<KMer> kmers;
-  size_type kmer_length = 0;
-  graph.read(kmers, kmer_length);
+  graph.read(kmers);
   std::vector<key_type> keys;
   sdsl::int_vector<0> last_char;
   uniqueKeys(kmers, keys, last_char);
-  DeBruijnGraph mapper(keys, kmer_length, _alpha);
-  LCP lcp(keys, kmer_length);
+  DeBruijnGraph mapper(keys, graph.k(), _alpha);
+  LCP lcp(keys, graph.k());
   sdsl::util::clear(keys);
 
   // Transform the kmers into PathNodes.
@@ -320,7 +318,7 @@ GCSA::GCSA(InputGraph& graph,
   }
 
   // Build the GCSA in PathNodes.
-  this->prefixDoubling(paths, labels, kmer_length, doubling_steps, size_limit, lcp);
+  this->prefixDoubling(paths, labels, graph.k(), doubling_steps, size_limit, lcp);
   sdsl::util::clear(lcp);
   std::vector<range_type> from_nodes;
   this->mergeByLabel(paths, labels, from_nodes);

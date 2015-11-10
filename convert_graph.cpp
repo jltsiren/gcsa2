@@ -51,9 +51,8 @@ main(int argc, char** argv)
                 << base_name << InputGraph::BINARY_EXTENSION << std::endl;
 
       std::vector<KMer> kmers;
-      size_type kmer_length = 0;
-      graph.read(kmers, kmer_length, i);
-      writeKMers(base_name, kmers, kmer_length);
+      graph.read(kmers, i, false);
+      writeKMers(base_name, kmers, graph.k());
       std::cout << std::endl;
     }
   }

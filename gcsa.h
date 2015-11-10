@@ -77,7 +77,7 @@ public:
 
     FIXME Later: We should pass an object containing construction parameters.
   */
-  GCSA(InputGraph& graph,
+  GCSA(const InputGraph& graph,
     size_type doubling_steps = DOUBLING_STEPS, size_type size_limit = SIZE_LIMIT,
     const Alphabet& _alpha = Alphabet());
 

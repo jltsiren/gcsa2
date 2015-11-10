@@ -54,7 +54,7 @@ struct InputGraph
   std::vector<size_type>   sizes;
 
   bool binary;
-  size_type kmer_count;
+  size_type kmer_count, kmer_length;
 
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string BINARY_EXTENSION;  // .graph
@@ -62,11 +62,21 @@ struct InputGraph
 
   InputGraph(size_type file_count, char** base_names, bool binary_format);
 
-  size_type size(); // The first call is potentially expensive.
+  void open(std::ifstream& input, size_type file) const;
+  void setK(size_type new_k, size_type file);
+  void checkK(size_type new_k, size_type file) const;
+
+  inline size_type size() const { return this->kmer_count; }
+  inline size_type k() const { return this->kmer_length; }
   inline size_type files() const { return this->filenames.size(); }
 
-  void read(std::vector<KMer>& kmers, size_type& kmer_length);
-  void read(std::vector<KMer>& kmers, size_type& kmer_length, size_type file);
+  /*
+    Setting append = true has unpredictable side effects if done outside the member functions
+    of InputGraph.
+  */
+  void read(std::vector<KMer>& kmers) const;
+  void read(std::vector<KMer>& kmers, size_type file, bool append = false) const;
+  void read(std::vector<key_type>& keys) const;
 };
 
 //------------------------------------------------------------------------------

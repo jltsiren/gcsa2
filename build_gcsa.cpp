@@ -127,27 +127,25 @@ main(int argc, char** argv)
 #ifdef VERIFY_GRAPH
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = 0;
-    graph.read(kmers, kmer_length);
-    if(!(verifyGraph(kmers, kmer_length))) { std::exit(EXIT_FAILURE); }
+    graph.read(kmers);
+    if(!(verifyGraph(kmers, graph.k()))) { std::exit(EXIT_FAILURE); }
   }
 #endif
 
 #ifdef VERIFY_MAPPER
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = 0;
-    graph.read(kmers, kmer_length);
+    graph.read(kmers);
     std::vector<key_type> keys;
     sdsl::int_vector<0> last_chars;
     uniqueKeys(kmers, keys, last_chars, true);
-    DeBruijnGraph mapper(keys, kmer_length);
+    DeBruijnGraph mapper(keys, graph.k());
 #ifdef VERBOSE_STATUS_INFO
     std::cerr << "build_gcsa: Mapper has " << mapper.size() << " nodes, "
               << mapper.edge_count() << " edges" << std::endl;
     std::cerr << "build_gcsa: Mapper size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
 #endif
-    verifyMapper(mapper, keys, kmer_length);
+    verifyMapper(mapper, keys, graph.k());
   }
 #endif
 
@@ -181,9 +179,8 @@ main(int argc, char** argv)
 #ifdef VERIFY_INDEX
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = 0;
-    graph.read(kmers, kmer_length);
-    index.verifyIndex(kmers, kmer_length);
+    graph.read(kmers);
+    index.verifyIndex(kmers, graph.k());
   }
 #endif
 
@@ -299,7 +296,5 @@ verifyMapper(const DeBruijnGraph& mapper, const std::vector<key_type>& keys, siz
   std::cout << std::endl;
   return ok;
 }
-
-//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
