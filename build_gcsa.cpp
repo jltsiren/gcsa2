@@ -113,18 +113,22 @@ main(int argc, char** argv)
   for(int i = optind; i < argc; i++)
   {
     std::cout << "Input: " << argv[i];
-    if(binary) { std::cout << BINARY_EXTENSION << " (binary format)" << std::endl; }
-    else { std::cout << TEXT_EXTENSION << " (text format)" << std::endl; }
+    if(binary) { std::cout << InputGraph::BINARY_EXTENSION << " (binary format)" << std::endl; }
+    else { std::cout << InputGraph::TEXT_EXTENSION << " (text format)" << std::endl; }
   }
   std::cout << "Output: " << output_file << std::endl;
   std::cout << "Doubling steps: " << doubling_steps << std::endl;
   std::cout << "Size limit: " << size_limit << " GB" << std::endl;
   std::cout << std::endl;
 
+  InputGraph graph(argc - optind, argv + optind, binary);
+  graph.size();
+
 #ifdef VERIFY_GRAPH
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary);
+    size_type kmer_length = 0;
+    graph.read(kmers, kmer_length);
     if(!(verifyGraph(kmers, kmer_length))) { std::exit(EXIT_FAILURE); }
   }
 #endif
@@ -132,9 +136,10 @@ main(int argc, char** argv)
 #ifdef VERIFY_MAPPER
   {
     std::vector<KMer> kmers;
+    size_type kmer_length = 0;
+    graph.read(kmers, kmer_length);
     std::vector<key_type> keys;
     sdsl::int_vector<0> last_chars;
-    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary);
     uniqueKeys(kmers, keys, last_chars, true);
     DeBruijnGraph mapper(keys, kmer_length);
 #ifdef VERBOSE_STATUS_INFO
@@ -151,10 +156,8 @@ main(int argc, char** argv)
   sdsl::load_from_file(index, output_file);
 #else
   {
-    std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary);
     double start = readTimer();
-    GCSA temp(kmers, kmer_length, doubling_steps, size_limit); index.swap(temp);
+    GCSA temp(graph, doubling_steps, size_limit); index.swap(temp);
     double seconds = readTimer() - start;
     std::cout << "Index built in " << seconds << " seconds" << std::endl;
     std::cout << std::endl;
@@ -178,7 +181,8 @@ main(int argc, char** argv)
 #ifdef VERIFY_INDEX
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readKMers(argc - optind, argv + optind, kmers, binary);
+    size_type kmer_length = 0;
+    graph.read(kmers, kmer_length);
     index.verifyIndex(kmers, kmer_length);
   }
 #endif

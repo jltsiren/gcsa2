@@ -32,9 +32,6 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
-extern const std::string BINARY_EXTENSION;  // .graph
-extern const std::string TEXT_EXTENSION;    // .gcsa2
-
 struct GraphFileHeader
 {
   size_type flags;
@@ -51,14 +48,39 @@ struct GraphFileHeader
 
 //------------------------------------------------------------------------------
 
+struct InputGraph
+{
+  std::vector<std::string> filenames;
+  std::vector<size_type>   sizes;
+
+  bool binary;
+  size_type kmer_count;
+
+  const static size_type UNKNOWN = ~(size_type)0;
+  const static std::string BINARY_EXTENSION;  // .graph
+  const static std::string TEXT_EXTENSION;    // .gcsa2
+
+  InputGraph(size_type file_count, char** base_names, bool binary_format);
+
+  size_type size(); // The first call is potentially expensive.
+  inline size_type files() const { return this->filenames.size(); }
+
+  void read(std::vector<KMer>& kmers, size_type& kmer_length);
+  void read(std::vector<KMer>& kmers, size_type& kmer_length, size_type file);
+};
+
+//------------------------------------------------------------------------------
+
 /*
-  These functions read the input until eof. They do not close the input stream.
+  These functions read the input until eof. They do not close the input stream. The
+  return value is kmer length.
 */
 size_type readBinary(std::istream& in, std::vector<KMer>& kmers, bool append = false);
 size_type readText(std::istream& in, std::vector<KMer>& kmers, bool append = false);
 
-size_type readKMers(size_type files, char** base_names, std::vector<KMer>& kmers, bool binary = true);
+//------------------------------------------------------------------------------
 
+// FIXME Later: writeText()
 void writeBinary(std::ostream& out, std::vector<KMer>& kmers, size_type kmer_length);
 void writeKMers(const std::string& base_name, std::vector<KMer>& kmers, size_type kmer_length);
 

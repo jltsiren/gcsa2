@@ -42,12 +42,17 @@ main(int argc, char** argv)
   {
     std::cout << "GCSA input converter" << std::endl;
     std::cout << std::endl;
-    for(int i = 1; i < argc; i++)
+
+    InputGraph graph(argc - 1, argv + 1, false);
+    for(size_type i = 0; i < graph.files(); i++)
     {
-      std::string base_name = argv[i];
-      std::cout << base_name << TEXT_EXTENSION << " -> " << base_name << BINARY_EXTENSION << std::endl;
+      std::string base_name = argv[i + 1];
+      std::cout << base_name << InputGraph::TEXT_EXTENSION << " -> "
+                << base_name << InputGraph::BINARY_EXTENSION << std::endl;
+
       std::vector<KMer> kmers;
-      size_type kmer_length = readKMers(1, argv + i, kmers, false);
+      size_type kmer_length = 0;
+      graph.read(kmers, kmer_length, i);
       writeKMers(base_name, kmers, kmer_length);
       std::cout << std::endl;
     }

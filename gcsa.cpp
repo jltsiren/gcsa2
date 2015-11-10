@@ -25,6 +25,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "files.h"
 #include "gcsa.h"
 
 namespace gcsa
@@ -240,10 +241,10 @@ readPathNodes(const std::string& filename,
   in.close(); remove(filename.c_str());
 }
 
-GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
+GCSA::GCSA(InputGraph& graph,
   size_type doubling_steps, size_type size_limit, const Alphabet& _alpha)
 {
-  if(kmers.size() == 0) { return; }
+  if(graph.size() == 0) { return; }
   if(doubling_steps > DOUBLING_STEPS)
   {
     std::cerr << "GCSA::GCSA(): The number of doubling steps is too high: " << doubling_steps << std::endl;
@@ -257,7 +258,7 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
     size_limit = ABSOLUTE_SIZE_LIMIT;
   }
   size_type bytes_required =
-    2 * sizeof(size_type) + kmers.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
+    2 * sizeof(size_type) + graph.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
   if(bytes_required > size_limit * GIGABYTE)
   {
     std::cerr << "GCSA::GCSA(): The input is too large: " << (bytes_required / GIGABYTE_DOUBLE) << " GB" << std::endl;
@@ -265,7 +266,24 @@ GCSA::GCSA(std::vector<KMer>& kmers, size_type kmer_length,
     std::exit(EXIT_FAILURE);
   }
 
+  /*
+    FIXME: New preparations
+
+    2. Scan the KMer files and load all Keys in memory
+    3. Sort the Key array and remove duplicates
+    4. Create the following structures: mapper, lcp, last_char
+    5. Create an sd_vector that maps keys to their ranks (Keys can be deleted)
+    6. For each KMer file
+      - load the file in memory
+      - sort the KMers
+      - replace the Key with its rank
+      - convert the KMers to PathNodes on disk
+  */
+
   // Sort the kmers, build the mapper GCSA for generating the edges.
+  std::vector<KMer> kmers;
+  size_type kmer_length = 0;
+  graph.read(kmers, kmer_length);
   std::vector<key_type> keys;
   sdsl::int_vector<0> last_char;
   uniqueKeys(kmers, keys, last_char);
@@ -426,7 +444,7 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
     std::cout << "Index verification failed for " << fails << " patterns." << std::endl;
   }
   std::cout << std::endl;
-  
+
   return fails == 0;
 }
 

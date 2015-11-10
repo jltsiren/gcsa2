@@ -69,11 +69,15 @@ public:
 //------------------------------------------------------------------------------
 
   /*
+    FIXME Later: Rewrite the description when the parameters have stabilized.
+
     This is the main constructor. We build GCSA from the kmers, doubling the path length
     the specified number of times (up to DOUBLING_STEPS). The kmer array will be cleared
     during the construction.
+
+    FIXME Later: We should pass an object containing construction parameters.
   */
-  GCSA(std::vector<KMer>& kmers, size_type kmer_length,
+  GCSA(InputGraph& graph,
     size_type doubling_steps = DOUBLING_STEPS, size_type size_limit = SIZE_LIMIT,
     const Alphabet& _alpha = Alphabet());
 
