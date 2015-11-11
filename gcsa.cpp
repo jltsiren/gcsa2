@@ -912,7 +912,7 @@ predecessor(const PathNode& curr, std::vector<PathNode::rank_type>& labels,
 {
   size_type i = 0, j = curr.pointer();
   PathLabel first, last;
-  first.is_first = true; last.is_first = false;
+  first.setFirst(); last.setLast();
 
   // Handle the common prefix of the labels.
   while(i < curr.lcp())
@@ -939,7 +939,7 @@ predecessor(const PathNode& curr, std::vector<PathNode::rank_type>& labels,
     i++;
   }
 
-  first.length = last.length = i;
+  first.setLength(i); last.setLength(i);
   return std::make_pair(first, last);
 }
 

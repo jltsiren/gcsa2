@@ -270,21 +270,31 @@ struct PathLabel
 
   // This should be at least 1 << GCSA::DOUBLING_STEPS.
   const static size_type LABEL_LENGTH = 8;
+  const static rank_type LENGTH_MASK  = 0xF;
+  const static rank_type FIRST_MASK   = 0x10; // First label or last label.
 
-  size_type length;
+  rank_type fields;
   rank_type label[LABEL_LENGTH];
-  bool      is_first; // First label or last label?
+
+  PathLabel() : fields(0) {}
+
+  inline size_type length() const { return this->fields & LENGTH_MASK; }
+  inline void setLength(size_type len) { this->fields &= ~LENGTH_MASK; this->fields |= len & LENGTH_MASK; }
+
+  inline bool first() const { return this->fields & FIRST_MASK; }
+  inline void setFirst() { this->fields |= FIRST_MASK; }
+  inline void setLast()  { this->fields &= ~FIRST_MASK; }
 
   // Is *this < another?
   inline bool compare(const PathLabel& another) const
   {
-    size_type order = std::min(this->length, another.length);
+    size_type order = std::min(this->length(), another.length());
     for(size_type i = 0; i < order; i++)
     {
       if(this->label[i] != another.label[i]) { return (this->label[i] < another.label[i]); }
     }
-    if(this->is_first) { return (this->length < another.length); }
-    else { return (another.length < this->length); }
+    if(this->first()) { return (this->length() < another.length()); }
+    else { return (another.length() < this->length()); }
   }
 };
 
@@ -388,12 +398,12 @@ struct PathNode
   inline PathLabel firstLabel(const std::vector<rank_type>& labels) const
   {
     PathLabel res;
-    res.length = this->order();
-    for(size_type i = 0, j = this->pointer(); i < res.length; i++, j++)
+    res.setLength(this->order());
+    for(size_type i = 0, j = this->pointer(); i < res.length(); i++, j++)
     {
       res.label[i] = labels[j];
     }
-    res.is_first = true;
+    res.setFirst();
     return res;
   }
 
@@ -401,19 +411,19 @@ struct PathNode
   {
     PathLabel res;
 
-    res.length = this->lcp();
-    for(size_type i = 0, j = this->pointer(); i < res.length; i++, j++)
+    res.setLength(this->lcp());
+    for(size_type i = 0, j = this->pointer(); i < res.length(); i++, j++)
     {
       res.label[i] = labels[j];
     }
 
     if(this->lcp() < this->order())
     {
-      res.label[res.length] = labels[this->pointer() + this->order()];
-      res.length++;
+      res.label[res.length()] = labels[this->pointer() + this->order()];
+      res.setLength(this->lcp() + 1);
     }
 
-    res.is_first = false;
+    res.setLast();
     return res;
   }
 

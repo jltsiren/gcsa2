@@ -92,6 +92,9 @@ struct InputGraph
   void read(std::vector<KMer>& kmers) const;
   void read(std::vector<KMer>& kmers, size_type file, bool append = false) const;
   void read(std::vector<key_type>& keys) const;
+
+  InputGraph(const InputGraph&) = delete;
+  InputGraph& operator= (const InputGraph&) = delete;
 };
 
 //------------------------------------------------------------------------------
@@ -110,13 +113,18 @@ struct PathGraph
   size_type path_count, rank_count;
   size_type order;
 
+  size_type unique, unsorted, nondeterministic;
+
+  const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa
 
   PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists);
+  PathGraph(size_type file_count, size_type path_order);
   ~PathGraph();
 
-  void open(std::ifstream& input, size_type file) const;
   void clear();
+  void swap(PathGraph& another);
+  void open(std::ifstream& input, size_type file) const;
 
   inline size_type size() const { return this->path_count; }
   inline size_type ranks() const { return this->rank_count; }
@@ -128,6 +136,9 @@ struct PathGraph
     return this->size() * sizeof(PathNode) + this->ranks() * sizeof(PathNode::rank_type);
   }
 
+  void prune(const LCP& lcp);
+  void extend();
+
   /*
     Setting append = true has unpredictable side effects if done outside the member
     functions of PathGraph.
@@ -135,6 +146,9 @@ struct PathGraph
   void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels) const;
   void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
             size_type file, bool append = false) const;
+
+  PathGraph(const PathGraph&) = delete;
+  PathGraph& operator= (const PathGraph&) = delete;
 };
 
 //------------------------------------------------------------------------------

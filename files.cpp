@@ -420,6 +420,7 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 {
   this->path_count = 0; this->rank_count = 0;
   this->order = source.k();
+  this->unique = UNKNOWN; this->unsorted = UNKNOWN; this->nondeterministic = UNKNOWN;
 
   sdsl::sd_vector<>::rank_1_type key_rank(&key_exists);
   for(size_type file = 0; file < source.files(); file++)
@@ -457,9 +458,52 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 #endif
 }
 
+PathGraph::PathGraph(size_type file_count, size_type path_order) :
+  filenames(file_count), sizes(file_count, 0), rank_counts(file_count, 0),
+  path_count(0), rank_count(0), order(path_order),
+  unique(0), unsorted(0), nondeterministic(0)
+{
+  for(size_type file = 0; file < this->files(); file++)
+  {
+    this->filenames[file] = tempFile(PREFIX);
+  }
+}
+
 PathGraph::~PathGraph()
 {
   this->clear();
+}
+
+void
+PathGraph::clear()
+{
+  for(size_type file = 0; file < this->files(); file++)
+  {
+    remove(this->filenames[file].c_str());
+  }
+  this->filenames.clear();
+  this->sizes.clear();
+  this->rank_counts.clear();
+
+  this->path_count = 0; this->rank_count = 0;
+  this->order = 0;
+  this->unique = UNKNOWN; this->unsorted = UNKNOWN; this->nondeterministic = UNKNOWN;
+}
+
+void
+PathGraph::swap(PathGraph& another)
+{
+  this->filenames.swap(another.filenames);
+  this->sizes.swap(another.sizes);
+  this->rank_counts.swap(another.rank_counts);
+
+  std::swap(this->path_count, another.path_count);
+  std::swap(this->rank_count, another.rank_count);
+  std::swap(this->order, another.order);
+
+  std::swap(this->unique, another.unique);
+  std::swap(this->unsorted, another.unsorted);
+  std::swap(this->nondeterministic, another.nondeterministic);
 }
 
 void
@@ -479,17 +523,87 @@ PathGraph::open(std::ifstream& input, size_type file) const
   }
 }
 
-void
-PathGraph::clear()
+//------------------------------------------------------------------------------
+
+struct PathGraphBuilder
 {
-  for(size_type file = 0; file < this->files(); file++)
+  PathGraph graph;
+  std::vector<std::ofstream> files;
+
+  PathGraphBuilder(size_type file_count, size_type path_order) :
+    graph(file_count, path_order), files(file_count)
   {
-    remove(this->filenames[file].c_str());
+    for(size_type file = 0; file < this->files.size(); file++)
+    {
+      this->files[file].open(this->graph.filenames[file].c_str(), std::ios_base::binary);
+      if(!(this->files[file]))
+      {
+        std::cerr << "PathGraphBuilder::PathGraphBuilder(): Cannot open output file "
+                  << this->graph.filenames[file] << std::endl;
+        std::exit(EXIT_FAILURE);
+      }
+    }
   }
-  this->filenames.clear();
-  this->sizes.clear();
-  this->rank_counts.clear();
-}
+
+  void close()
+  {
+    for(size_type file = 0; file < this->files.size(); file++)
+    {
+      this->files[file].close();
+    }
+  }
+/*
+  void insert(... path, size_type file)
+  {
+    // FIXME write path to this->files[file]
+    this->graph.sizes[file]++; this->graph.path_count++;
+    this->graph.rank_counts[file] += ...; this->graph.rank_count += ...;
+  }*/
+};
+
+// FIXME Structure for the priority queues
+// PathNode node
+// PathLabel first, last
+// size_type file
+/*
+void
+PathGraph::prune(const LCP& lcp)
+{
+#ifdef VERBOSE_STATUS_INFO
+  size_type old_path_count = this->size();
+#endif
+
+  PathGraphBuilder builder(this->files(), this->k());
+
+  // FIXME Multiway merge all files using a priority queue
+  for(range_type range = firstRange(...); range.first < this->size(); range = nextRange(range, ...))
+  {
+    if(sameFrom(range, ...))
+    {
+      range_type range_lcp = extendRange(range, ..., lcp);
+      mergePathNodes(range, ..., range_lcp, lcp);
+      // FIXME Write to the corresponding new file
+      builder.graph.unique++;
+    }
+    else
+    {
+      for(size_type i = range.first; i <= range.second; i++)
+      {
+        if(paths[i].sorted()) { builder.graph.nondeterministic++; }
+        else { builder.graph.unsorted++; }
+        // FIXME Write to the corresponding new file
+      }
+    }
+  }
+  this->clear(); builder.close();
+  this->swap(builder.graph);
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "  PathGraph::prune(): " << old_path_count << " -> " << paths.size() << " paths" << std::endl;
+  std::cerr << "  PathGraph::prune(): " << this->unique << " unique, " << this->unsorted << " unsorted, "
+            << this->nondeterministic << " nondeterministic paths" << std::endl;
+#endif
+}*/
 
 //------------------------------------------------------------------------------
 
