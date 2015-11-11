@@ -257,8 +257,7 @@ GCSA::GCSA(const InputGraph& graph,
     std::cerr << "GCSA::GCSA(): Reverting the size limit to " << ABSOLUTE_SIZE_LIMIT << " GB" << std::endl;
     size_limit = ABSOLUTE_SIZE_LIMIT;
   }
-  size_type bytes_required =
-    2 * sizeof(size_type) + graph.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
+  size_type bytes_required = graph.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
   if(bytes_required > size_limit * GIGABYTE)
   {
     std::cerr << "GCSA::GCSA(): The input is too large: " << (bytes_required / GIGABYTE_DOUBLE) << " GB" << std::endl;
@@ -266,55 +265,29 @@ GCSA::GCSA(const InputGraph& graph,
     std::exit(EXIT_FAILURE);
   }
 
-  /*
-    FIXME: New preparations
-
-    3. Read the Keys using graph.read(keys) - implemented
-    4. Create the following structures: mapper, lcp, last_char
-    5. Create an sd_vector that maps keys to their ranks (Keys can be deleted)
-    6. For each KMer file
-      - load the file in memory
-      - sort the KMers
-      - replace the Key with its rank
-      - convert the KMers to PathNodes on disk
-  */
-
-  // Sort the kmers, build the mapper GCSA for generating the edges.
-  std::vector<KMer> kmers;
-  graph.read(kmers);
+  // Extract the keys and build the necessary support structures.
+  // FIXME Later: Write the structures to disk until needed?
   std::vector<key_type> keys;
-  sdsl::int_vector<0> last_char;
-  uniqueKeys(kmers, keys, last_char);
+  graph.read(keys);
   DeBruijnGraph mapper(keys, graph.k(), _alpha);
   LCP lcp(keys, graph.k());
+  sdsl::int_vector<0> last_char(keys.size(), 0, Key::CHAR_WIDTH);
+  sdsl::sd_vector_builder builder(Key::label(keys[keys.size() - 1]) + 1, keys.size());
+  for(size_type i = 0; i < keys.size(); i++)
+  {
+    last_char[i] = Key::last(keys[i]);
+    builder.set(Key::label(keys[i]));
+  }
+  sdsl::sd_vector<> key_exists(builder);
   sdsl::util::clear(keys);
 
-  // Transform the kmers into PathNodes.
+  // Create the initial PathGraph and read the paths into memory.
   std::vector<PathNode> paths;
   std::vector<PathNode::rank_type> labels;
   {
-    std::string temp_file = tempFile(EXTENSION);
-    std::ofstream out(temp_file.c_str(), std::ios_base::binary);
-    if(!out)
-    {
-      std::cerr << "GCSA::GCSA(): Cannot open temporary file " << temp_file << std::endl;
-      std::cerr << "GCSA::GCSA(): Construction aborted" << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
-
-    std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
-    size_type kmer_count = kmers.size(); sdsl::write_member(kmer_count, out);
-    size_type rank_count = 2 * kmer_count; sdsl::write_member(rank_count, out);
-    for(size_type i = 0; i < kmers.size(); i++)
-    {
-      PathNode temp(kmers[i], temp_labels);
-      temp.serialize(out, temp_labels);
-      temp_labels.resize(0);
-    }
-    out.close();
-
-    sdsl::util::clear(kmers);
-    readPathNodes(temp_file, paths, labels);
+    PathGraph path_graph(graph, key_exists);
+    sdsl::util::clear(key_exists);
+    path_graph.read(paths, labels);
   }
 
   // Build the GCSA in PathNodes.

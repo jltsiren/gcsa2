@@ -46,7 +46,22 @@ struct GraphFileHeader
   size_type serialize(std::ostream& out);
 };
 
+/*
+  These functions read the input until eof. They do not close the input stream. The
+  return value is kmer length.
+*/
+size_type readBinary(std::istream& in, std::vector<KMer>& kmers, bool append = false);
+size_type readText(std::istream& in, std::vector<KMer>& kmers, bool append = false);
+
+// FIXME Later: writeText()
+void writeBinary(std::ostream& out, std::vector<KMer>& kmers, size_type kmer_length);
+void writeKMers(const std::string& base_name, std::vector<KMer>& kmers, size_type kmer_length);
+
 //------------------------------------------------------------------------------
+
+/*
+  An input graph is just a set of input files.
+*/
 
 struct InputGraph
 {
@@ -71,8 +86,8 @@ struct InputGraph
   inline size_type files() const { return this->filenames.size(); }
 
   /*
-    Setting append = true has unpredictable side effects if done outside the member functions
-    of InputGraph.
+    Setting append = true has unpredictable side effects if done outside the member
+    functions of InputGraph.
   */
   void read(std::vector<KMer>& kmers) const;
   void read(std::vector<KMer>& kmers, size_type file, bool append = false) const;
@@ -82,17 +97,45 @@ struct InputGraph
 //------------------------------------------------------------------------------
 
 /*
-  These functions read the input until eof. They do not close the input stream. The
-  return value is kmer length.
+  A path graph is a set of files, each of them containing the paths derived from one
+  of the input files. The PathNodes in each file are sorted by their labels, and the
+  read() member functions will also return the PathNodes in sorted order.
 */
-size_type readBinary(std::istream& in, std::vector<KMer>& kmers, bool append = false);
-size_type readText(std::istream& in, std::vector<KMer>& kmers, bool append = false);
 
-//------------------------------------------------------------------------------
+struct PathGraph
+{
+  std::vector<std::string> filenames;
+  std::vector<size_type>   sizes, rank_counts;
 
-// FIXME Later: writeText()
-void writeBinary(std::ostream& out, std::vector<KMer>& kmers, size_type kmer_length);
-void writeKMers(const std::string& base_name, std::vector<KMer>& kmers, size_type kmer_length);
+  size_type path_count, rank_count;
+  size_type order;
+
+  const static std::string PREFIX;  // .gcsa
+
+  PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists);
+  ~PathGraph();
+
+  void open(std::ifstream& input, size_type file) const;
+  void clear();
+
+  inline size_type size() const { return this->path_count; }
+  inline size_type ranks() const { return this->rank_count; }
+  inline size_type k() const { return this->order; }
+  inline size_type files() const { return this->filenames.size(); }
+
+  inline size_type bytes() const
+  {
+    return this->size() * sizeof(PathNode) + this->ranks() * sizeof(PathNode::rank_type);
+  }
+
+  /*
+    Setting append = true has unpredictable side effects if done outside the member
+    functions of PathGraph.
+  */
+  void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels) const;
+  void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+            size_type file, bool append = false) const;
+};
 
 //------------------------------------------------------------------------------
 

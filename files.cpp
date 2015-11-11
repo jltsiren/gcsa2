@@ -301,7 +301,6 @@ InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_form
   std::cerr << "InputGraph::InputGraph(): " << this->size() << " kmers in "
             << this->files() << " file(s)" << std::endl;
 #endif
-
 }
 
 void
@@ -373,15 +372,13 @@ InputGraph::read(std::vector<KMer>& kmers, size_type file, bool append) const
 #ifdef VERBOSE_STATUS_INFO
   if(!append)
   {
-      std::cerr << "InputGraph::read(): Read " << kmers.size() << " kmers of length " << this->k()
+    std::cerr << "InputGraph::read(): Read " << kmers.size() << " kmers of length " << this->k()
               << " from " << this->filenames[file] << std::endl;
   }
 #endif
 
   if(!append) { markSinkNode(kmers); }
 }
-
-//------------------------------------------------------------------------------
 
 void
 InputGraph::read(std::vector<key_type>& keys) const
@@ -412,6 +409,128 @@ InputGraph::read(std::vector<key_type>& keys) const
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "InputGraph::read(): " << keys.size() << " unique keys" << std::endl;
+#endif
+}
+
+//------------------------------------------------------------------------------
+
+const std::string PathGraph::PREFIX = ".gcsa";
+
+PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
+{
+  this->path_count = 0; this->rank_count = 0;
+  this->order = source.k();
+
+  sdsl::sd_vector<>::rank_1_type key_rank(&key_exists);
+  for(size_type file = 0; file < source.files(); file++)
+  {
+    std::string temp_file = tempFile(PREFIX);
+    this->filenames.push_back(temp_file);
+    this->sizes.push_back(source.sizes[file]); this->path_count += source.sizes[file];
+    this->rank_counts.push_back(2 * source.sizes[file]); this->rank_count += 2 * source.sizes[file];
+
+    std::ofstream out(temp_file.c_str(), std::ios_base::binary);
+    if(!out)
+    {
+      std::cerr << "PathGraph::PathGraph(): Cannot open output file " << temp_file << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+
+    // Read KMers, sort them, and convert them to PathNodes.
+    std::vector<KMer> kmers;
+    source.read(kmers, file);
+    parallelQuickSort(kmers.begin(), kmers.end());
+    std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
+    for(size_type i = 0; i < kmers.size(); i++)
+    {
+      kmers[i].key = Key::replace(kmers[i].key, key_rank(Key::label(kmers[i].key)));
+      PathNode temp(kmers[i], temp_labels);
+      temp.serialize(out, temp_labels);
+      temp_labels.resize(0);
+    }
+    out.close();
+  }
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "PathGraph::PathGraph(): " << this->size() << " paths with " << this->ranks() << " ranks in "
+            << this->files() << " file(s)" << std::endl;
+#endif
+}
+
+PathGraph::~PathGraph()
+{
+  this->clear();
+}
+
+void
+PathGraph::open(std::ifstream& input, size_type file) const
+{
+  if(file >= this->files())
+  {
+    std::cerr << "PathGraph::open(): Invalid file number: " << file << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  input.open(this->filenames[file].c_str(), std::ios_base::binary);
+  if(!input)
+  {
+    std::cerr << "PathGraph::open(): Cannot open graph file " << this->filenames[file] << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+}
+
+void
+PathGraph::clear()
+{
+  for(size_type file = 0; file < this->files(); file++)
+  {
+    remove(this->filenames[file].c_str());
+  }
+  this->filenames.clear();
+  this->sizes.clear();
+  this->rank_counts.clear();
+}
+
+//------------------------------------------------------------------------------
+
+void
+PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels) const
+{
+  sdsl::util::clear(paths); sdsl::util::clear(labels);
+  paths.reserve(this->size()); labels.reserve(this->ranks());
+
+  for(size_type file = 0; file < this->files(); file++)
+  {
+    this->read(paths, labels, file, true);
+  }
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "PathGraph::read(): Read " << paths.size() << " order-" << this->k() << " paths" << std::endl;
+#endif
+
+  // Sort the paths by their (first) labels.
+  // FIXME Later: A priority queue should be faster.
+  PathFirstComparator first_c(labels);
+  parallelQuickSort(paths.begin(), paths.end(), first_c);
+}
+
+void
+PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+                size_type file, bool append) const
+{
+  if(!append) { sdsl::util::clear(paths); sdsl::util::clear(labels); }
+
+  std::ifstream input; this->open(input, file);
+  if(!append) { paths.reserve(this->sizes[file]); labels.reserve(this->rank_counts[file]); }
+  for(size_type i = 0; i < path_count; i++) { paths.push_back(PathNode(input, labels)); }
+  input.close();
+
+#ifdef VERBOSE_STATUS_INFO
+  if(!append)
+  {
+    std::cerr << "PathGraph::read(): Read " << paths.size() << " order-" << this->k()
+              << " paths from " << this->filenames[file] << std::endl;
+  }
 #endif
 }
 
