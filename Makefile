@@ -18,7 +18,7 @@ OTHER_FLAGS=$(RUSAGE_FLAGS) $(VERIFY_FLAGS) $(PARALLEL_FLAGS) $(OUTPUT_FLAGS)
 
 include $(SDSL_DIR)/Make.helper
 CXX_FLAGS=$(MY_CXX_FLAGS) $(OTHER_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(INC_DIR)
-LIBOBJS=dbg.o files.o gcsa.o support.o utils.o
+LIBOBJS=dbg.o files.o gcsa.o path_graph.o support.o utils.o
 SOURCES=$(wildcard *.cpp)
 HEADERS=$(wildcard *.h)
 OBJS=$(SOURCES:.cpp=.o)

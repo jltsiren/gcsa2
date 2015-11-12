@@ -270,10 +270,13 @@ struct PathLabel
 
   // This should be at least 1 << GCSA::DOUBLING_STEPS.
   const static size_type LABEL_LENGTH = 8;
-  const static rank_type LENGTH_MASK  = 0xF;
-  const static rank_type FIRST_MASK   = 0x10; // First label or last label.
+  const static size_type LENGTH_MASK  = 0xF;
+  const static size_type FIRST_MASK   = 0x10; // First label or last label.
 
-  rank_type fields;
+  // Labels starting with NO_RANK will be after real labels in lexicographic order.
+  const static rank_type NO_RANK = ~(rank_type)0;
+
+  size_type fields;
   rank_type label[LABEL_LENGTH];
 
   PathLabel() : fields(0) {}
@@ -394,6 +397,7 @@ struct PathNode
 //------------------------------------------------------------------------------
 
   inline size_type ranks() const { return this->order() + 1; }
+  inline size_type bytes() const { return sizeof(*this) + this->ranks() * sizeof(rank_type); }
 
   inline PathLabel firstLabel(const std::vector<rank_type>& labels) const
   {
@@ -432,22 +436,24 @@ struct PathNode
     return labels[this->pointer() + i];
   }
 
+  inline rank_type firstLabel(size_type i, const rank_type* labels) const
+  {
+    return labels[i];
+  }
+
   inline rank_type lastLabel(size_type i, const std::vector<rank_type>& labels) const
   {
-    if(i < this->lcp()) { return labels[this->pointer() + i]; }
-    else { return labels[this->pointer() + this->order()]; }
+    return this->lastLabel(i, labels.data() + this->pointer());
+  }
+
+  inline rank_type lastLabel(size_type i, const rank_type* labels) const
+  {
+    if(i < this->lcp()) { return labels[i]; }
+    else { return labels[this->order()]; }
   }
 
   // Do the two path nodes intersect?
   bool intersect(const PathLabel& first, const PathLabel& last, const std::vector<rank_type>& labels) const;
-
-  /*
-    Computes the length of the minimal/maximal longest common prefix of the kmer rank
-    sequences of this and another. another must come after this in lexicographic order,
-    and the ranges must not overlap.
-  */
-  size_type min_lcp(const PathNode& another, const std::vector<rank_type>& labels) const;
-  size_type max_lcp(const PathNode& another, const std::vector<rank_type>& labels) const;
 
 //------------------------------------------------------------------------------
 
@@ -461,9 +467,13 @@ struct PathNode
   PathNode(const PathNode& left, const PathNode& right,
     const std::vector<rank_type>& old_labels, std::vector<rank_type>& new_labels);
 
-  PathNode(std::ifstream& in, std::vector<rank_type>& labels);
-
-  size_type serialize(std::ostream& out, const std::vector<rank_type>& labels) const;
+  /*
+    Warning: Do not mix the versions using a std::vector and a pointer.
+  */
+  PathNode(std::istream& in, std::vector<rank_type>& labels);
+  PathNode(std::istream& in, rank_type* labels);
+  void serialize(std::ostream& out, const std::vector<rank_type>& labels) const;
+  void serialize(std::ostream& out, const rank_type* labels) const;
 
   void print(std::ostream& out, const std::vector<rank_type>& labels) const;
 
@@ -544,6 +554,11 @@ struct LCP
   */
   range_type min_lcp(const PathNode& a, const PathNode& b, const std::vector<rank_type>& labels) const;
   range_type max_lcp(const PathNode& a, const PathNode& b, const std::vector<rank_type>& labels) const;
+
+  range_type min_lcp(const PathNode& a, const PathNode& b,
+    const rank_type* a_labels, const rank_type* b_labels) const;
+  range_type max_lcp(const PathNode& a, const PathNode& b,
+    const rank_type* a_labels, const rank_type* b_labels) const;
 
   // Increments the lcp by 1.
   inline range_type increment(range_type lcp) const

@@ -99,60 +99,6 @@ struct InputGraph
 
 //------------------------------------------------------------------------------
 
-/*
-  A path graph is a set of files, each of them containing the paths derived from one
-  of the input files. The PathNodes in each file are sorted by their labels, and the
-  read() member functions will also return the PathNodes in sorted order.
-*/
-
-struct PathGraph
-{
-  std::vector<std::string> filenames;
-  std::vector<size_type>   sizes, rank_counts;
-
-  size_type path_count, rank_count;
-  size_type order;
-
-  size_type unique, unsorted, nondeterministic;
-
-  const static size_type UNKNOWN = ~(size_type)0;
-  const static std::string PREFIX;  // .gcsa
-
-  PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists);
-  PathGraph(size_type file_count, size_type path_order);
-  ~PathGraph();
-
-  void clear();
-  void swap(PathGraph& another);
-  void open(std::ifstream& input, size_type file) const;
-
-  inline size_type size() const { return this->path_count; }
-  inline size_type ranks() const { return this->rank_count; }
-  inline size_type k() const { return this->order; }
-  inline size_type files() const { return this->filenames.size(); }
-
-  inline size_type bytes() const
-  {
-    return this->size() * sizeof(PathNode) + this->ranks() * sizeof(PathNode::rank_type);
-  }
-
-  void prune(const LCP& lcp);
-  void extend();
-
-  /*
-    Setting append = true has unpredictable side effects if done outside the member
-    functions of PathGraph.
-  */
-  void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels) const;
-  void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-            size_type file, bool append = false) const;
-
-  PathGraph(const PathGraph&) = delete;
-  PathGraph& operator= (const PathGraph&) = delete;
-};
-
-//------------------------------------------------------------------------------
-
 } // namespace gcsa
 
 #endif // _GCSA_UTILS_H

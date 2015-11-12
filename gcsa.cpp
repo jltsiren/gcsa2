@@ -25,8 +25,8 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "files.h"
 #include "gcsa.h"
+#include "path_graph.h"
 
 namespace gcsa
 {

@@ -26,7 +26,7 @@
 #define _GCSA_GCSA_H
 
 #include "dbg.h"
-#include "support.h"
+#include "files.h"
 
 namespace gcsa
 {
