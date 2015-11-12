@@ -677,6 +677,7 @@ struct SafeSplitComparator
   and sharing a common prefix that no other path has. Assumes that the input range only
   contains paths starting from the same node. Returns the lcp of the range as a pair
   (a,b), where a is the lcp of the labels and b is the lcp of the first diverging kmers.
+  If the range cannot be extended, the returned lcp value may be incorrect.
 
   Looking at the previous PathNode may seem hairy, because it may belong to another thread.
   However, the last PathNode in a range never gets overwritten, so this should be safe.
@@ -685,32 +686,34 @@ range_type
 extendRange(range_type& range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
   const LCP& lcp, range_type bounds)
 {
-  range_type min_lcp(0, 0);
+/*  range_type min_lcp(0, 0);
   if(range.first > 0)
   {
     min_lcp = lcp.increment(lcp.max_lcp(paths[range.first - 1], paths[range.first], labels));
-  }
+  }*/
   range_type range_lcp(paths[range.first].order(), 0);
 
   /*
     Iterate over one range at a time, doing the following tests:
     1. Is the from node still the same? Stop if not.
     2. Is the LCP still high enough? Stop if not.
-    3. Is the LCP between the end of the range and the next path lower than the range lcp? Extend if true.
+    3. Is [range.first, next_range.second] an ancestor of range and next_range? Extend if true.
+
+  FIXME Make test 3 work
   */
-  for(range_type next_range = nextRange(range, paths, labels, bounds); next_range.first <= bounds.second;
+/*  for(range_type next_range = nextRange(range, paths, labels, bounds); next_range.first <= bounds.second;
     next_range = nextRange(next_range, paths, labels, bounds))
   {
     if(paths[next_range.first].from != paths[range.first].from || !sameFrom(next_range, paths)) { break; }
-    range_type next_lcp = lcp.min_lcp(paths[range.first], paths[next_range.second], labels);
-    if(next_lcp < min_lcp) { break; }
-    if(range.second + 1 <= bounds.second)
+    range_type parent_lcp = lcp.min_lcp(paths[range.first], paths[next_range.second], labels);
+    if(parent_lcp < min_lcp) { break; }
+    if(next_range.second + 1 <= bounds.second)
     {
-      range_type border_lcp = lcp.max_lcp(paths[range.second], paths[range.second + 1], labels);
-      if(border_lcp >= next_lcp) { continue; }
+      range_type border_lcp = lcp.max_lcp(paths[next_range.second], paths[next_range.second + 1], labels);
+      if(border_lcp >= parent_lcp) { continue; }
     }
-    range.second = next_range.second; range_lcp = next_lcp;
-  }
+    range.second = next_range.second; range_lcp = parent_lcp;
+  }*/
 
   return range_lcp;
 }
@@ -1018,7 +1021,8 @@ GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labe
 #endif
 
   // This is a useful test when something goes wrong.
-/*  for(size_type i = 0; i < paths.size(); i++)
+  // FIXME Comment this out when successful
+  for(size_type i = 0; i < paths.size(); i++)
   {
     if(paths[i].outdegree() == 0)
     {
@@ -1026,7 +1030,7 @@ GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labe
       paths[i].print(std::cout, labels);
       std::cout << " has outdegree 0" << std::endl;
     }
-  }*/
+  }
 }
 
 //------------------------------------------------------------------------------

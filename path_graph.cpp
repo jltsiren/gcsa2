@@ -215,6 +215,18 @@ struct PathGraphMerger
 
   bool sameFrom(range_type range) const;
 
+  inline range_type min_lcp(const LCP& lcp, size_type i, size_type j) const // i < j
+  {
+    return lcp.min_lcp(this->buffer[i].node, this->buffer[j].node,
+      this->buffer[i].label, this->buffer[j].label);
+  }
+
+  inline range_type max_lcp(const LCP& lcp, size_type i, size_type j) const // i < j
+  {
+    return lcp.max_lcp(this->buffer[i].node, this->buffer[j].node,
+      this->buffer[i].label, this->buffer[j].label);
+  }
+
   /*
     Clears elements 0 to range.second - 1 from the buffer and updates the range to (0, 0).
     The remaining element at buffer[0] is assumed to contain the previous merged path.
@@ -226,6 +238,7 @@ struct PathGraphMerger
     and sharing a common prefix that no other path has. Assumes that the input range only
     contains paths starting from the same node. Returns the lcp of the range as a pair
     (a,b), where a is the lcp of the labels and b is the lcp of the first diverging kmers.
+    If the range cannot be extended, the returned lcp value may be incorrect.
 
     If range.first > 0, the previous merged path must be at range.first - 1.
   */
@@ -299,44 +312,43 @@ PathGraphMerger::clearUntil(range_type& range)
   for(size_type i = 0; i < range.second; i++) { this->buffer.pop_front(); }
   range.first = range.second = 0;
 }
-/*
+
 range_type
 PathGraphMerger::extendRange(range_type& range, const LCP& lcp)
 {
-  range_type min_lcp(0, 0);
-  if(range.first > 0)
-  {
-    min_lcp = lcp.increment(lcp.max_lcp(paths[range.first - 1], paths[range.first], labels)); // FIXME
-  }
+  range_type lower_bound(0, 0); // Minimum acceptable LCP.
+  if(range.first > 0) { lower_bound = lcp.increment(this->max_lcp(lcp, range.first - 1, range.first)); }
   range_type range_lcp(this->buffer[range.first].node.order(), 0);
 
-  *
+  /*
     Iterate over one range at a time, doing the following tests:
     1. Is the from node still the same? Stop if not.
     2. Is the LCP still high enough? Stop if not.
-    3. Is the LCP between the end of the range and the next path lower than the range lcp? Extend if true.
-  *
-  for(range_type next_range = merger.nextRange(range);
-    !(merger.atEnd(next_range)); next_range = merger.nextRange(next_range))
+    3. Is [range.first, next_range.second] an ancestor of range and next_range? Extend if true.
+
+    FIXME Test 3 is wrong. Replace it with the correct one once the old construction works again.
+  */
+  for(range_type next_range = this->nextRange(range);
+    !(this->atEnd(next_range)); next_range = this->nextRange(next_range))
   {
     if(!(this->sameFrom(range_type(next_range.first - 1, next_range.first))) || !(this->sameFrom(next_range)))
     {
       break;
     }
-    range_type next_lcp = lcp.min_lcp(paths[range.first], paths[next_range.second], labels); // FIXME
-    if(next_lcp < min_lcp) { break; }
+    range_type parent_lcp = this->min_lcp(lcp, range.first, next_range.second);
+    if(parent_lcp < lower_bound) { break; }
     this->readItem(range.second + 1);
     if(!(this->atEnd(range.second + 1)))
     {
-      range_type border_lcp = lcp.max_lcp(paths[range.second], paths[range.second + 1], labels); // FIXME
-      if(border_lcp >= next_lcp) { continue; }
+      range_type border_lcp = this->max_lcp(lcp, range.second, range.second + 1);
+      if(border_lcp >= parent_lcp) { continue; }
     }
-    range.second = next_range.second; range_lcp = next_lcp;
+    range.second = next_range.second; range_lcp = parent_lcp;
   }
 
   return range_lcp;
 }
-*/
+
 //------------------------------------------------------------------------------
 
 const std::string PathGraph::PREFIX = ".gcsa";
