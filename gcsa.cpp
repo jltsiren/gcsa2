@@ -667,8 +667,7 @@ GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labe
 #endif
 
   // This is a useful test when something goes wrong.
-  // FIXME Comment this out when successful
-  for(size_type i = 0; i < paths.size(); i++)
+/*  for(size_type i = 0; i < paths.size(); i++)
   {
     if(paths[i].outdegree() == 0)
     {
@@ -676,7 +675,7 @@ GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labe
       paths[i].print(std::cout, labels);
       std::cout << " has outdegree 0" << std::endl;
     }
-  }
+  }*/
 }
 
 //------------------------------------------------------------------------------

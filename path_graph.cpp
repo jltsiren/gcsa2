@@ -165,8 +165,8 @@ PathGraphBuilder::sort(size_type file)
   for(auto& path : paths) { path.serialize(this->files[file], labels); }
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "PathGraphBuilder::sort(): Sorted " << this->graph.sizes[file] << " paths from file "
-            << file << std::endl;
+  std::cerr << "PathGraphBuilder::sort(): File " << file << ": Sorted "
+            << this->graph.sizes[file] << " paths" << std::endl;
 #endif
 }
 
@@ -256,9 +256,14 @@ struct PathGraphMerger
   */
   range_type nextRange(range_type range);
 
+  /*
+    Each file must have its own source/sink nodes, even though they might share their
+    labels. Hence we check for the file number here.
+  */
   inline bool sameFrom(size_type i, size_type j) const
   {
-    return (this->buffer[i].node.from == this->buffer[j].node.from);
+    return (this->buffer[i].node.from == this->buffer[j].node.from &&
+            this->buffer[i].file == this->buffer[j].file);
   }
 
   bool sameFrom(range_type range) const;
@@ -637,8 +642,8 @@ PathGraph::extend(size_type size_limit)
     sdsl::util::clear(paths); sdsl::util::clear(labels);
 
 #ifdef VERBOSE_STATUS_INFO
-    std::cerr << "PathGraph::extend(): Created " << builder.graph.sizes[file]
-              << " order-" << builder.graph.k() << " paths from file " << file << std::endl;
+    std::cerr << "PathGraph::extend(): File " << file << ": Created " << builder.graph.sizes[file]
+              << " order-" << builder.graph.k() << " paths" << std::endl;
 #endif
 
     // Sort the next generation.
@@ -690,8 +695,8 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 #ifdef VERBOSE_STATUS_INFO
   if(!append)
   {
-    std::cerr << "PathGraph::read(): Read " << paths.size() << " order-" << this->k()
-              << " paths from file " << file << std::endl;
+    std::cerr << "PathGraph::read(): File " << file << ": Read " << paths.size()
+              << " order-" << this->k()<< " paths" << std::endl;
   }
 #endif
 }

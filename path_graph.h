@@ -87,6 +87,49 @@ struct PathGraph
 
 //------------------------------------------------------------------------------
 
+/*
+  A merged graph is a path graph with the path nodes in one file and the additional
+  from nodes in another file. The PathNodes are sorted by their labels.
+
+  FIXME Implement
+*/
+
+struct MergedGraph
+{
+  std::string path_name, from_name;
+
+  size_type path_count, rank_count, from_count;
+  size_type order;
+
+  const static size_type UNKNOWN = ~(size_type)0;
+  const static std::string PREFIX;  // .gcsa
+
+  explicit MergedGraph(const PathGraph& source);
+  ~MergedGraph();
+
+  void clear();
+
+  inline size_type size() const { return this->path_count; }
+  inline size_type ranks() const { return this->rank_count; }
+  inline size_type extras() const { return this->from_count; }
+  inline size_type k() const { return this->order; }
+
+  inline size_type bytes() const
+  {
+    return this->size() * sizeof(PathNode)
+         + this->ranks() * sizeof(PathNode::rank_type)
+         + this->extras() * sizeof(range_type);
+  }
+
+  void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+    std::vector<range_type>& from_nodes) const;
+
+  MergedGraph(const MergedGraph&) = delete;
+  MergedGraph& operator= (const MergedGraph&) = delete;
+};
+
+//------------------------------------------------------------------------------
+
 } // namespace gcsa
 
 #endif // _GCSA_UTILS_H
