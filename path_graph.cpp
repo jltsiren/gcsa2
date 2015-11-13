@@ -684,14 +684,14 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 
   std::ifstream input; this->open(input, file);
   if(!append) { paths.reserve(this->sizes[file]); labels.reserve(this->rank_counts[file]); }
-  for(size_type i = 0; i < path_count; i++) { paths.push_back(PathNode(input, labels)); }
+  for(size_type i = 0; i < this->sizes[file]; i++) { paths.push_back(PathNode(input, labels)); }
   input.close();
 
 #ifdef VERBOSE_STATUS_INFO
   if(!append)
   {
     std::cerr << "PathGraph::read(): Read " << paths.size() << " order-" << this->k()
-              << " paths from " << this->filenames[file] << std::endl;
+              << " paths from file " << file << std::endl;
   }
 #endif
 }
