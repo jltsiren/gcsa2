@@ -60,8 +60,6 @@ public:
   const static size_type SIZE_LIMIT = 200;  // Gigabytes.
   const static size_type ABSOLUTE_SIZE_LIMIT = 16384;
 
-  const static size_type WRITE_BUFFER_SIZE = 32768; // PathNodes per thread.
-
   const static char_type ENDMARKER = '$';
   const static comp_type ENDMARKER_COMP = 0;
   const static char_type SOURCE_MARKER = '#';
@@ -215,13 +213,6 @@ public:
 private:
   void copy(const GCSA& g);
   void setVectors();
-
-  /*
-    Increases path length to up to 2^doubling_steps times the original. Sets
-    max_query_length. Pre-/postcondition: paths are sorted by labels.
-  */
-  void prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-    size_type kmer_length, size_type doubling_steps, size_type size_limit, const LCP& lcp);
 
   /*
     Merges path nodes having the same labels. Writes the additional from nodes to the given

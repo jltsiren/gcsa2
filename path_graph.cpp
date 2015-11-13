@@ -71,16 +71,25 @@ struct PriorityNode
 
 //------------------------------------------------------------------------------
 
-// FIXME We need to handle the size limit.
 struct PathGraphBuilder
 {
   PathGraph graph;
   std::vector<std::ofstream> files;
   size_type limit;  // Bytes of disk space.
 
+  const static size_type WRITE_BUFFER_SIZE = 32768; // PathNodes per thread.
+
   PathGraphBuilder(size_type file_count, size_type path_order, size_type size_limit);
   void close();
+
+  /*
+    The single write is not thread safe, while the batch write is. The file number is
+    assumed to be valid.
+  */
   void write(const PriorityNode& path);
+  void write(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type file);
+
+  void sort(size_type file);
 };
 
 PathGraphBuilder::PathGraphBuilder(size_type file_count, size_type path_order, size_type size_limit) :
@@ -110,7 +119,7 @@ PathGraphBuilder::close()
 void
 PathGraphBuilder::write(const PriorityNode& path)
 {
-  if(graph.bytes() + path.bytes() > limit)
+  if(this->graph.bytes() + path.bytes() > limit)
   {
     std::cerr << "PathGraphBuilder::write(): Size limit exceeded, construction aborted." << std::endl;
     std::exit(EXIT_FAILURE);
@@ -120,6 +129,45 @@ PathGraphBuilder::write(const PriorityNode& path)
   this->graph.sizes[path.file]++; this->graph.path_count++;
   this->graph.rank_counts[path.file] += path.node.ranks();
   this->graph.rank_count += path.node.ranks();
+}
+
+void
+PathGraphBuilder::write(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type file)
+{
+  size_type bytes_required = paths.size() * sizeof(PathNode) + labels.size() * sizeof(PathNode::rank_type);
+  #pragma omp critical
+  {
+    if(bytes_required + this->graph.bytes() > limit)
+    {
+      std::cerr << "PathGraphBuilder::write(): Size limit exceeded, construction aborted." << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    for(auto& path : paths) { path.serialize(this->files[file], labels); }
+    this->graph.sizes[file] += paths.size(); this->graph.path_count += paths.size();
+    this->graph.rank_counts[file] += labels.size(); this->graph.rank_count += labels.size();
+  }
+  paths.clear(); labels.clear();
+}
+
+void
+PathGraphBuilder::sort(size_type file)
+{
+  this->files[file].close();
+
+  std::vector<PathNode> paths;
+  std::vector<PathNode::rank_type> labels;
+  this->graph.read(paths, labels, file);
+
+  PathFirstComparator first_c(labels);
+  parallelQuickSort(paths.begin(), paths.end(), first_c);
+
+  this->files[file].open(this->graph.filenames[file].c_str(), std::ios_base::binary);
+  for(auto& path : paths) { path.serialize(this->files[file], labels); }
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "PathGraphBuilder::sort(): Sorted " << this->graph.sizes[file] << " paths from file "
+            << file << std::endl;
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -243,6 +291,11 @@ struct PathGraphMerger
     If range.first > 0, the previous merged path must be at range.first - 1.
   */
   range_type extendRange(range_type& range, const LCP& lcp);
+
+  /*
+    Merges the path nodes into paths[range.second].
+  */
+  void mergePathNodes(range_type range, range_type range_lcp, const LCP& lcp);
 };
 
 PathGraphMerger::PathGraphMerger(const PathGraph& path_graph) :
@@ -313,11 +366,12 @@ PathGraphMerger::clearUntil(range_type& range)
   range.first = range.second = 0;
 }
 
+// FIXME Disabled because kmer_lcp does not work
 range_type
-PathGraphMerger::extendRange(range_type& range, const LCP& lcp)
+PathGraphMerger::extendRange(range_type& range, const LCP&)
 {
-  range_type lower_bound(0, 0); // Minimum acceptable LCP.
-  if(range.first > 0) { lower_bound = lcp.increment(this->max_lcp(lcp, range.first - 1, range.first)); }
+/*  range_type lower_bound(0, 0); // Minimum acceptable LCP.
+  if(range.first > 0) { lower_bound = lcp.increment(this->max_lcp(lcp, range.first - 1, range.first)); }*/
   range_type range_lcp(this->buffer[range.first].node.order(), 0);
 
   /*
@@ -325,10 +379,8 @@ PathGraphMerger::extendRange(range_type& range, const LCP& lcp)
     1. Is the from node still the same? Stop if not.
     2. Is the LCP still high enough? Stop if not.
     3. Is [range.first, next_range.second] an ancestor of range and next_range? Extend if true.
-
-    FIXME Test 3 is wrong. Replace it with the correct one once the old construction works again.
   */
-  for(range_type next_range = this->nextRange(range);
+/*  for(range_type next_range = this->nextRange(range);
     !(this->atEnd(next_range)); next_range = this->nextRange(next_range))
   {
     if(!(this->sameFrom(range_type(next_range.first - 1, next_range.first))) || !(this->sameFrom(next_range)))
@@ -337,16 +389,46 @@ PathGraphMerger::extendRange(range_type& range, const LCP& lcp)
     }
     range_type parent_lcp = this->min_lcp(lcp, range.first, next_range.second);
     if(parent_lcp < lower_bound) { break; }
-    this->readItem(range.second + 1);
-    if(!(this->atEnd(range.second + 1)))
+    this->readItem(next_range.second + 1);
+    if(!(this->atEnd(next_range.second + 1)))
     {
-      range_type border_lcp = this->max_lcp(lcp, range.second, range.second + 1);
+      range_type border_lcp = this->max_lcp(lcp, next_range.second, next_range.second + 1);
       if(border_lcp >= parent_lcp) { continue; }
     }
     range.second = next_range.second; range_lcp = parent_lcp;
-  }
+  }*/
 
   return range_lcp;
+}
+
+void
+PathGraphMerger::mergePathNodes(range_type range, range_type range_lcp, const LCP&)
+{
+  if(Range::length(range) == 1)
+  {
+    this->buffer[range.second].node.makeSorted();
+    return;
+  }
+
+  size_type order = range_lcp.first;
+  if(range_lcp.second > 0)
+  {
+    LCP::rank_range ranks(this->buffer[range.first].node.firstLabel(order, this->buffer[range.first].label),
+      this->buffer[range.second].node.lastLabel(order, this->buffer[range.second].label));
+// FIXME disabled because kmer lcps don't work
+//    ranks = lcp.extendRange(ranks, range_lcp.second);
+    this->buffer[range.second].label[order] = ranks.first;
+    this->buffer[range.second].label[order + 1] = ranks.second;
+    order++;
+  }
+
+  this->buffer[range.second].node.makeSorted();
+  this->buffer[range.second].node.setOrder(order);
+  this->buffer[range.second].node.setLCP(range_lcp.first);
+  for(size_type i = range.first; i < range.second; i++)
+  {
+    this->buffer[range.second].node.addPredecessors(this->buffer[i].node);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -461,7 +543,7 @@ PathGraph::open(std::ifstream& input, size_type file) const
 }
 
 //------------------------------------------------------------------------------
-/*
+
 void
 PathGraph::prune(const LCP& lcp, size_type size_limit)
 {
@@ -471,12 +553,12 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
 
   PathGraphMerger merger(*this);
   PathGraphBuilder builder(this->files(), this->k(), size_limit);
-  for(range_type range = merger.firstRange(); !(merger.atEnd(range)); range = merger.nextRange())
+  for(range_type range = merger.firstRange(); !(merger.atEnd(range)); range = merger.nextRange(range))
   {
     if(merger.sameFrom(range))
     {
-      range_type range_lcp = extendRange(range, ..., lcp); // FIXME
-      mergePathNodes(range, ..., range_lcp, lcp); // FIXME; merge to range.second
+      range_type range_lcp = merger.extendRange(range, lcp);
+      merger.mergePathNodes(range, range_lcp, lcp);
       builder.write(merger.buffer[range.second]);
       builder.graph.unique++;
     }
@@ -484,7 +566,7 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
     {
       for(size_type i = range.first; i <= range.second; i++)
       {
-        if(paths[i].sorted()) { builder.graph.nondeterministic++; }
+        if(merger.buffer[i].node.sorted()) { builder.graph.nondeterministic++; }
         else { builder.graph.unsorted++; }
         builder.write(merger.buffer[i]);
       }
@@ -495,12 +577,82 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
   this->clear(); this->swap(builder.graph);
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "  PathGraph::prune(): " << old_path_count << " -> " << paths.size() << " paths" << std::endl;
-  std::cerr << "  PathGraph::prune(): " << this->unique << " unique, " << this->unsorted << " unsorted, "
+  std::cerr << "PathGraph::prune(): " << old_path_count << " -> " << this->size() << " paths" << std::endl;
+  std::cerr << "PathGraph::prune(): " << this->unique << " unique, " << this->unsorted << " unsorted, "
             << this->nondeterministic << " nondeterministic paths" << std::endl;
 #endif
 }
-*/
+
+//------------------------------------------------------------------------------
+
+void
+PathGraph::extend(size_type size_limit)
+{
+#ifdef VERBOSE_STATUS_INFO
+  size_type old_path_count = this->size();
+#endif
+
+  PathGraphBuilder builder(this->files(), 2 * this->k(), size_limit);
+  for(size_type file = 0; file < this->files(); file++)
+  {
+    // Read the current file.
+    std::vector<PathNode> paths;
+    std::vector<PathNode::rank_type> labels;
+    this->read(paths, labels, file);
+
+    // Initialization.
+    PathFromComparator from_c;  // Sort the paths by from.
+    parallelQuickSort(paths.begin(), paths.end(), from_c);
+    ValueIndex<PathNode, FromGetter> from_index(paths);
+    size_type threads = omp_get_max_threads();
+
+    // Create the next generation.
+    std::vector<PathNode> temp_nodes[threads];
+    std::vector<PathNode::rank_type> temp_labels[threads];
+    #pragma omp parallel for schedule(static)
+    for(size_type i = 0; i < paths.size(); i++)
+    {
+      size_type thread = omp_get_thread_num();
+      if(paths[i].sorted())
+      {
+        temp_nodes[thread].push_back(PathNode(paths[i], labels, temp_labels[thread]));
+      }
+      else
+      {
+        size_type first = from_index.find(paths[i].to);
+        for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
+        {
+          temp_nodes[thread].push_back(PathNode(paths[i], paths[j], labels, temp_labels[thread]));
+        }
+      }
+      if(temp_nodes[thread].size() >= PathGraphBuilder::WRITE_BUFFER_SIZE)
+      {
+        builder.write(temp_nodes[thread], temp_labels[thread], file);
+      }
+    }
+    for(size_type thread = 0; thread < threads; thread++)
+    {
+      builder.write(temp_nodes[thread], temp_labels[thread], file);
+    }
+    sdsl::util::clear(paths); sdsl::util::clear(labels);
+
+#ifdef VERBOSE_STATUS_INFO
+    std::cerr << "PathGraph::extend(): Created " << builder.graph.sizes[file]
+              << " order-" << builder.graph.k() << " paths from file " << file << std::endl;
+#endif
+
+    // Sort the next generation.
+    builder.sort(file);
+  }
+  builder.close();
+  this->clear(); this->swap(builder.graph);
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "PathGraph::extend(): " << old_path_count << " -> " << this->size() << " paths ("
+            << this->ranks() << " ranks)" << std::endl;
+#endif
+}
+
 //------------------------------------------------------------------------------
 
 void

@@ -46,8 +46,8 @@ using namespace gcsa;
 
 //------------------------------------------------------------------------------
 
-bool verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length);
-bool verifyMapper(const DeBruijnGraph& mapper, const std::vector<key_type>& keys, size_type kmer_length);
+bool verifyGraph(const InputGraph& input_graph);
+void verifyMapper(const InputGraph& graph);
 
 //------------------------------------------------------------------------------
 
@@ -125,28 +125,11 @@ main(int argc, char** argv)
   graph.size();
 
 #ifdef VERIFY_GRAPH
-  {
-    std::vector<KMer> kmers;
-    graph.read(kmers);
-    if(!(verifyGraph(kmers, graph.k()))) { std::exit(EXIT_FAILURE); }
-  }
+  if(!(verifyGraph(graph))) { std::exit(EXIT_FAILURE); }
 #endif
 
 #ifdef VERIFY_MAPPER
-  {
-    std::vector<KMer> kmers;
-    graph.read(kmers);
-    std::vector<key_type> keys;
-    sdsl::int_vector<0> last_chars;
-    uniqueKeys(kmers, keys, last_chars, true);
-    DeBruijnGraph mapper(keys, graph.k());
-#ifdef VERBOSE_STATUS_INFO
-    std::cerr << "build_gcsa: Mapper has " << mapper.size() << " nodes, "
-              << mapper.edge_count() << " edges" << std::endl;
-    std::cerr << "build_gcsa: Mapper size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
-#endif
-    verifyMapper(mapper, keys, graph.k());
-  }
+  verifyMapper(graph);
 #endif
 
   GCSA index;
@@ -193,16 +176,19 @@ main(int argc, char** argv)
 //------------------------------------------------------------------------------
 
 bool
-verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length)
+verifyGraph(const InputGraph& input_graph)
 {
+  std::vector<KMer> kmers;
+  input_graph.read(kmers);
+
   Alphabet alpha;
   std::map<std::string, std::pair<byte_type, byte_type>> graph;
   bool ok = true;
   for(size_type i = 0; i < kmers.size(); i++)
   {
     // We don't verify the edge from the sink to the source.
-    std::string kmer = Key::decode(kmers[i].key, kmer_length, alpha);
-    byte_type pred = (kmer[kmer_length - 1] == '#' ? 0 : Key::predecessors(kmers[i].key));
+    std::string kmer = Key::decode(kmers[i].key, input_graph.k(), alpha);
+    byte_type pred = (kmer[input_graph.k() - 1] == '#' ? 0 : Key::predecessors(kmers[i].key));
     byte_type succ = (kmer[0] == '$' ? 0 : Key::successors(kmers[i].key));
     if(graph.find(kmer) == graph.end())
     {
@@ -222,7 +208,7 @@ verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length)
       if(iter->second.first & (1 << i))
       {
         std::string backward_pattern =
-          std::string(1, (char)(alpha.comp2char[i])) + iter->first.substr(0, kmer_length - 1);
+          std::string(1, (char)(alpha.comp2char[i])) + iter->first.substr(0, input_graph.k() - 1);
         if(graph.find(backward_pattern) == graph.end())
         {
           std::cerr << "build_gcsa: verifyGraph(): Node " << iter->first << " is missing predecessor("
@@ -232,7 +218,7 @@ verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length)
         }
         else
         {
-          comp_type last = alpha.char2comp[iter->first[kmer_length - 1]];
+          comp_type last = alpha.char2comp[iter->first[input_graph.k() - 1]];
           if((graph[backward_pattern].second & (1 << last)) == 0)
           {
             std::cerr << "build_gcsa: verifyGraph(): Reverse: Node " << backward_pattern << " is missing successor("
@@ -274,13 +260,21 @@ verifyGraph(const std::vector<KMer>& kmers, size_type kmer_length)
 
 //------------------------------------------------------------------------------
 
-bool
-verifyMapper(const DeBruijnGraph& mapper, const std::vector<key_type>& keys, size_type kmer_length)
+void
+verifyMapper(const InputGraph& graph)
 {
+    std::vector<key_type> keys; graph.read(keys);
+    DeBruijnGraph mapper(keys, graph.k());
+#ifdef VERBOSE_STATUS_INFO
+    std::cerr << "build_gcsa: verifyMapper(): Mapper has " << mapper.size() << " nodes, "
+              << mapper.edge_count() << " edges" << std::endl;
+    std::cerr << "build_gcsa: verifyMapper(): Mapper size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
+#endif
+
   bool ok = true;
   for(size_type i = 0; i < keys.size(); i++)
   {
-    std::string kmer = Key::decode(keys[i], kmer_length, mapper.alpha);
+    std::string kmer = Key::decode(keys[i], graph.k(), mapper.alpha);
     size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
     if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
     range_type range = mapper.find(kmer);
@@ -291,10 +285,28 @@ verifyMapper(const DeBruijnGraph& mapper, const std::vector<key_type>& keys, siz
       ok = false;
     }
   }
-
   std::cout << "Mapper verification " << (ok ? "complete." : "failed.") << std::endl;
+
+
+  ok = true;
+  Alphabet alpha;
+  LCP lcp(keys, graph.k());
+  for(size_type i = 1; i < keys.size(); i++)
+  {
+    std::string left = Key::decode(keys[i - 1], graph.k(), alpha);
+    std::string right = Key::decode(keys[i], graph.k(), alpha);
+    size_type real_lcp = 0;
+    while(real_lcp < graph.k() && left[real_lcp] == right[real_lcp]) { real_lcp++; }
+    if(lcp.kmer_lcp[i] != real_lcp)
+    {
+      std::cerr << "build_gcsa: verifyMapper(): lcp(" << left << ", " << right << ") = " << real_lcp
+                << ", got " << lcp.kmer_lcp[i] << std::endl;
+      ok = false;
+    }
+  }
+  std::cout << "LCP verification " << (ok ? "complete." : "failed.") << std::endl;
+
   std::cout << std::endl;
-  return ok;
 }
 
 //------------------------------------------------------------------------------

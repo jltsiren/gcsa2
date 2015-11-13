@@ -174,6 +174,14 @@ Key::decode(key_type key, size_type kmer_length, const Alphabet& alpha)
   return res;
 }
 
+void
+Key::lastChars(const std::vector<key_type>& keys, sdsl::int_vector<0>& last_char)
+{
+  sdsl::util::clear(last_char);
+  last_char = sdsl::int_vector<0>(keys.size(), 0, CHAR_WIDTH);
+  for(size_type i = 0; i < keys.size(); i++) { last_char[i] = Key::last(keys[i]); }
+}
+
 //------------------------------------------------------------------------------
 
 node_type
@@ -247,43 +255,6 @@ operator<< (std::ostream& out, const KMer& kmer)
       << ", from " << Node::decode(kmer.from)
       << ", to " << Node::decode(kmer.to) << ")";
   return out;
-}
-
-void
-uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_char, bool print)
-{
-  if(kmers.empty()) { return; }
-  parallelQuickSort(kmers.begin(), kmers.end());
-
-  // Pass 1: Count the number of unique keys.
-  size_type total_keys = 1;
-  for(size_type i = 1; i < kmers.size(); i++)
-  {
-    if(Key::label(kmers[i].key) != Key::label(kmers[i - 1].key)) { total_keys++; }
-  }
-  if(print)
-  {
-    std::cout << "Unique keys: " << total_keys << std::endl;
-  }
-
-  // Pass 2: Create the merged key array and the last character array for edge generation.
-  // Replace the kmer values with ranks in the key array.
-  keys = std::vector<key_type>(total_keys, 0);
-  last_char = sdsl::int_vector<0>(total_keys, 0, Key::CHAR_WIDTH);
-  keys[0] = kmers[0].key; last_char[0] = Key::last(kmers[0].key);
-  kmers[0].key = Key::replace(kmers[0].key, 0);
-  for(size_type kmer = 1, key = 0; kmer < kmers.size(); kmer++)
-  {
-    if(Key::label(kmers[kmer].key) == Key::label(keys[key]))
-    {
-      keys[key] = Key::merge(keys[key], kmers[kmer].key);
-    }
-    else
-    {
-      key++; keys[key] = kmers[kmer].key; last_char[key] = Key::last(kmers[kmer].key);
-    }
-    kmers[kmer].key = Key::replace(kmers[kmer].key, key);
-  }
 }
 
 //------------------------------------------------------------------------------

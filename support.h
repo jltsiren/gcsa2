@@ -168,6 +168,8 @@ struct Key
 
     return res;
   }
+
+  static void lastChars(const std::vector<key_type>& keys, sdsl::int_vector<0>& last_char);
 };
 
 //------------------------------------------------------------------------------
@@ -243,18 +245,6 @@ operator< (key_type key, const KMer& kmer)
 {
   return (Key::label(key) < Key::label(kmer.key));
 }
-
-/*
-  This function does several things:
-
-  1. Sorts the kmer array by the kmer labels encoded in the key
-  2. Builds an array of unique kmer labels, with the predecessor and successor
-     fields merged from the original kmers.
-  3. Stores the last character of each unique kmer label in an array.
-  4. Replaces the kmer labels in the keys by their ranks.
-*/
-void uniqueKeys(std::vector<KMer>& kmers, std::vector<key_type>& keys, sdsl::int_vector<0>& last_char,
-  bool print = false);
 
 //------------------------------------------------------------------------------
 
@@ -581,6 +571,70 @@ struct LCP
   }
 
   void swap(LCP& another);
+};
+
+//------------------------------------------------------------------------------
+
+template<class ValueType, class Getter>
+struct ValueIndex
+{
+  sdsl::sd_vector<>               values;     // Marks the values that are present.
+  sdsl::sd_vector<>::rank_1_type  value_rank;
+
+  sdsl::bit_vector                first_occ;  // Marks the first occurrence of each rank.
+  sdsl::bit_vector::select_1_type first_select;
+
+  ValueIndex(const std::vector<ValueType>& input)
+  {
+    std::vector<size_type> buffer;
+    this->first_occ = sdsl::bit_vector(input.size(), 0);
+
+    size_type prev = ~(size_type)0;
+    for(size_type i = 0; i < input.size(); i++)
+    {
+      size_type curr = Getter::get(input[i]);
+      if(curr != prev)
+      {
+        buffer.push_back(curr);
+        this->first_occ[i] = 1;
+        prev = curr;
+      }
+    }
+
+    // Fills in values, but only works if there are any values to fill
+    if(buffer.size() > 0)
+    {
+      sdsl::sd_vector<> temp(buffer.begin(), buffer.end());
+      this->values.swap(temp);
+      sdsl::util::clear(buffer);
+    }
+
+    sdsl::util::init_support(this->value_rank, &(this->values));
+    sdsl::util::init_support(this->first_select, &(this->first_occ));
+  }
+
+  // Finds the first occurrence of the value.
+  size_type find(size_type value) const
+  {
+    if(value >= this->values.size() || this->values[value] == 0) { return this->first_occ.size(); }
+    return this->first_select(this->value_rank(value) + 1);
+  }
+};
+
+struct FromGetter
+{
+  inline static size_type get(const PathNode& path)
+  {
+    return path.from;
+  }
+};
+
+struct FirstGetter
+{
+  inline static size_type get(range_type range)
+  {
+    return range.first;
+  }
 };
 
 //------------------------------------------------------------------------------

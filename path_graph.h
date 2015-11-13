@@ -69,8 +69,9 @@ struct PathGraph
     return this->size() * sizeof(PathNode) + this->ranks() * sizeof(PathNode::rank_type);
   }
 
-  void prune(const LCP& lcp, size_type size_limit); // Size limit is in bytes.
-  void extend();
+  // Size limits are in bytes.
+  void prune(const LCP& lcp, size_type size_limit);
+  void extend(size_type size_limit);
 
   /*
     Setting append = true has unpredictable side effects if done outside the member

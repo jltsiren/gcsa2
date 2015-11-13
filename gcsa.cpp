@@ -271,28 +271,39 @@ GCSA::GCSA(const InputGraph& graph,
   graph.read(keys);
   DeBruijnGraph mapper(keys, graph.k(), _alpha);
   LCP lcp(keys, graph.k());
-  sdsl::int_vector<0> last_char(keys.size(), 0, Key::CHAR_WIDTH);
+  sdsl::int_vector<0> last_char;
+  Key::lastChars(keys, last_char);
   sdsl::sd_vector_builder builder(Key::label(keys[keys.size() - 1]) + 1, keys.size());
-  for(size_type i = 0; i < keys.size(); i++)
-  {
-    last_char[i] = Key::last(keys[i]);
-    builder.set(Key::label(keys[i]));
-  }
+  for(size_type i = 0; i < keys.size(); i++) { builder.set(Key::label(keys[i])); }
   sdsl::sd_vector<> key_exists(builder);
   sdsl::util::clear(keys);
 
-  // Create the initial PathGraph and read the paths into memory.
+  // Create the initial PathGraph.
+  PathGraph path_graph(graph, key_exists);
+  sdsl::util::clear(key_exists);
+
+  // Prefix-doubling.
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "GCSA::GCSA(): Initial path length: " << path_graph.k() << std::endl;
+#endif
+  path_graph.prune(lcp, size_limit * GIGABYTE);
+  for(size_type step = 1; step <= doubling_steps && path_graph.unsorted > 0; step++)
+  {
+#ifdef VERBOSE_STATUS_INFO
+    std::cerr << "GCSA::GCSA(): Step " << step << " (path length " << path_graph.k() << " -> "
+              << (2 * path_graph.k()) << ")" << std::endl;
+#endif
+    path_graph.extend(size_limit * GIGABYTE);
+    path_graph.prune(lcp, size_limit * GIGABYTE);
+  }
+  this->max_query_length = (path_graph.unsorted == 0 ? ~(size_type)0 : path_graph.k());
+  sdsl::util::clear(lcp);
+
+  // FIXME This has not been switched to PathGraph yet.
   std::vector<PathNode> paths;
   std::vector<PathNode::rank_type> labels;
-  {
-    PathGraph path_graph(graph, key_exists);
-    sdsl::util::clear(key_exists);
-    path_graph.read(paths, labels);
-  }
+  path_graph.read(paths, labels);
 
-  // Build the GCSA in PathNodes.
-  this->prefixDoubling(paths, labels, graph.k(), doubling_steps, size_limit, lcp);
-  sdsl::util::clear(lcp);
   std::vector<range_type> from_nodes;
   this->mergeByLabel(paths, labels, from_nodes);
 
@@ -421,70 +432,6 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
 
 //------------------------------------------------------------------------------
 
-struct FromGetter
-{
-  inline static size_type get(const PathNode& path)
-  {
-    return path.from;
-  }
-};
-
-struct FirstGetter
-{
-  inline static size_type get(range_type range)
-  {
-    return range.first;
-  }
-};
-
-template<class ValueType, class Getter>
-struct ValueIndex
-{
-  sdsl::sd_vector<>               values;     // Marks the values that are present.
-  sdsl::sd_vector<>::rank_1_type  value_rank;
-
-  sdsl::bit_vector                first_occ;  // Marks the first occurrence of each rank.
-  sdsl::bit_vector::select_1_type first_select;
-
-  ValueIndex(const std::vector<ValueType>& input)
-  {
-    std::vector<size_type> buffer;
-    this->first_occ = sdsl::bit_vector(input.size(), 0);
-
-    size_type prev = ~(size_type)0;
-    for(size_type i = 0; i < input.size(); i++)
-    {
-      size_type curr = Getter::get(input[i]);
-      if(curr != prev)
-      {
-        buffer.push_back(curr);
-        this->first_occ[i] = 1;
-        prev = curr;
-      }
-    }
-
-    // Fills in values, but only works if there are any values to fill
-    if(buffer.size() > 0)
-    {
-      sdsl::sd_vector<> temp(buffer.begin(), buffer.end());
-      this->values.swap(temp);
-      sdsl::util::clear(buffer);
-    }
-
-    sdsl::util::init_support(this->value_rank, &(this->values));
-    sdsl::util::init_support(this->first_select, &(this->first_occ));
-  }
-
-  // Finds the first occurrence of the value.
-  size_type find(size_type value) const
-  {
-    if(value >= this->values.size() || this->values[value] == 0) { return this->first_occ.size(); }
-    return this->first_select(this->value_rank(value) + 1);
-  }
-};
-
-//------------------------------------------------------------------------------
-
 /*
   Helper functions for splitting the work between threads.
 */
@@ -508,109 +455,6 @@ removeGaps(std::vector<PathNode>& paths, const std::vector<range_type>& bounds, 
     }
   }
   paths.resize(tail[0]);
-}
-
-size_type
-sumOf(const std::vector<size_type>& statistics)
-{
-  size_type res = 0;
-  for(size_type i = 0; i < statistics.size(); i++) { res += statistics[i]; }
-  return res;
-}
-
-//------------------------------------------------------------------------------
-
-void
-writePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  std::ostream& out, size_type size_limit,
-  size_type& new_path_count, size_type& new_rank_count)
-{
-  size_type bytes_required = paths.size() * sizeof(PathNode) + labels.size() * sizeof(PathNode::rank_type);
-  #pragma omp critical
-  {
-    bytes_required += (size_type)(out.tellp());
-    if(bytes_required > size_limit * GIGABYTE)
-    {
-      std::cerr << "joinPaths(): Size limit exceeded, construction aborted" << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
-    for(auto& path : paths) { path.serialize(out, labels); }
-    new_path_count += paths.size(); new_rank_count += labels.size();
-  }
-  paths.clear(); labels.clear();
-}
-
-/*
-  Join paths by left.to == right.from. Pre-/postcondition: paths are sorted by labels.
-*/
-void
-joinPaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type size_limit)
-{
-  // Initialization.
-  PathFromComparator from_c; // Sort the paths by from.
-  parallelQuickSort(paths.begin(), paths.end(), from_c);
-  ValueIndex<PathNode, FromGetter> from_index(paths);
-  size_type threads = omp_get_max_threads();
-#ifdef VERBOSE_STATUS_INFO
-  size_type old_path_count = paths.size();
-#endif
-
-  // Create a temporary file.
-  std::string temp_file = tempFile(GCSA::EXTENSION);
-  std::ofstream out(temp_file.c_str(), std::ios_base::binary);
-  if(!out)
-  {
-    std::cerr << "joinPaths(): Cannot open temporary file " << temp_file
-              << ", construction aborted" << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  size_type new_path_count = 0, new_rank_count = 0;
-  sdsl::write_member(new_path_count, out); sdsl::write_member(new_rank_count, out);
-
-  // Create the next generation.
-  std::vector<PathNode> temp_nodes[threads];
-  std::vector<PathNode::rank_type> temp_labels[threads];
-  #pragma omp parallel for schedule(static)
-  for(size_type i = 0; i < paths.size(); i++)
-  {
-    size_type thread = omp_get_thread_num();
-    if(paths[i].sorted())
-    {
-      temp_nodes[thread].push_back(PathNode(paths[i], labels, temp_labels[thread]));
-    }
-    else
-    {
-      size_type first = from_index.find(paths[i].to);
-      for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
-      {
-        temp_nodes[thread].push_back(PathNode(paths[i], paths[j], labels, temp_labels[thread]));
-      }
-    }
-    if(temp_nodes[thread].size() >= GCSA::WRITE_BUFFER_SIZE)
-    {
-      writePaths(temp_nodes[thread], temp_labels[thread], out, size_limit, new_path_count, new_rank_count);
-    }
-  }
-  for(size_type thread = 0; thread < threads; thread++)
-  {
-    writePaths(temp_nodes[thread], temp_labels[thread], out, size_limit, new_path_count, new_rank_count);
-  }
-
-  // Write the path/rank counts.
-  out.seekp(0);
-  sdsl::write_member(new_path_count, out); sdsl::write_member(new_rank_count, out);
-  out.close();
-
-  // Replace the current generation with the next generation.
-  readPathNodes(temp_file, paths, labels);
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "  joinPaths(): " << old_path_count << " -> " << paths.size() << " paths ("
-            << labels.size() << " ranks)" << std::endl;
-#endif
-
-  // Restore the sorted order.
-  PathFirstComparator first_c(labels);
-  parallelQuickSort(paths.begin(), paths.end(), first_c);
 }
 
 //------------------------------------------------------------------------------
@@ -640,204 +484,6 @@ firstRange(const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>&
 {
   return nextRange(range_type(1, 0), paths, labels, bounds);
 }
-
-inline bool
-sameFrom(range_type range, const std::vector<PathNode>& paths)
-{
-  for(size_type i = range.first + 1; i <= range.second; i++)
-  {
-    if(paths[i].from != paths[range.first].from) { return false; }
-  }
-  return true;
-}
-
-//------------------------------------------------------------------------------
-
-/*
-  Tells whether it is safe to split the path array (sorted by labels) between
-  'left' and 'right' (which should be adjacent). "Safe" means that the labels
-  are different (so they will not be included in the same range) and the 'from'
-  nodes are different (so a range cannot be extended to include both of them).
-*/
-struct SafeSplitComparator
-{
-  const std::vector<PathNode::rank_type>& labels;
-
-  explicit SafeSplitComparator(const std::vector<PathNode::rank_type>& _labels) : labels(_labels) { }
-
-  inline bool operator() (const PathNode& left, const PathNode& right) const
-  {
-    return ((left.firstLabel(0, labels) != right.firstLabel(0, labels))
-      && (left.from != right.from));
-  }
-};
-
-/*
-  Extends the range forward into a maximal range of paths starting from the same node
-  and sharing a common prefix that no other path has. Assumes that the input range only
-  contains paths starting from the same node. Returns the lcp of the range as a pair
-  (a,b), where a is the lcp of the labels and b is the lcp of the first diverging kmers.
-  If the range cannot be extended, the returned lcp value may be incorrect.
-
-  Looking at the previous PathNode may seem hairy, because it may belong to another thread.
-  However, the last PathNode in a range never gets overwritten, so this should be safe.
-*/
-range_type
-extendRange(range_type& range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  const LCP& lcp, range_type bounds)
-{
-/*  range_type min_lcp(0, 0);
-  if(range.first > 0)
-  {
-    min_lcp = lcp.increment(lcp.max_lcp(paths[range.first - 1], paths[range.first], labels));
-  }*/
-  range_type range_lcp(paths[range.first].order(), 0);
-
-  /*
-    Iterate over one range at a time, doing the following tests:
-    1. Is the from node still the same? Stop if not.
-    2. Is the LCP still high enough? Stop if not.
-    3. Is [range.first, next_range.second] an ancestor of range and next_range? Extend if true.
-
-  FIXME Make test 3 work
-  */
-/*  for(range_type next_range = nextRange(range, paths, labels, bounds); next_range.first <= bounds.second;
-    next_range = nextRange(next_range, paths, labels, bounds))
-  {
-    if(paths[next_range.first].from != paths[range.first].from || !sameFrom(next_range, paths)) { break; }
-    range_type parent_lcp = lcp.min_lcp(paths[range.first], paths[next_range.second], labels);
-    if(parent_lcp < min_lcp) { break; }
-    if(next_range.second + 1 <= bounds.second)
-    {
-      range_type border_lcp = lcp.max_lcp(paths[next_range.second], paths[next_range.second + 1], labels);
-      if(border_lcp >= parent_lcp) { continue; }
-    }
-    range.second = next_range.second; range_lcp = parent_lcp;
-  }*/
-
-  return range_lcp;
-}
-
-/*
-  Merges the path nodes into paths[range.first].
-*/
-void
-mergePathNodes(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  range_type range, range_type range_lcp, const LCP& lcp)
-{
-  if(Range::length(range) == 1)
-  {
-    paths[range.first].makeSorted();
-    return;
-  }
-
-  size_type order = range_lcp.first;
-  if(range_lcp.second > 0)
-  {
-    LCP::rank_range
-      ranks(paths[range.first].firstLabel(order, labels), paths[range.second].lastLabel(order, labels));
-    ranks = lcp.extendRange(ranks, range_lcp.second);
-    size_type ptr = paths[range.first].pointer();
-    labels[ptr + order] = ranks.first;
-    labels[ptr + order + 1] = ranks.second;
-    order++;
-  }
-
-  paths[range.first].makeSorted();
-  paths[range.first].setOrder(order); paths[range.first].setLCP(range_lcp.first);
-  for(size_type i = range.first + 1; i <= range.second; i++)
-  {
-    paths[range.first].addPredecessors(paths[i]);
-  }
-}
-
-/*
-  Merges paths with adjacent labels and the same from node. Marks paths with unique
-  labels sorted. Returns the number of unsorted path nodes.
-
-  Note: The graph is not reverse deterministic. If a suffix of the path is unique, the
-  entire path can be marked sorted, even though its label is non-unique.
-*/
-size_type
-mergePaths(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, const LCP& lcp)
-{
-#ifdef VERBOSE_STATUS_INFO
-  size_type old_path_count = paths.size();
-#endif
-
-  // Split the work between the threads so that the first rank is different at thread boundaries.
-  size_type threads = omp_get_max_threads();
-  SafeSplitComparator split_c(labels);
-  std::vector<range_type> bounds = getBounds(paths, threads, split_c);
-  std::vector<size_type> tail = getTails(bounds);
-  std::vector<size_type> unique(threads, 0), unsorted(threads, 0), nondeterministic(threads, 0);
-
-  #pragma omp parallel for schedule(static)
-  for(size_type thread = 0; thread < threads; thread++)
-  {
-    for(range_type range = firstRange(paths, labels, bounds[thread]); range.first <= bounds[thread].second;
-      range = nextRange(range, paths, labels, bounds[thread]))
-    {
-      if(sameFrom(range, paths))
-      {
-        range_type range_lcp = extendRange(range, paths, labels, lcp, bounds[thread]);
-        mergePathNodes(paths, labels, range, range_lcp, lcp);
-        paths[tail[thread]] = paths[range.first];
-        tail[thread]++; unique[thread]++;
-      }
-      else
-      {
-        for(size_type i = range.first; i <= range.second; i++)
-        {
-          if(paths[i].sorted()) { nondeterministic[thread]++; }
-          else { unsorted[thread]++; }
-          paths[tail[thread]] = paths[i];
-          tail[thread]++;
-        }
-      }
-    }
-  }
-
-  // Remove the gaps and combine the statistics.
-  removeGaps(paths, bounds, tail);
-  unique[0] = sumOf(unique);
-  unsorted[0] = sumOf(unsorted);
-  nondeterministic[0] = sumOf(nondeterministic);
-
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "  mergePaths(): " << old_path_count << " -> " << paths.size() << " paths" << std::endl;
-  std::cerr << "  mergePaths(): " << unique[0] << " unique, " << unsorted[0] << " unsorted, "
-            << nondeterministic[0] << " nondeterministic paths" << std::endl;
-#endif
-  return unsorted[0];
-}
-
-//------------------------------------------------------------------------------
-
-void
-GCSA::prefixDoubling(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  size_type kmer_length, size_type doubling_steps, size_type size_limit,
-  const LCP& lcp)
-{
-  size_type path_order = 1;
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "GCSA::prefixDoubling(): Initial path length " << kmer_length << std::endl;
-#endif
-  size_type unsorted = mergePaths(paths, labels, lcp);
-
-  for(size_type step = 1; step <= doubling_steps && unsorted > 0; step++)
-  {
-#ifdef VERBOSE_STATUS_INFO
-    std::cerr << "GCSA::prefixDoubling(): Step " << step << " (path length " << (path_order * kmer_length) << " -> "
-              << (2 * path_order * kmer_length) << ")" << std::endl;
-#endif
-    joinPaths(paths, labels, size_limit); path_order *= 2;
-    unsorted = mergePaths(paths, labels, lcp);
-  }
-  this->max_query_length = (unsorted == 0 ? ~(size_type)0 : kmer_length << doubling_steps);
-}
-
-//------------------------------------------------------------------------------
 
 /*
   This version assumes that the paths have identical labels.
