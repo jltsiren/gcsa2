@@ -653,6 +653,20 @@ GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labe
   bwt_buffer.resize(total_edges); this->path_nodes.resize(total_edges);
   directConstruct(this->bwt, bwt_buffer); sdsl::util::clear(bwt_buffer);
 
+  // This is a useful test when something goes wrong. Disable it when not needed.
+/*  for(size_type i = 0; i < paths.size(); i++)
+  {
+    if(paths[i].outdegree() == 0)
+    {
+      for(size_type j = std::max((size_type)1, i) - 1; j < std::min(i + 2, paths.size()); j++)
+      {
+        std::cout << "Path " << j << ": ";
+        paths[j].print(std::cout, labels);
+        std::cout << " has outdegree " << paths[j].outdegree() << std::endl;
+      }
+    }
+  }*/
+
   // Init edges and rank/select support.
   this->edges = bit_vector(total_edges, 0); total_edges = 0;
   for(size_type i = 0; i < paths.size(); i++)
@@ -665,17 +679,6 @@ GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labe
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "GCSA::build(): " << total_edges << " edges" << std::endl;
 #endif
-
-  // This is a useful test when something goes wrong.
-/*  for(size_type i = 0; i < paths.size(); i++)
-  {
-    if(paths[i].outdegree() == 0)
-    {
-      std::cout << "Path " << i << ": ";
-      paths[i].print(std::cout, labels);
-      std::cout << " has outdegree 0" << std::endl;
-    }
-  }*/
 }
 
 //------------------------------------------------------------------------------

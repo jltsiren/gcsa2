@@ -232,8 +232,6 @@ parseKMer(const std::string& kmer_line)
   If the kmer includes one or more endmarkers, the successor position is past
   the GCSA sink node. Those kmers are marked as sorted, as they cannot be
   extended.
-
-  FIXME Later: Is this really needed?
 */
 void
 markSinkNode(std::vector<KMer>& kmers)
@@ -246,6 +244,7 @@ markSinkNode(std::vector<KMer>& kmers)
   for(size_type i = 0; i < kmers.size(); i++)
   {
     if(Node::id(kmers[i].to) == sink_node && Node::offset(kmers[i].to) > 0) { kmers[i].makeSorted(); }
+    else if(Node::id(kmers[i].from) == sink_node) { kmers[i].makeSorted(); }
   }
 }
 
