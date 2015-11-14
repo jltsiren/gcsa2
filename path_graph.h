@@ -90,8 +90,6 @@ struct PathGraph
 /*
   A merged graph is a path graph with the path nodes in one file and the additional
   from nodes in another file. The PathNodes are sorted by their labels.
-
-  FIXME Implement
 */
 
 struct MergedGraph
@@ -111,14 +109,14 @@ struct MergedGraph
 
   inline size_type size() const { return this->path_count; }
   inline size_type ranks() const { return this->rank_count; }
-  inline size_type extras() const { return this->from_count; }
+  inline size_type extra() const { return this->from_count; }
   inline size_type k() const { return this->order; }
 
   inline size_type bytes() const
   {
     return this->size() * sizeof(PathNode)
          + this->ranks() * sizeof(PathNode::rank_type)
-         + this->extras() * sizeof(range_type);
+         + this->extra() * sizeof(range_type);
   }
 
   void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,

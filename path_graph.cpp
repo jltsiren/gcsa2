@@ -61,6 +61,11 @@ struct PriorityNode
     if(files[this->file].eof()) { this->label[0] = NO_RANK; }
   }
 
+  inline void serialize(std::ostream& out) const
+  {
+    this->node.serialize(out, this->label);
+  }
+
   inline void serialize(std::vector<std::ofstream>& files) const
   {
     this->node.serialize(files[this->file], this->label);
@@ -298,9 +303,12 @@ struct PathGraphMerger
   range_type extendRange(range_type& range, const LCP& lcp);
 
   /*
-    Merges the path nodes into paths[range.second].
+    Merges the path nodes into paths[range.second]. The second version also produces
+    the list of all unique from nodes different from the one at paths[range.second]
+    as (path_id, from_node).
   */
   void mergePathNodes(range_type range, range_type range_lcp, const LCP& lcp);
+  void mergePathNodes(range_type range, std::vector<range_type>& from_nodes, size_type path_id);
 };
 
 PathGraphMerger::PathGraphMerger(const PathGraph& path_graph) :
@@ -436,6 +444,23 @@ PathGraphMerger::mergePathNodes(range_type range, range_type range_lcp, const LC
   }
 }
 
+void
+PathGraphMerger::mergePathNodes(range_type range, std::vector<range_type>& from_nodes, size_type path_id)
+{
+  from_nodes.clear();
+  this->buffer[range.second].node.makeSorted();
+  node_type last_from = this->buffer[range.second].node.from;
+
+  for(size_type i = range.first; i < range.second; i++)
+  {
+    this->buffer[range.second].node.addPredecessors(this->buffer[i].node);
+    node_type i_from = this->buffer[i].node.from;
+    if(i_from != last_from) { from_nodes.push_back(range_type(path_id, i_from)); }
+  }
+
+  removeDuplicates(from_nodes, false);
+}
+
 //------------------------------------------------------------------------------
 
 const std::string PathGraph::PREFIX = ".gcsa";
@@ -477,7 +502,9 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
   }
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "PathGraph::PathGraph(): " << this->size() << " paths with " << this->ranks() << " ranks in "
+  std::cerr << "PathGraph::PathGraph(): " << this->size() << " paths with "
+            << this->ranks() << " ranks" << std::endl;
+  std::cerr << "PathGraph::PathGraph(): " << inGigabytes(this->bytes()) << " GB in "
             << this->files() << " file(s)" << std::endl;
 #endif
 }
@@ -585,6 +612,8 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
   std::cerr << "PathGraph::prune(): " << old_path_count << " -> " << this->size() << " paths" << std::endl;
   std::cerr << "PathGraph::prune(): " << this->unique << " unique, " << this->unsorted << " unsorted, "
             << this->nondeterministic << " nondeterministic paths" << std::endl;
+  std::cerr << "PathGraph::prune(): " << inGigabytes(this->bytes()) << " GB in "
+            << this->files() << " file(s)" << std::endl;
 #endif
 }
 
@@ -655,6 +684,8 @@ PathGraph::extend(size_type size_limit)
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "PathGraph::extend(): " << old_path_count << " -> " << this->size() << " paths ("
             << this->ranks() << " ranks)" << std::endl;
+  std::cerr << "PathGraph::extend(): " << inGigabytes(this->bytes()) << " GB in "
+            << this->files() << " file(s)" << std::endl;
 #endif
 }
 
@@ -698,6 +729,102 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
     std::cerr << "PathGraph::read(): File " << file << ": Read " << paths.size()
               << " order-" << this->k()<< " paths" << std::endl;
   }
+#endif
+}
+
+//------------------------------------------------------------------------------
+
+const std::string MergedGraph::PREFIX = ".gcsa";
+
+MergedGraph::MergedGraph(const PathGraph& source)
+{
+  this->path_name = tempFile(PREFIX);
+  this->from_name = tempFile(PREFIX);
+
+  this->path_count = 0; this->rank_count = 0; this->from_count = 0;
+  this->order = source.k();
+
+  std::ofstream path_file(this->path_name.c_str(), std::ios_base::binary);
+  if(!path_file)
+  {
+    std::cerr << "MergedGraph::MergedGraph(): Cannot open output file " << this->path_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  std::ofstream from_file(this->from_name.c_str(), std::ios_base::binary);
+  if(!from_file)
+  {
+    std::cerr << "MergedGraph::MergedGraph(): Cannot open output file " << this->from_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  PathGraphMerger merger(source);
+  std::vector<range_type> from_nodes;
+  for(range_type range = merger.firstRange(); !(merger.atEnd(range)); range = merger.nextRange(range))
+  {
+    merger.mergePathNodes(range, from_nodes, this->path_count);
+    merger.buffer[range.second].serialize(path_file);
+    if(from_nodes.size() > 0)
+    {
+      from_file.write((char*)(from_nodes.data()), from_nodes.size() * sizeof(range_type));
+    }
+    this->path_count++;
+    this->rank_count += merger.buffer[range.second].node.ranks();
+    this->from_count += from_nodes.size();
+    merger.clearUntil(range);
+  }
+  merger.close();
+  path_file.close(); from_file.close();
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "MergedGraph::MergedGraph(): " << this->size() << " paths with "
+            << this->ranks() << " ranks and " << this->extra() << " additional from nodes" << std::endl;
+  std::cerr << "MergedGraph::MergedGraph(): " << inGigabytes(this->bytes()) << " GB" << std::endl;
+#endif
+}
+
+MergedGraph::~MergedGraph()
+{
+  this->clear();
+}
+
+void
+MergedGraph::clear()
+{
+  remove(this->path_name.c_str()); this->path_name = "";
+  remove(this->from_name.c_str()); this->from_name = "";
+
+  this->path_count = 0; this->rank_count = 0; this->from_count = 0;
+  this->order = 0;
+}
+
+void
+MergedGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
+    std::vector<range_type>& from_nodes) const
+{
+  sdsl::util::clear(paths); sdsl::util::clear(labels); sdsl::util::clear(from_nodes);
+
+  std::ifstream path_file(this->path_name.c_str(), std::ios_base::binary);
+  if(!path_file)
+  {
+    std::cerr << "MergedGraph::MergedGraph(): Cannot open output file " << this->path_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  paths.reserve(this->size()); labels.reserve(this->ranks());
+  for(size_type i = 0; i < this->size(); i++) { paths.push_back(PathNode(path_file, labels)); }
+  path_file.close();
+
+  std::ifstream from_file(this->from_name.c_str(), std::ios_base::binary);
+  if(!from_file)
+  {
+    std::cerr << "MergedGraph::MergedGraph(): Cannot open output file " << this->from_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  from_nodes.resize(this->extra());
+  from_file.read((char*)(from_nodes.data()), this->extra() * sizeof(range_type));
+  from_file.close();
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "MergedGraph::read(): Read " << paths.size() << " order-" << this->k() << " paths" << std::endl;
 #endif
 }
 

@@ -299,13 +299,16 @@ GCSA::GCSA(const InputGraph& graph,
   this->max_query_length = (path_graph.unsorted == 0 ? ~(size_type)0 : path_graph.k());
   sdsl::util::clear(lcp);
 
-  // FIXME This has not been switched to PathGraph yet.
+  // Merging step.
+  MergedGraph merged_graph(path_graph);
+  path_graph.clear();
+
+  // FIXME temporary
   std::vector<PathNode> paths;
   std::vector<PathNode::rank_type> labels;
-  path_graph.read(paths, labels);
-
   std::vector<range_type> from_nodes;
-  this->mergeByLabel(paths, labels, from_nodes);
+  merged_graph.read(paths, labels, from_nodes);
+  merged_graph.clear();
 
   this->build(paths, labels, mapper, last_char);
   this->sample(paths, from_nodes);
@@ -428,129 +431,6 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
   std::cout << std::endl;
 
   return fails == 0;
-}
-
-//------------------------------------------------------------------------------
-
-/*
-  Helper functions for splitting the work between threads.
-*/
-
-std::vector<size_type>
-getTails(const std::vector<range_type>& bounds)
-{
-  std::vector<size_type> tail(bounds.size());
-  for(size_type i = 0; i < bounds.size(); i++) { tail[i] = bounds[i].first; }
-  return tail;
-}
-
-void
-removeGaps(std::vector<PathNode>& paths, const std::vector<range_type>& bounds, std::vector<size_type>& tail)
-{
-  for(size_type thread = 1; thread < bounds.size(); thread++)
-  {
-    for(size_type i = bounds[thread].first; i < tail[thread]; i++)
-    {
-      paths[tail[0]] = paths[i]; tail[0]++;
-    }
-  }
-  paths.resize(tail[0]);
-}
-
-//------------------------------------------------------------------------------
-
-/*
-  Iterates through ranges of paths with the same label. Empty range means start from
-  the beginning, while range.first > bounds.second means the end.
-*/
-range_type
-nextRange(range_type range, const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  range_type bounds)
-{
-  if(Range::empty(range)) { range.first = bounds.first; range.second = bounds.first; }
-  else { range.first = range.second = range.second + 1; }
-
-  PathFirstComparator pfc(labels);
-  while(range.second + 1 <= bounds.second && !pfc(paths[range.first], paths[range.second + 1]))
-  {
-    range.second++;
-  }
-
-  return range;
-}
-
-range_type
-firstRange(const std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, range_type bounds)
-{
-  return nextRange(range_type(1, 0), paths, labels, bounds);
-}
-
-/*
-  This version assumes that the paths have identical labels.
-*/
-void
-mergePathNodes(std::vector<PathNode>& paths, range_type range)
-{
-  paths[range.first].makeSorted();
-  for(size_type i = range.first + 1; i <= range.second; i++)
-  {
-    paths[range.first].addPredecessors(paths[i]);
-  }
-}
-
-void
-GCSA::mergeByLabel(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  std::vector<range_type>& from_nodes)
-{
-  sdsl::util::clear(from_nodes);
-#ifdef VERBOSE_STATUS_INFO
-  size_type old_path_count = paths.size();
-#endif
-
-  size_type threads = omp_get_max_threads();
-  PathFirstComparator first_c(labels);
-  std::vector<range_type> bounds = getBounds(paths, threads, first_c);
-  std::vector<size_type> tail = getTails(bounds);
-  std::vector<range_type> from_buffer[threads];
-
-  #pragma omp parallel for schedule(static)
-  for(size_type thread = 0; thread < threads; thread++)
-  {
-    for(range_type range = firstRange(paths, labels, bounds[thread]); range.first <= bounds[thread].second;
-      range = nextRange(range, paths, labels, bounds[thread]))
-    {
-      mergePathNodes(paths, range);
-      paths[tail[thread]] = paths[range.first];
-      for(size_type i = range.first + 1; i <= range.second; i++)
-      {
-        from_buffer[thread].push_back(range_type(tail[thread], paths[i].from));
-      }
-      tail[thread]++;
-    }
-  }
-
-  // Combine and correct the additional samples.
-  size_type total_from_nodes = 0;
-  for(size_type thread = 0; thread < threads; thread++) { total_from_nodes += from_buffer[thread].size(); }
-  from_nodes.reserve(total_from_nodes);
-  for(size_type thread = 0, gap = 0; thread < threads; thread++)
-  {
-    for(size_type i = 0; i < from_buffer[thread].size(); i++)
-    {
-      range_type temp = from_buffer[thread][i];
-      temp.first -= gap;
-      from_nodes.push_back(temp);
-    }
-    sdsl::util::clear(from_buffer[thread]);
-    if(thread + 1 < threads) { gap += bounds[thread + 1].first - tail[thread]; }
-  }
-
-  removeGaps(paths, bounds, tail);
-  this->path_node_count = paths.size();
-
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "GCSA::mergeByLabel(): " << old_path_count << " -> " << paths.size() << " paths" << std::endl;
-#endif
 }
 
 //------------------------------------------------------------------------------

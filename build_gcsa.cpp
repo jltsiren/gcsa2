@@ -59,7 +59,7 @@ main(int argc, char** argv)
     std::cerr << "Usage: build_gcsa [options] base_name [base_name2 ..]" << std::endl;
     std::cerr << "  -b    Read the input in binary format (default)" << std::endl;
     std::cerr << "  -d N  Doubling steps (default and max " << GCSA::DOUBLING_STEPS << ")" << std::endl;
-    std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default 200)" << std::endl;
+    std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << GCSA::SIZE_LIMIT << ")" << std::endl;
     std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
     std::cerr << "  -t    Read the input in text format" << std::endl;
     std::cerr << std::endl;

@@ -57,7 +57,7 @@ public:
   const static std::string EXTENSION;       // .gcsa
 
   const static size_type DOUBLING_STEPS = 3;
-  const static size_type SIZE_LIMIT = 200;  // Gigabytes.
+  const static size_type SIZE_LIMIT = 500;  // Gigabytes.
   const static size_type ABSOLUTE_SIZE_LIMIT = 16384;
 
   const static char_type ENDMARKER = '$';
