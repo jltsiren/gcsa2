@@ -417,9 +417,10 @@ PathGraphMerger::extendRange(range_type& range, const LCP&)
 void
 PathGraphMerger::mergePathNodes(range_type range, range_type range_lcp, const LCP&)
 {
+  PathNode& merged = this->buffer[range.second].node;
   if(Range::length(range) == 1)
   {
-    this->buffer[range.second].node.makeSorted();
+    merged.makeSorted();
     return;
   }
 
@@ -435,12 +436,10 @@ PathGraphMerger::mergePathNodes(range_type range, range_type range_lcp, const LC
     order++;
   }
 
-  this->buffer[range.second].node.makeSorted();
-  this->buffer[range.second].node.setOrder(order);
-  this->buffer[range.second].node.setLCP(range_lcp.first);
+  merged.makeSorted(); merged.setOrder(order); merged.setLCP(range_lcp.first);
   for(size_type i = range.first; i < range.second; i++)
   {
-    this->buffer[range.second].node.addPredecessors(this->buffer[i].node);
+    merged.addPredecessors(this->buffer[i].node);
   }
 }
 
@@ -448,14 +447,14 @@ void
 PathGraphMerger::mergePathNodes(range_type range, std::vector<range_type>& from_nodes, size_type path_id)
 {
   from_nodes.clear();
-  this->buffer[range.second].node.makeSorted();
-  node_type last_from = this->buffer[range.second].node.from;
 
+  PathNode& merged = this->buffer[range.second].node;
+  merged.initDegree();  // GCSA construction will use 'to' for recording the indegree/outdegree.
   for(size_type i = range.first; i < range.second; i++)
   {
-    this->buffer[range.second].node.addPredecessors(this->buffer[i].node);
-    node_type i_from = this->buffer[i].node.from;
-    if(i_from != last_from) { from_nodes.push_back(range_type(path_id, i_from)); }
+    merged.addPredecessors(this->buffer[i].node);
+    node_type from = this->buffer[i].node.from;
+    if(from != merged.from) { from_nodes.push_back(range_type(path_id, from)); }
   }
 
   removeDuplicates(from_nodes, false);

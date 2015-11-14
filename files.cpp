@@ -168,7 +168,7 @@ writeKMers(const std::string& base_name, std::vector<KMer>& kmers, size_type kme
   output.close();
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "writeKMers(): Wrote " << kmers.size() << " kmers of length " << kmer_length << std::endl;
+  std::cerr << "writeKMers(): Wrote " << kmers.size() << " " << kmer_length << "-mers" << std::endl;
 #endif
 }
 
@@ -351,7 +351,7 @@ InputGraph::read(std::vector<KMer>& kmers) const
   }
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "InputGraph::read(): Read " << kmers.size() << " kmers of length " << this->k() << std::endl;
+  std::cerr << "InputGraph::read(): Read " << kmers.size() << " " << this->k() << "-mers" << std::endl;
 #endif
 
   markSinkNode(kmers);
@@ -371,7 +371,7 @@ InputGraph::read(std::vector<KMer>& kmers, size_type file, bool append) const
 #ifdef VERBOSE_STATUS_INFO
   if(!append)
   {
-    std::cerr << "InputGraph::read(): Read " << kmers.size() << " kmers of length " << this->k()
+    std::cerr << "InputGraph::read(): Read " << kmers.size() << " " << this->k() << "-mers"
               << " from " << this->filenames[file] << std::endl;
   }
 #endif

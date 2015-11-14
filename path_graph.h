@@ -102,6 +102,11 @@ struct MergedGraph
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa
 
+  /*
+    FIXME: Constructor should open the files and memory map them.
+    clear() should unmap the files and close them.
+  */
+
   explicit MergedGraph(const PathGraph& source);
   ~MergedGraph();
 

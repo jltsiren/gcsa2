@@ -301,6 +301,7 @@ GCSA::GCSA(const InputGraph& graph,
 
   // Merging step.
   MergedGraph merged_graph(path_graph);
+  this->path_node_count = merged_graph.size();
   path_graph.clear();
 
   // FIXME temporary
@@ -310,6 +311,11 @@ GCSA::GCSA(const InputGraph& graph,
   merged_graph.read(paths, labels, from_nodes);
   merged_graph.clear();
 
+  /*
+    FIXME The actual construction should combine build() and sample(). In one pass, we
+    determine all predecessors of the node and their from nodes. Based on that information,
+    we can build both GCSA and the samples.
+  */
   this->build(paths, labels, mapper, last_char);
   this->sample(paths, from_nodes);
 }
@@ -482,8 +488,6 @@ void
 GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
   DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char)
 {
-  for(size_type i = 0; i < paths.size(); i++) { paths[i].initDegree(); }
-
   // Pointers to the next path nodes with labels starting with the given comp value.
   size_type sigma = mapper.alpha.sigma;
   size_type next[sigma + 1];
