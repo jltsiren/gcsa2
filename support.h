@@ -49,6 +49,10 @@ public:
   typedef gcsa::size_type size_type;
   const static size_type MAX_SIGMA = 256;
 
+  // Comp values for source/sink markers in the default alphabet.
+  const static size_type SOURCE_COMP = 6;
+  const static size_type SINK_COMP = 0;
+
   const static sdsl::int_vector<8> DEFAULT_CHAR2COMP;
   const static sdsl::int_vector<8> DEFAULT_COMP2CHAR;
 

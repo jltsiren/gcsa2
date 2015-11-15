@@ -229,22 +229,21 @@ parseKMer(const std::string& kmer_line)
 }
 
 /*
-  If the kmer includes one or more endmarkers, the successor position is past
-  the GCSA sink node. Those kmers are marked as sorted, as they cannot be
-  extended.
+  If the kmer ends with an endmarker, it cannot be extended, and we mark it
+  sorted. If its label is not unique, it will be treated as a nondeterministic
+  path. We also mark nodes ending with the source marker sorted, because there
+  should be only one such path, which is duplicated in each input file.
 */
 void
-markSinkNode(std::vector<KMer>& kmers)
+markSourceSinkNodes(std::vector<KMer>& kmers)
 {
-  size_type sink_node = InputGraph::UNKNOWN;
   for(size_type i = 0; i < kmers.size(); i++)
   {
-    if(Key::label(kmers[i].key) == 0) { sink_node = Node::id(kmers[i].from); break; }
-  }
-  for(size_type i = 0; i < kmers.size(); i++)
-  {
-    if(Node::id(kmers[i].to) == sink_node && Node::offset(kmers[i].to) > 0) { kmers[i].makeSorted(); }
-    else if(Node::id(kmers[i].from) == sink_node) { kmers[i].makeSorted(); }
+    if(Key::last(kmers[i].key) == Alphabet::SOURCE_COMP ||
+       Key::last(kmers[i].key) == Alphabet::SINK_COMP)
+    {
+      kmers[i].makeSorted();
+    }
   }
 }
 
@@ -354,7 +353,7 @@ InputGraph::read(std::vector<KMer>& kmers) const
   std::cerr << "InputGraph::read(): Read " << kmers.size() << " " << this->k() << "-mers" << std::endl;
 #endif
 
-  markSinkNode(kmers);
+  markSourceSinkNodes(kmers);
 }
 
 void
@@ -376,7 +375,7 @@ InputGraph::read(std::vector<KMer>& kmers, size_type file, bool append) const
   }
 #endif
 
-  if(!append) { markSinkNode(kmers); }
+  if(!append) { markSourceSinkNodes(kmers); }
 }
 
 void

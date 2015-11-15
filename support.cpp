@@ -65,7 +65,7 @@ const sdsl::int_vector<8> Alphabet::DEFAULT_COMP2CHAR = { '$', 'A', 'C', 'G', 'T
 
 Alphabet::Alphabet() :
   char2comp(DEFAULT_CHAR2COMP), comp2char(DEFAULT_COMP2CHAR),
-  C(sdsl::int_vector<64>(DEFAULT_COMP2CHAR.size() + 1, 0)),
+  C(DEFAULT_COMP2CHAR.size() + 1, 0),
   sigma(DEFAULT_COMP2CHAR.size())
 {
 }
@@ -83,7 +83,7 @@ Alphabet::Alphabet(Alphabet&& a)
 Alphabet::Alphabet(const sdsl::int_vector<64>& counts,
   const sdsl::int_vector<8>& _char2comp, const sdsl::int_vector<8>& _comp2char) :
   char2comp(_char2comp), comp2char(_comp2char),
-  C(sdsl::int_vector<64>(_comp2char.size() + 1, 0)),
+  C(_comp2char.size() + 1, 0),
   sigma(_comp2char.size())
 {
   for(size_type i = 0; i < counts.size(); i++) { this->C[i + 1] = this->C[i] + counts[i]; }

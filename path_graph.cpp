@@ -58,7 +58,12 @@ struct PriorityNode
   inline void load(std::vector<std::ifstream>& files)
   {
     this->node = PathNode(files[this->file], this->label);
-    if(files[this->file].eof()) { this->label[0] = NO_RANK; }
+    if(files[this->file].eof())
+    {
+      this->node.setOrder(1);
+      this->node.setLCP(1);
+      this->label[0] = NO_RANK;
+    }
   }
 
   inline void serialize(std::ostream& out) const
@@ -82,7 +87,7 @@ struct PathGraphBuilder
   std::vector<std::ofstream> files;
   size_type limit;  // Bytes of disk space.
 
-  const static size_type WRITE_BUFFER_SIZE = 32768; // PathNodes per thread.
+  const static size_type WRITE_BUFFER_SIZE = MEGABYTE; // PathNodes per thread.
 
   PathGraphBuilder(size_type file_count, size_type path_order, size_type size_limit);
   void close();

@@ -141,6 +141,7 @@ main(int argc, char** argv)
     GCSA temp(graph, doubling_steps, size_limit); index.swap(temp);
     double seconds = readTimer() - start;
     std::cout << "Index built in " << seconds << " seconds" << std::endl;
+    std::cout << "Memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;
     std::cout << std::endl;
     sdsl::store_to_file(index, output_file);
   }
@@ -167,7 +168,7 @@ main(int argc, char** argv)
   }
 #endif
 
-  std::cout << "Memory usage: " << inMegabytes(memoryUsage()) << " MB" << std::endl;
+  std::cout << "Final memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;
   std::cout << std::endl;
 
   return 0;

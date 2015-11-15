@@ -609,7 +609,7 @@ GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
     bool sample_this = false;
     std::vector<node_type> curr = fromNodes(i, paths, j, from_nodes);
     if(paths[i].indegree() > 1) { sample_this = true; }
-    if(paths[i].hasPredecessor(ENDMARKER_COMP)) { sample_this = true; }
+    if(paths[i].hasPredecessor(Alphabet::SINK_COMP)) { sample_this = true; }
     for(size_type k = 0; k < curr.size(); k++)
     {
       if(Node::offset(curr[k]) == 0) { sample_this = true; break; }

@@ -60,10 +60,6 @@ public:
   const static size_type SIZE_LIMIT = 500;  // Gigabytes.
   const static size_type ABSOLUTE_SIZE_LIMIT = 16384;
 
-  const static char_type ENDMARKER = '$';
-  const static comp_type ENDMARKER_COMP = 0;
-  const static char_type SOURCE_MARKER = '#';
-
 //------------------------------------------------------------------------------
 
   /*
