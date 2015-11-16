@@ -300,7 +300,7 @@ GCSA::GCSA(const InputGraph& graph,
   sdsl::util::clear(lcp);
 
   // Merge the paths into the nodes of a pruned de Bruijn graph.
-  MergedGraph merged_graph(path_graph);
+  MergedGraph merged_graph(path_graph, mapper);
   this->path_node_count = merged_graph.size();
   path_graph.clear();
 
@@ -316,7 +316,7 @@ GCSA::GCSA(const InputGraph& graph,
     determine all predecessors of the node and their from nodes. Based on that information,
     we can build both GCSA and the samples.
   */
-  this->build(paths, labels, mapper, last_char);
+  this->build(paths, labels, mapper, last_char, merged_graph.next);
   this->sample(paths, from_nodes);
 }
 
@@ -486,25 +486,15 @@ predecessor(const PathNode& curr, std::vector<PathNode::rank_type>& labels,
 */
 void
 GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char)
+  DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char, std::vector<size_type>& next)
 {
-  // Pointers to the next path nodes with labels starting with the given comp value.
-  size_type sigma = mapper.alpha.sigma;
-  size_type next[sigma + 1];
-  for(size_type comp = 0; comp < sigma; comp++) { next[comp] = mapper.charRange(comp).first; }
-  next[sigma] = ~(size_type)0;
-  for(size_type i = 0, comp = 0; i < paths.size(); i++)
-  {
-    while(paths[i].firstLabel(0, labels) >= next[comp]) { next[comp] = i; comp++; }
-  }
-
   size_type total_edges = 0;
-  sdsl::int_vector<64> counts(sigma, 0);
+  sdsl::int_vector<64> counts(mapper.alpha.sigma, 0);
   sdsl::int_vector<8> bwt_buffer(paths.size() + paths.size() / 2, 0);
   this->path_nodes = bit_vector(bwt_buffer.size(), 0);
   for(size_type i = 0; i < paths.size(); i++)
   {
-    for(size_type comp = 0; comp < sigma; comp++)
+    for(size_type comp = 0; comp < mapper.alpha.sigma; comp++)
     {
       if(!(paths[i].hasPredecessor(comp))) { continue; }
 

@@ -72,6 +72,8 @@ struct PriorityNode
     }
   }
 
+  inline rank_type firstLabel(size_type i) const { return this->label[i]; }
+
   inline void serialize(std::ostream& out) const
   {
     this->node.serialize(out, this->label);
@@ -751,12 +753,13 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 
 const std::string MergedGraph::PREFIX = ".gcsa";
 
-MergedGraph::MergedGraph(const PathGraph& source) :
+MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
   path_name(tempFile(PREFIX)), rank_name(tempFile(PREFIX)), from_name(tempFile(PREFIX)),
   path_d(NO_FILE), rank_d(NO_FILE), from_d(NO_FILE),
   paths(0), labels(0), from_nodes(0),
   path_count(0), rank_count(0), from_count(0),
-  order(source.k())
+  order(source.k()),
+  next(mapper.alpha.sigma + 1, 0)
 {
   std::ofstream path_file(this->path_name.c_str(), std::ios_base::binary);
   if(!path_file)
@@ -777,27 +780,43 @@ MergedGraph::MergedGraph(const PathGraph& source) :
     std::exit(EXIT_FAILURE);
   }
 
+  /*
+     Initialize next[comp] to be the the rank of the first kmer starting with
+     the corresponding character. Later, next[comp] is transformed into the rank
+     of the first path with firstLabel(0) >= next[comp].
+  */
+  for(size_type comp = 0; comp < mapper.alpha.sigma; comp++)
+  {
+    this->next[comp] = mapper.charRange(comp).first;
+  }
+  this->next[mapper.alpha.sigma] = ~(size_type)0;
+
   PathGraphMerger merger(source);
-  std::vector<range_type> from_nodes;
+  std::vector<range_type> curr_from;
+  size_type curr_comp = 0;  // Used to transform next.
   for(range_type range = merger.firstRange(); !(merger.atEnd(range)); range = merger.nextRange(range))
   {
-    merger.mergePathNodes(range, from_nodes, this->path_count);
+    merger.mergePathNodes(range, curr_from, this->path_count);
     merger.buffer[range.second].serialize(path_file, rank_file, this->rank_count);
-    if(from_nodes.size() > 0)
+    if(curr_from.size() > 0)
     {
-      from_file.write((char*)(from_nodes.data()), from_nodes.size() * sizeof(range_type));
+      from_file.write((char*)(curr_from.data()), curr_from.size() * sizeof(range_type));
+    }
+    while(merger.buffer[range.second].firstLabel(0) >= this->next[curr_comp])
+    {
+      this->next[curr_comp] = this->path_count; curr_comp++;
     }
     this->path_count++;
     this->rank_count += merger.buffer[range.second].node.ranks();
-    this->from_count += from_nodes.size();
+    this->from_count += curr_from.size();
     merger.clearUntil(range);
   }
   merger.close();
   path_file.close(); rank_file.close(); from_file.close();
 
-  this->map(this->path_name, "path", this->path_d, this->paths, this->path_bytes());
-  this->map(this->rank_name, "rank", this->rank_d, this->labels, this->rank_bytes());
-  this->map(this->from_name, "from", this->from_d, this->from_nodes, this->from_bytes());
+  this->paths = (PathNode*)(this->map(this->path_name, "path", this->path_d, this->path_bytes()));
+  this->labels = (PathNode::rank_type*)(this->map(this->rank_name, "rank", this->rank_d, this->rank_bytes()));
+  this->from_nodes = (range_type*)(this->map(this->from_name, "from", this->from_d, this->from_bytes()));
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "MergedGraph::MergedGraph(): " << this->size() << " paths with "
@@ -831,6 +850,40 @@ MergedGraph::clear()
 
   this->path_count = 0; this->rank_count = 0; this->from_count = 0;
   this->order = 0;
+
+  for(size_type i = 0; i < this->next.size(); i++) { this->next[i] = 0; }
+}
+
+void*
+MergedGraph::map(const std::string& filename, const std::string& file_type, int& fd, size_type n)
+{
+  if((fd = open(filename.c_str(), O_RDONLY)) == NO_FILE)
+  {
+    std::cerr << "MergedGraph::map(): Cannot open " << file_type << " file " << filename << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  void* pointer = mmap(0, n, PROT_READ, MAP_FILE | MAP_SHARED, fd, 0);
+  if(pointer == 0)
+  {
+    std::cerr << "MergedGraph::map(): Cannot memory map " << file_type << " file " << filename << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  madvise(pointer, n, MADV_SEQUENTIAL);
+
+  return pointer;
+}
+
+template<class Element>
+void
+blockCopy(Element* source, Element* dest, size_type size)
+{
+  for(size_type i = 0; i < size; i += MEGABYTE)
+  {
+    size_type bytes = std::min(size - i, MEGABYTE) * sizeof(Element);
+    std::memcpy((void*)(dest + i), (void*)(source + i), bytes);
+    madvise((void*)(source + i), bytes, MADV_DONTNEED);
+  }
 }
 
 void
@@ -840,13 +893,13 @@ MergedGraph::read(std::vector<PathNode>& _paths, std::vector<PathNode::rank_type
   sdsl::util::clear(_paths); sdsl::util::clear(_labels); sdsl::util::clear(_from_nodes);
 
   _paths.resize(this->size());
-  std::memcpy(_paths.data(), this->paths, this->path_bytes());
+  blockCopy(this->paths, _paths.data(), this->size());
 
   _labels.resize(this->ranks());
-  std::memcpy(_labels.data(), this->labels, this->rank_bytes());
+  blockCopy(this->labels, _labels.data(), this->ranks());
 
   _from_nodes.resize(this->extra());
-  std::memcpy(_from_nodes.data(), this->from_nodes, this->from_bytes());
+  blockCopy(this->from_nodes, _from_nodes.data(), this->extra());
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "MergedGraph::read(): Read " << _paths.size() << " order-" << this->k() << " paths" << std::endl;

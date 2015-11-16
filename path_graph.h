@@ -25,6 +25,7 @@
 #ifndef _GCSA_PATH_GRAPH_H
 #define _GCSA_PATH_GRAPH_H
 
+#include "dbg.h"
 #include "files.h"
 
 namespace gcsa
@@ -110,6 +111,8 @@ struct MergedGraph
   size_type path_count, rank_count, from_count;
   size_type order;
 
+  std::vector<size_type> next;  // paths[next[comp]] is the first path starting with comp.
+
   const static int NO_FILE = -1;
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa
@@ -119,7 +122,7 @@ struct MergedGraph
     clear() should unmap the files and close them.
   */
 
-  explicit MergedGraph(const PathGraph& source);
+  MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper);
   ~MergedGraph();
 
   void clear();
@@ -141,22 +144,7 @@ struct MergedGraph
   void read(std::vector<PathNode>& _paths, std::vector<PathNode::rank_type>& _labels,
     std::vector<range_type>& _from_nodes) const;
 
-  template<class Type>
-  void map(const std::string& filename, const std::string& file_type, int& fd, Type*& pointer, size_type n)
-  {
-    if((fd = open(filename.c_str(), O_RDONLY)) == NO_FILE)
-    {
-      std::cerr << "MergedGraph::map(): Cannot open " << file_type << " file " << filename << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
-    pointer = (Type*)mmap(0, n, PROT_READ, MAP_FILE | MAP_SHARED, fd, 0);
-    if(pointer == 0)
-    {
-      std::cerr << "MergedGraph::map(): Cannot memory map " << file_type << " file " << filename << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
-    madvise(pointer, n, MADV_SEQUENTIAL);
-  }
+  void* map(const std::string& filename, const std::string& file_type, int& fd, size_type n);
 
   MergedGraph(const MergedGraph&) = delete;
   MergedGraph& operator= (const MergedGraph&) = delete;

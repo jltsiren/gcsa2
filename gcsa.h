@@ -219,10 +219,11 @@ private:
 
   /*
     Store the number of outgoing edges in the to fields of each node. Then build the GCSA,
-    apart from the fields related to samples. Clears last_labels, mapper, and last_char.
+    apart from the fields related to samples. Clears last_labels, mapper, and last_char;
+    updates next.
   */
   void build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-    DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char);
+    DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char, std::vector<size_type>& next);
 
   void initSupport();
 
