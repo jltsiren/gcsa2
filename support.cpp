@@ -349,6 +349,14 @@ PathNode::serialize(std::ostream& out, const rank_type* labels) const
   out.write((const char*)labels, this->ranks() * sizeof(rank_type));
 }
 
+void
+PathNode::serialize(std::ostream& node_stream, std::ostream& label_stream, const rank_type* labels, size_type ptr)
+{
+  this->setPointer(ptr);
+  node_stream.write((const char*)this, sizeof(*this));
+  label_stream.write((const char*)labels, this->ranks() * sizeof(rank_type));
+}
+
 PathNode::PathNode()
 {
   this->from = 0; this->to = 0;
@@ -407,6 +415,12 @@ PathNode::operator= (PathNode&& source)
 
 void
 PathNode::print(std::ostream& out, const std::vector<PathNode::rank_type>& labels) const
+{
+  this->print(out, labels.data() + this->pointer());
+}
+
+void
+PathNode::print(std::ostream& out, const rank_type* labels) const
 {
   out << "(" << Node::decode(this->from) << " -> " << Node::decode(this->to);
   out << "; o" << this->order();

@@ -304,10 +304,13 @@ struct PathLabel
   rank_type is the integer type used to store ranks of the original kmers.
   During edge generation, 'to' node will be used to store indegree and the outdegree.
 
-  The rank sequences are stored in a separate array at position 'pointer()'. The stored
+  The rank sequences are stored in an std::vector at position 'pointer()'. The stored
   sequence consists of the first label ('order()' ranks) followed by one rank for the
   diverging last rank of the last label. If the first and the last ranks are identical,
   the last rank is a dummy value.
+
+  There are also alternative versions of most operations using direct pointers to the
+  rank sequence.
 */
 
 struct PathNode
@@ -462,14 +465,21 @@ struct PathNode
     const std::vector<rank_type>& old_labels, std::vector<rank_type>& new_labels);
 
   /*
-    Warning: Do not mix the versions using a std::vector and a pointer.
+    The constructors set the pointers when loading the path node:
+    - the first one sets it to labels.size()
+    - the second one sets it to 0
+
+    The third serialize() version sets the pointer to ptr. It can be used to write
+    PathNodes into memory mappable files.
   */
   PathNode(std::istream& in, std::vector<rank_type>& labels);
   PathNode(std::istream& in, rank_type* labels);
   void serialize(std::ostream& out, const std::vector<rank_type>& labels) const;
   void serialize(std::ostream& out, const rank_type* labels) const;
+  void serialize(std::ostream& node_stream, std::ostream& label_stream, const rank_type* labels, size_type ptr);
 
   void print(std::ostream& out, const std::vector<rank_type>& labels) const;
+  void print(std::ostream& out, const rank_type* labels) const;
 
   PathNode();
   explicit PathNode(std::vector<rank_type>& labels);
