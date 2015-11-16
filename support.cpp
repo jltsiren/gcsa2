@@ -346,15 +346,15 @@ void
 PathNode::serialize(std::ostream& out, const rank_type* labels) const
 {
   out.write((const char*)this, sizeof(*this));
-  out.write((const char*)labels, this->ranks() * sizeof(rank_type));
+  out.write((const char*)(labels + this->pointer()), this->ranks() * sizeof(rank_type));
 }
 
 void
 PathNode::serialize(std::ostream& node_stream, std::ostream& label_stream, const rank_type* labels, size_type ptr)
 {
+  label_stream.write((const char*)(labels + this->pointer()), this->ranks() * sizeof(rank_type));
   this->setPointer(ptr);
   node_stream.write((const char*)this, sizeof(*this));
-  label_stream.write((const char*)labels, this->ranks() * sizeof(rank_type));
 }
 
 PathNode::PathNode()

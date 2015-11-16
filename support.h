@@ -435,18 +435,19 @@ struct PathNode
 
   inline rank_type firstLabel(size_type i, const rank_type* labels) const
   {
-    return labels[i];
+    return labels[this->pointer() + i];
   }
 
   inline rank_type lastLabel(size_type i, const std::vector<rank_type>& labels) const
   {
-    return this->lastLabel(i, labels.data() + this->pointer());
+    if(i < this->lcp()) { return labels[this->pointer() + i]; }
+    else { return labels[this->pointer() + this->order()]; }
   }
 
   inline rank_type lastLabel(size_type i, const rank_type* labels) const
   {
-    if(i < this->lcp()) { return labels[i]; }
-    else { return labels[this->order()]; }
+    if(i < this->lcp()) { return labels[this->pointer() + i]; }
+    else { return labels[this->pointer() + this->order()]; }
   }
 
   // Do the two path nodes intersect?
