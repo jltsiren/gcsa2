@@ -129,15 +129,34 @@ struct MergedGraph
   inline size_type extra() const { return this->from_count; }
   inline size_type k() const { return this->order; }
 
+  inline size_type path_bytes() const { return this->size() * sizeof(PathNode); }
+  inline size_type rank_bytes() const { return this->ranks() * sizeof(PathNode::rank_type); }
+  inline size_type from_bytes() const { return this->extra() * sizeof(range_type); }
+
   inline size_type bytes() const
   {
-    return this->size() * sizeof(PathNode)
-         + this->ranks() * sizeof(PathNode::rank_type)
-         + this->extra() * sizeof(range_type);
+    return this->path_bytes() + this->rank_bytes() + this->from_bytes();
   }
 
   void read(std::vector<PathNode>& _paths, std::vector<PathNode::rank_type>& _labels,
     std::vector<range_type>& _from_nodes) const;
+
+  template<class Type>
+  void map(const std::string& filename, const std::string& file_type, int& fd, Type*& pointer, size_type n)
+  {
+    if((fd = open(filename.c_str(), O_RDONLY)) == NO_FILE)
+    {
+      std::cerr << "MergedGraph::map(): Cannot open " << file_type << " file " << filename << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    pointer = (Type*)mmap(0, n, PROT_READ, MAP_FILE | MAP_SHARED, fd, 0);
+    if(pointer == 0)
+    {
+      std::cerr << "MergedGraph::map(): Cannot memory map " << file_type << " file " << filename << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    madvise(pointer, n, MADV_SEQUENTIAL);
+  }
 
   MergedGraph(const MergedGraph&) = delete;
   MergedGraph& operator= (const MergedGraph&) = delete;

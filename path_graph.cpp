@@ -795,44 +795,9 @@ MergedGraph::MergedGraph(const PathGraph& source) :
   merger.close();
   path_file.close(); rank_file.close(); from_file.close();
 
-  if((this->path_d = open(this->path_name.c_str(), O_RDWR)) == NO_FILE)
-  {
-    std::cerr << "MergedGraph::MergedGraph(): Cannot open path file " << this->path_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  this->paths = (PathNode*)mmap(0, this->size() * sizeof(PathNode),
-    PROT_READ | PROT_WRITE, MAP_FILE | MAP_SHARED, this->path_d, 0);
-  if(this->paths == 0)
-  {
-    std::cerr << "MergedGraph::MergedGraph(): Cannot memory map path file " << this->path_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-
-  if((this->rank_d = open(this->rank_name.c_str(), O_RDWR)) == NO_FILE)
-  {
-    std::cerr << "MergedGraph::MergedGraph(): Cannot open rank file " << this->rank_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  this->labels = (PathNode::rank_type*)mmap(0, this->ranks() * sizeof(PathNode::rank_type),
-    PROT_READ | PROT_WRITE, MAP_FILE | MAP_SHARED, this->rank_d, 0);
-  if(this->labels == 0)
-  {
-    std::cerr << "MergedGraph::MergedGraph(): Cannot memory map rank file " << this->rank_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-
-  if((this->from_d = open(this->from_name.c_str(), O_RDWR)) == NO_FILE)
-  {
-    std::cerr << "MergedGraph::MergedGraph(): Cannot open from file " << this->from_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  this->from_nodes = (range_type*)mmap(0, this->extra() * sizeof(range_type),
-    PROT_READ | PROT_WRITE, MAP_FILE | MAP_SHARED, this->from_d, 0);
-  if(this->from_nodes == 0)
-  {
-    std::cerr << "MergedGraph::MergedGraph(): Cannot memory map from file " << this->from_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
+  this->map(this->path_name, "path", this->path_d, this->paths, this->path_bytes());
+  this->map(this->rank_name, "rank", this->rank_d, this->labels, this->rank_bytes());
+  this->map(this->from_name, "from", this->from_d, this->from_nodes, this->from_bytes());
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "MergedGraph::MergedGraph(): " << this->size() << " paths with "
@@ -850,9 +815,9 @@ void
 MergedGraph::clear()
 {
   // Unmap.
-  if(this->paths != 0) { munmap(this->paths, this->size() * sizeof(PathNode)); this->paths = 0; }
-  if(this->labels != 0) { munmap(this->labels, this->ranks() * sizeof(PathNode::rank_type)); this->labels = 0; }
-  if(this->from_nodes != 0) { munmap(this->from_nodes, this->extra() * sizeof(range_type)); this->from_nodes = 0; }
+  if(this->paths != 0) { munmap(this->paths, this->path_bytes()); this->paths = 0; }
+  if(this->labels != 0) { munmap(this->labels, this->rank_bytes()); this->labels = 0; }
+  if(this->from_nodes != 0) { munmap(this->from_nodes, this->from_bytes()); this->from_nodes = 0; }
 
   // Close.
   if(this->path_d != NO_FILE) { close(this->path_d); this->path_d = NO_FILE; }
@@ -875,13 +840,13 @@ MergedGraph::read(std::vector<PathNode>& _paths, std::vector<PathNode::rank_type
   sdsl::util::clear(_paths); sdsl::util::clear(_labels); sdsl::util::clear(_from_nodes);
 
   _paths.resize(this->size());
-  std::memcpy(_paths.data(), this->paths, this->size() * sizeof(PathNode));
+  std::memcpy(_paths.data(), this->paths, this->path_bytes());
 
   _labels.resize(this->ranks());
-  std::memcpy(_labels.data(), this->labels, this->ranks() * sizeof(PathNode::rank_type));
+  std::memcpy(_labels.data(), this->labels, this->rank_bytes());
 
   _from_nodes.resize(this->extra());
-  std::memcpy(_from_nodes.data(), this->from_nodes, this->extra() * sizeof(range_type));
+  std::memcpy(_from_nodes.data(), this->from_nodes, this->from_bytes());
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "MergedGraph::read(): Read " << _paths.size() << " order-" << this->k() << " paths" << std::endl;

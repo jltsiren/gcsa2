@@ -309,8 +309,8 @@ struct PathLabel
   diverging last rank of the last label. If the first and the last ranks are identical,
   the last rank is a dummy value.
 
-  There are also alternative versions of most operations using direct pointers to the
-  rank sequence.
+  There are also alternative versions of most operations using raw pointers to the
+  label array.
 */
 
 struct PathNode
