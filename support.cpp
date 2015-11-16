@@ -479,13 +479,13 @@ LCP::LCP(const std::vector<key_type>& keys, size_type _kmer_length)
 range_type
 LCP::min_lcp(const PathNode& a, const PathNode& b, const std::vector<LCP::rank_type>& labels) const
 {
-  return this->min_lcp(a, b, labels.data() + a.pointer(), labels.data() + b.pointer());
+  return this->min_lcp(a, b, labels.data(), labels.data());
 }
 
 range_type
 LCP::max_lcp(const PathNode& a, const PathNode& b, const std::vector<LCP::rank_type>& labels) const
 {
-  return this->max_lcp(a, b, labels.data() + a.pointer(), labels.data() + b.pointer());
+  return this->max_lcp(a, b, labels.data(), labels.data());
 }
 
 range_type
