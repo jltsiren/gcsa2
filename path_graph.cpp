@@ -751,6 +751,53 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 
 //------------------------------------------------------------------------------
 
+/*
+  This class maintains a sequential read pointer to a memory mapped file containing
+  n Elements. The read pointer corresponds to a buffer with 2 * BUFFER_SIZE elements. If
+  the pointer proceeds past the limit, the region from limit - 2 * BUFFER_SIZE to
+  limit - BUFFER_SIZE is freed.
+*/
+template<class Element>
+struct MemoryMapManager
+{
+  MemoryMapManager(Element* ptr, size_type n) :
+    pointer(ptr), limit(0), size(n)
+  {
+  }
+
+  inline void access(size_type i)
+  {
+    if(i < this->limit) { return; }
+    this->free(i);
+  }
+
+  void free(size_type until);
+
+  const static size_type BUFFER_SIZE = MEGABYTE;  // This should be divisible by page size.
+
+  Element* pointer;
+  size_type limit, size;
+};
+
+template<class Element>
+void
+MemoryMapManager<Element>::free(size_type until)
+{
+  until = std::min(until, this->size);
+
+  while(this->limit <= until)
+  {
+    if(this->limit >= 2 * BUFFER_SIZE)
+    {
+      void* ptr = this->pointer + (this->limit - 2 * BUFFER_SIZE);
+      madvise(ptr, BUFFER_SIZE * sizeof(Element), MADV_DONTNEED);
+    }
+    this->limit += BUFFER_SIZE;
+  }
+}
+
+//------------------------------------------------------------------------------
+
 const std::string MergedGraph::PREFIX = ".gcsa";
 
 MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
@@ -759,7 +806,7 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
   paths(0), labels(0), from_nodes(0),
   path_count(0), rank_count(0), from_count(0),
   order(source.k()),
-  next(mapper.alpha.sigma + 1, 0)
+  next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0)
 {
   std::ofstream path_file(this->path_name.c_str(), std::ios_base::binary);
   if(!path_file)
@@ -790,6 +837,7 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
     this->next[comp] = mapper.charRange(comp).first;
   }
   this->next[mapper.alpha.sigma] = ~(size_type)0;
+  this->next_from[mapper.alpha.sigma] = ~(size_type)0;
 
   PathGraphMerger merger(source);
   std::vector<range_type> curr_from;
@@ -804,7 +852,9 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
     }
     while(merger.buffer[range.second].firstLabel(0) >= this->next[curr_comp])
     {
-      this->next[curr_comp] = this->path_count; curr_comp++;
+      this->next[curr_comp] = this->path_count;
+      this->next_from[curr_comp] = this->from_count;
+      curr_comp++;
     }
     this->path_count++;
     this->rank_count += merger.buffer[range.second].node.ranks();
@@ -878,11 +928,13 @@ template<class Element>
 void
 blockCopy(Element* source, Element* dest, size_type size)
 {
+  MemoryMapManager<Element> manager(source, size);
+
   for(size_type i = 0; i < size; i += MEGABYTE)
   {
     size_type bytes = std::min(size - i, MEGABYTE) * sizeof(Element);
+    manager.access(i);
     std::memcpy((void*)(dest + i), (void*)(source + i), bytes);
-    madvise((void*)(source + i), bytes, MADV_DONTNEED);
   }
 }
 

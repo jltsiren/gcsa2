@@ -112,6 +112,7 @@ struct MergedGraph
   size_type order;
 
   std::vector<size_type> next;  // paths[next[comp]] is the first path starting with comp.
+  std::vector<size_type> next_from; // Where to find the corresponding additional from nodes.
 
   const static int NO_FILE = -1;
   const static size_type UNKNOWN = ~(size_type)0;
