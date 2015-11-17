@@ -416,7 +416,7 @@ PathNode::operator= (PathNode&& source)
 void
 PathNode::print(std::ostream& out, const std::vector<PathNode::rank_type>& labels) const
 {
-  this->print(out, labels.data() + this->pointer());
+  this->print(out, labels.data());
 }
 
 void
@@ -439,19 +439,18 @@ PathNode::print(std::ostream& out, const rank_type* labels) const
 //------------------------------------------------------------------------------
 
 bool
-PathNode::intersect(const PathLabel& first, const PathLabel& last,
-  const std::vector<PathNode::rank_type>& labels) const
+PathNode::intersect(const PathLabel& first, const PathLabel& last, const PathNode::rank_type* labels) const
 {
   PathLabel my_first = this->firstLabel(labels);
 
-  if(my_first.compare(first))
+  if(my_first <= first)
   {
     PathLabel my_last = this->lastLabel(labels);
-    return !(my_last.compare(first));
+    return (first <= my_last);
   }
   else
   {
-    return !(last.compare(my_first));
+    return my_first <= last;
   }
 }
 
@@ -531,6 +530,20 @@ LCP::swap(LCP& another)
   std::swap(this->total_keys, another.total_keys);
   this->kmer_lcp.swap(another.kmer_lcp);
   this->lcp_rmq.swap(another.lcp_rmq);
+}
+
+//------------------------------------------------------------------------------
+
+SLArray::SLArray(size_type n) :
+  data(n, 0)
+{
+}
+
+void
+SLArray::clear()
+{
+  sdsl::util::clear(this->data);
+  sdsl::util::clear(this->large_values);
 }
 
 //------------------------------------------------------------------------------

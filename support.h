@@ -25,6 +25,8 @@
 #ifndef _GCSA_SUPPORT_H
 #define _GCSA_SUPPORT_H
 
+#include <map>
+
 #include <sdsl/rmq_support.hpp>
 
 #include "utils.h"
@@ -252,46 +254,36 @@ operator< (key_type key, const KMer& kmer)
 
 //------------------------------------------------------------------------------
 
-/*
-  Convention: If a is a proper prefix of b, then
-  - a < b, if a is a first label; and
-  - a > b, if a is a last label.
-*/
-
 struct PathLabel
 {
   typedef std::uint32_t rank_type;
 
   // This should be at least 1 << GCSA::DOUBLING_STEPS.
   const static size_type LABEL_LENGTH = 8;
-  const static size_type LENGTH_MASK  = 0xF;
-  const static size_type FIRST_MASK   = 0x10; // First label or last label.
 
   // Labels starting with NO_RANK will be after real labels in lexicographic order.
+  // We also use NO_RANK for padding last labels.
   const static rank_type NO_RANK = ~(rank_type)0;
 
-  size_type fields;
   rank_type label[LABEL_LENGTH];
+  bool      first;
 
-  PathLabel() : fields(0) {}
-
-  inline size_type length() const { return this->fields & LENGTH_MASK; }
-  inline void setLength(size_type len) { this->fields &= ~LENGTH_MASK; this->fields |= len & LENGTH_MASK; }
-
-  inline bool first() const { return this->fields & FIRST_MASK; }
-  inline void setFirst() { this->fields |= FIRST_MASK; }
-  inline void setLast()  { this->fields &= ~FIRST_MASK; }
-
-  // Is *this < another?
-  inline bool compare(const PathLabel& another) const
+  inline bool operator< (const PathLabel& another) const
   {
-    size_type order = std::min(this->length(), another.length());
-    for(size_type i = 0; i < order; i++)
+    for(size_type i = 0; i < LABEL_LENGTH; i++)
     {
       if(this->label[i] != another.label[i]) { return (this->label[i] < another.label[i]); }
     }
-    if(this->first()) { return (this->length() < another.length()); }
-    else { return (another.length() < this->length()); }
+    return (this->first && !(another.first));
+  }
+
+  inline bool operator<= (const PathLabel& another) const
+  {
+    for(size_type i = 0; i < LABEL_LENGTH; i++)
+    {
+      if(this->label[i] != another.label[i]) { return (this->label[i] < another.label[i]); }
+    }
+    return (this->first || !(another.first));
   }
 };
 
@@ -300,7 +292,7 @@ struct PathLabel
 /*
   The node type used during doubling. As in the original GCSA, from and to are nodes
   in the original graph, denoting a path as a semiopen range [from, to). If
-  from == -1, the path will not be extended, because it already has a unique label.
+  to == -1, the path will not be extended, because it already has a unique label.
   rank_type is the integer type used to store ranks of the original kmers.
   During edge generation, 'to' node will be used to store indegree and the outdegree.
 
@@ -323,22 +315,6 @@ struct PathNode
 
   inline bool sorted() const { return (this->to == ~(node_type)0); }
   inline void makeSorted() { this->to = ~(node_type)0; }
-
-  /*
-    We reuse the 'to' field for indegree (upper 2 bits) and outdegree (lower 30 bits).
-    The only relevant states for indegree are 0, 1, and 2+, which we encode as 0, 1,
-    and 3+.
-  */
-  inline void initDegree() { this->to = 0; }
-
-  inline size_type outdegree() const { return (this->to & 0x3FFFFFFF); }
-  inline void incrementOutdegree() { this->to++; }
-
-  inline size_type indegree() const { return (this->to >> 30); }
-  inline void incrementIndegree()
-  {
-    this->to |= ((this->indegree() << 1) | 1) << 30;
-  }
 
 //------------------------------------------------------------------------------
 
@@ -396,35 +372,24 @@ struct PathNode
   inline size_type ranks() const { return this->order() + 1; }
   inline size_type bytes() const { return sizeof(*this) + this->ranks() * sizeof(rank_type); }
 
-  inline PathLabel firstLabel(const std::vector<rank_type>& labels) const
+  inline PathLabel firstLabel(const std::vector<rank_type>& labels) const { return this->firstLabel(labels.data()); }
+  inline PathLabel lastLabel(const std::vector<rank_type>& labels) const { return this->lastLabel(labels.data()); }
+
+  inline PathLabel firstLabel(const rank_type* labels) const
   {
-    PathLabel res;
-    res.setLength(this->order());
-    for(size_type i = 0, j = this->pointer(); i < res.length(); i++, j++)
-    {
-      res.label[i] = labels[j];
-    }
-    res.setFirst();
+    PathLabel res; res.first = true;
+    size_type limit = std::min(this->order(), PathLabel::LABEL_LENGTH);
+    for(size_type i = 0; i < limit; i++) { res.label[i] = this->firstLabel(i, labels); }
+    for(size_type i = limit; i < PathLabel::LABEL_LENGTH; i++) { res.label[i] = 0; }
     return res;
   }
 
-  inline PathLabel lastLabel(const std::vector<rank_type>& labels) const
+  inline PathLabel lastLabel(const rank_type* labels) const
   {
-    PathLabel res;
-
-    res.setLength(this->lcp());
-    for(size_type i = 0, j = this->pointer(); i < res.length(); i++, j++)
-    {
-      res.label[i] = labels[j];
-    }
-
-    if(this->lcp() < this->order())
-    {
-      res.label[res.length()] = labels[this->pointer() + this->order()];
-      res.setLength(this->lcp() + 1);
-    }
-
-    res.setLast();
+    PathLabel res; res.first = false;
+    size_type limit = std::min(this->order(), PathLabel::LABEL_LENGTH);
+    for(size_type i = 0; i < limit; i++) { res.label[i] = this->lastLabel(i, labels); }
+    for(size_type i = limit; i < PathLabel::LABEL_LENGTH; i++) { res.label[i] = PathLabel::NO_RANK; }
     return res;
   }
 
@@ -451,7 +416,7 @@ struct PathNode
   }
 
   // Do the two path nodes intersect?
-  bool intersect(const PathLabel& first, const PathLabel& last, const std::vector<rank_type>& labels) const;
+  bool intersect(const PathLabel& first, const PathLabel& last, const rank_type* labels) const;
 
 //------------------------------------------------------------------------------
 
@@ -644,12 +609,39 @@ struct FromGetter
   }
 };
 
-struct FirstGetter
+//------------------------------------------------------------------------------
+
+/*
+  A simple byte array that stores large values std::map. Values start as 0s. Supports access
+  and increment().
+*/
+struct SLArray
 {
-  inline static size_type get(range_type range)
+  std::vector<byte_type> data;
+  std::map<size_type, size_type> large_values;
+
+  const static byte_type LARGE_VALUE = 255;
+
+  explicit SLArray(size_type n);
+
+  inline bool size() const { return data.size(); }
+
+  inline size_type operator[] (size_type i) const
   {
-    return range.first;
+    return (this->data[i] == LARGE_VALUE ? this->large_values.at(i) : this->data[i]);
   }
+
+  inline void increment(size_type i)
+  {
+    if(this->data[i] == LARGE_VALUE) { this->large_values[i]++; }
+    else
+    {
+      this->data[i]++;
+      if(this->data[i] == LARGE_VALUE) { this->large_values[i] = LARGE_VALUE; }
+    }
+  }
+
+  void clear();
 };
 
 //------------------------------------------------------------------------------

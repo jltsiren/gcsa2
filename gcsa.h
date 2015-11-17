@@ -209,36 +209,7 @@ public:
 private:
   void copy(const GCSA& g);
   void setVectors();
-
-  /*
-    Merges path nodes having the same labels. Writes the additional from nodes to the given
-    vector as pairs (path rank, node). Sets path_node_count.
-  */
-  void mergeByLabel(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-    std::vector<range_type>& from_nodes);
-
-  /*
-    Store the number of outgoing edges in the to fields of each node. Then build the GCSA,
-    apart from the fields related to samples. Clears last_labels, mapper, and last_char;
-    updates next.
-  */
-  void build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-    DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char, std::vector<size_type>& next);
-
   void initSupport();
-
-  /*
-    Builds the structures related to samples. Clears from_nodes.
-
-    We sample a path node, if it a) has multiple predecessors; b) is the source node;
-    c) has offset 0 for at least one from node; or d) the set of node ids is different
-    from the predecessor, or the offset is anything other than the offset in the
-    predecessor (for the same id) +1.
-
-    FIXME Later: An alternate sampling scheme for graphs where nodes are not (id, offset)
-    pairs.
-  */
-  void sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes);
 
   void locateInternal(size_type path, std::vector<node_type>& results) const;
 

@@ -74,13 +74,7 @@ struct PathGraph
   void prune(const LCP& lcp, size_type size_limit);
   void extend(size_type size_limit);
 
-  /*
-    Setting append = true has unpredictable side effects if done outside the member
-    functions of PathGraph.
-  */
-  void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels) const;
-  void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-            size_type file, bool append = false) const;
+  void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type file) const;
 
   PathGraph(const PathGraph&) = delete;
   PathGraph& operator= (const PathGraph&) = delete;
@@ -141,9 +135,6 @@ struct MergedGraph
   {
     return this->path_bytes() + this->rank_bytes() + this->from_bytes();
   }
-
-  void read(std::vector<PathNode>& _paths, std::vector<PathNode::rank_type>& _labels,
-    std::vector<range_type>& _from_nodes) const;
 
   void* map(const std::string& filename, const std::string& file_type, int& fd, size_type n);
 

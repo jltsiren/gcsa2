@@ -221,24 +221,60 @@ GCSA::load(std::istream& in)
 //------------------------------------------------------------------------------
 
 void
-readPathNodes(const std::string& filename,
-  std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels)
+predecessor(const PathNode& curr, const PathNode::rank_type* labels,
+  comp_type comp, const DeBruijnGraph& mapper, const sdsl::int_vector<0>& last_char,
+  PathLabel& first, PathLabel& last)
 {
-  sdsl::util::clear(paths); sdsl::util::clear(labels);
+  size_type i = 0, j = curr.pointer();
+  first.first = true; last.first = false;
 
-  std::ifstream in(filename.c_str(), std::ios_base::binary);
-  if(!in)
+  // Handle the common prefix of the labels.
+  while(i < curr.lcp())
   {
-    std::cerr << "readPathNodes(): Cannot open temporary file " << filename << std::endl;
-    std::cerr << "readPathNodes(): Construction aborted" << std::endl;
-    std::exit(EXIT_FAILURE);
+    first.label[i] = last.label[i] = mapper.LF(labels[j], comp);
+    comp = last_char[labels[j]];
+    i++; j++;
   }
 
-  size_type path_count = 0, rank_count = 0;
-  sdsl::read_member(path_count, in); sdsl::read_member(rank_count, in);
-  paths.reserve(path_count + 4); labels.reserve(rank_count + 4);
-  for(size_type i = 0; i < path_count; i++) { paths.push_back(PathNode(in, labels)); }
-  in.close(); remove(filename.c_str());
+  // Handle the diverging suffixes of the labels.
+  comp_type first_comp = comp, last_comp = comp;
+  if(i < curr.order())
+  {
+    first.label[i] = mapper.LF(labels[j], first_comp);
+    first_comp = last_char[labels[j]];
+    last.label[i] = mapper.LF(labels[j + 1], last_comp);
+    last_comp = last_char[labels[j + 1]];
+    i++;
+  }
+  if(i < PathLabel::LABEL_LENGTH)
+  {
+    first.label[i] = mapper.node_rank(mapper.alpha.C[first_comp]);
+    last.label[i] = mapper.node_rank(mapper.alpha.C[last_comp + 1]) - 1;
+    i++;
+  }
+
+  // Pad the labels.
+  while(i < PathLabel::LABEL_LENGTH)
+  {
+    first.label[i] = 0; last.label[i] = PathLabel::NO_RANK; i++;
+  }
+}
+
+void
+fromNodes(const MergedGraph& graph, size_type path, size_type& pointer, std::vector<node_type>& results, bool revert)
+{
+  results.clear();
+  results.push_back(graph.paths[path].from);
+
+  while(pointer < graph.size() && graph.from_nodes[pointer].first < path) { pointer++; }
+  size_type old_pointer = pointer;
+  while(pointer < graph.size() && graph.from_nodes[pointer].first == path)
+  {
+    results.push_back(graph.from_nodes[pointer].second); pointer++;
+  }
+  if(revert) { pointer = old_pointer; } // We may have the same predecessor for multiple nodes.
+
+  removeDuplicates(results, false);
 }
 
 GCSA::GCSA(const InputGraph& graph,
@@ -304,20 +340,127 @@ GCSA::GCSA(const InputGraph& graph,
   this->path_node_count = merged_graph.size();
   path_graph.clear();
 
-  // FIXME temporary
-  std::vector<PathNode> paths;
-  std::vector<PathNode::rank_type> labels;
-  std::vector<range_type> from_nodes;
-  merged_graph.read(paths, labels, from_nodes);
-  merged_graph.clear();
+  // Structures used to build GCSA.
+  sdsl::int_vector<64> counts(mapper.alpha.sigma, 0); // alpha
+  sdsl::int_vector<8> bwt_buffer(merged_graph.size() + merged_graph.size() / 2, 0); // bwt
+  this->path_nodes = bit_vector(bwt_buffer.size(), 0);
+  SLArray outdegrees(merged_graph.size());  // edges
+  this->sampled_paths = bit_vector(merged_graph.size(), 0);
+  std::vector<node_type> sample_buffer; // stored_samples
+  this->samples = bit_vector(merged_graph.size() + merged_graph.extra(), 0);
 
-  /*
-    FIXME The actual construction should combine build() and sample(). In one pass, we
-    determine all predecessors of the node and their from nodes. Based on that information,
-    we can build both GCSA and the samples.
-  */
-  this->build(paths, labels, mapper, last_char, merged_graph.next);
-  this->sample(paths, from_nodes);
+  // The actual construction.
+  // FIXME use MemoryMapManagers
+  PathLabel first, last;
+  size_type from_pointer = 0, total_edges = 0, sample_bits = 0;
+  std::vector<node_type> pred_from, curr_from;
+  for(size_type i = 0; i < merged_graph.size(); i++)
+  {
+    // Find the predecessors.
+    size_type indegree = 0, pred_id = 0, pred_comp = 0;
+    bool sample_this = false;
+    for(size_type comp = 0; comp < mapper.alpha.sigma; comp++)
+    {
+      if(!(merged_graph.paths[i].hasPredecessor(comp))) { continue; }
+
+      // Find the predecessor of paths[i] with comp and the first path intersecting it.
+      predecessor(merged_graph.paths[i], merged_graph.labels, comp, mapper, last_char, first, last);
+      while(!(merged_graph.paths[merged_graph.next[comp]].intersect(first, last, merged_graph.labels))) {
+          merged_graph.next[comp]++;
+      }
+
+      // Add an edge.
+      indegree++; outdegrees.increment(merged_graph.next[comp]); total_edges++;
+      if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + merged_graph.size() / 2); }
+      bwt_buffer[total_edges - 1] = comp; counts[comp]++;
+      pred_id = merged_graph.next[comp]; pred_comp = comp; // For sampling.
+
+      // Create additional edges if the next path nodes also intersect with the predecessor.
+      while(merged_graph.next[comp] + 1 < merged_graph.size() &&
+            merged_graph.paths[merged_graph.next[comp] + 1].intersect(first, last, merged_graph.labels))
+      {
+        merged_graph.next[comp]++;
+        indegree++; outdegrees.increment(merged_graph.next[comp]); total_edges++;
+        if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + merged_graph.size() / 2); }
+        bwt_buffer[total_edges - 1] = comp; counts[comp]++;
+      }
+    }
+    if(total_edges > this->path_nodes.size()) { this->path_nodes.resize(bwt_buffer.size()); }
+    this->path_nodes[total_edges - 1] = 1;
+
+    /*
+      Simple cases for sampling the node:
+      - multiple predecessors
+      - at the beginning of the source node with no real predecessors
+      - at the beginning of a node in the original graph (makes the previous case redundant)
+    */
+    fromNodes(merged_graph, i, from_pointer, curr_from, false);
+    if(indegree > 1) { sample_this = true; }
+    if(merged_graph.paths[i].hasPredecessor(Alphabet::SINK_COMP)) { sample_this = true; }
+    for(size_type k = 0; k < curr_from.size(); k++)
+    {
+      if(Node::offset(curr_from[k]) == 0) { sample_this = true; break; }
+    }
+
+    // Sample if the from nodes cannot be derived from the only predecessor.
+    if(!sample_this)
+    {
+      fromNodes(merged_graph, pred_id, merged_graph.next_from[pred_comp], pred_from, true);
+      if(pred_from.size() != curr_from.size()) { sample_this = true; }
+      else
+      {
+        for(size_type k = 0; k < curr_from.size(); k++)
+        {
+          if(curr_from[k] != pred_from[k] + 1) { sample_this = true; break; }
+        }
+      }
+    }
+
+    // Store the samples.
+    if(sample_this)
+    {
+      this->sampled_paths[i] = 1;
+      for(size_type k = 0; k < curr_from.size(); k++)
+      {
+        sample_bits = std::max(sample_bits, bit_length(curr_from[k]));
+        sample_buffer.push_back(curr_from[k]);
+      }
+      this->samples[sample_buffer.size() - 1] = 1;
+    }
+  }
+  sdsl::util::clear(last_char);
+
+  // Initialize alpha.
+  this->alpha = Alphabet(counts, mapper.alpha.char2comp, mapper.alpha.comp2char);
+  sdsl::util::clear(mapper);
+
+  // Initialize bwt.
+  bwt_buffer.resize(total_edges);
+  directConstruct(this->bwt, bwt_buffer);
+  sdsl::util::clear(bwt_buffer);
+
+  // Initialize bitvectors (path_nodes, edges, sampled_paths, samples).
+  this->path_nodes.resize(total_edges);
+  this->edges = bit_vector(total_edges, 0); total_edges = 0;
+  for(size_type i = 0; i < merged_graph.size(); i++)
+  {
+    total_edges += outdegrees[i];
+    this->edges[total_edges - 1] = 1;
+  }
+  outdegrees.clear();
+  this->samples.resize(sample_buffer.size());
+  this->initSupport();
+
+  // Initialize stored_samples.
+  this->stored_samples = sdsl::int_vector<0>(sample_buffer.size(), 0, sample_bits);
+  for(size_type i = 0; i < sample_buffer.size(); i++) { this->stored_samples[i] = sample_buffer[i]; }
+  sdsl::util::clear(sample_buffer);
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "GCSA::GCSA(): " << total_edges << " edges" << std::endl;
+  std::cerr << "GCSA::GCSA(): " << this->sample_count() << " samples at "
+            << this->sampled_positions() << " positions" << std::endl;
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -441,122 +584,6 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
 
 //------------------------------------------------------------------------------
 
-std::pair<PathLabel, PathLabel>
-predecessor(const PathNode& curr, std::vector<PathNode::rank_type>& labels,
-  comp_type comp, const DeBruijnGraph& mapper, const sdsl::int_vector<0>& last_char)
-{
-  size_type i = 0, j = curr.pointer();
-  PathLabel first, last;
-  first.setFirst(); last.setLast();
-
-  // Handle the common prefix of the labels.
-  while(i < curr.lcp())
-  {
-    first.label[i] = last.label[i] = mapper.LF(labels[j], comp);
-    comp = last_char[labels[j]];
-    i++; j++;
-  }
-
-  // Handle the diverging suffixes of the labels.
-  comp_type first_comp = comp, last_comp = comp;
-  if(i < curr.order())
-  {
-    first.label[i] = mapper.LF(labels[j], first_comp);
-    first_comp = last_char[labels[j]];
-    last.label[i] = mapper.LF(labels[j + 1], last_comp);
-    last_comp = last_char[labels[j + 1]];
-    i++;
-  }
-  if(i < PathLabel::LABEL_LENGTH)
-  {
-    first.label[i] = mapper.node_rank(mapper.alpha.C[first_comp]);
-    last.label[i] = mapper.node_rank(mapper.alpha.C[last_comp + 1]) - 1;
-    i++;
-  }
-
-  first.setLength(i); last.setLength(i);
-  return std::make_pair(first, last);
-}
-
-/*
-  Path nodes correspond to lexicographic ranges of path labels. The predecessor found using
-  mapper.LF() matches all path nodes with ranges intersecting the predecessor range.
-
-  FIXME Later: parallelize
-*/
-void
-GCSA::build(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-  DeBruijnGraph& mapper, sdsl::int_vector<0>& last_char, std::vector<size_type>& next)
-{
-  size_type total_edges = 0;
-  sdsl::int_vector<64> counts(mapper.alpha.sigma, 0);
-  sdsl::int_vector<8> bwt_buffer(paths.size() + paths.size() / 2, 0);
-  this->path_nodes = bit_vector(bwt_buffer.size(), 0);
-  for(size_type i = 0; i < paths.size(); i++)
-  {
-    for(size_type comp = 0; comp < mapper.alpha.sigma; comp++)
-    {
-      if(!(paths[i].hasPredecessor(comp))) { continue; }
-
-      // Find the predecessor of paths[i] with comp and the first path intersecting it.
-      std::pair<PathLabel, PathLabel> pred = predecessor(paths[i], labels, comp, mapper, last_char);
-      while(!(paths[next[comp]].intersect(pred.first, pred.second, labels))) {
-          next[comp]++;
-      }
-      paths[i].incrementIndegree(); paths[next[comp]].incrementOutdegree(); total_edges++;
-      if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + paths.size() / 2); }
-      bwt_buffer[total_edges - 1] = comp; counts[comp]++;
-
-      // Create additional edges if the next path nodes also intersect with the predecessor.
-      while(next[comp] + 1 < paths.size() && paths[next[comp] + 1].intersect(pred.first, pred.second, labels))
-      {
-        next[comp]++;
-        paths[i].incrementIndegree(); paths[next[comp]].incrementOutdegree(); total_edges++;
-        if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + paths.size() / 2); }
-        bwt_buffer[total_edges - 1] = comp; counts[comp]++;
-      }
-    }
-
-    if(total_edges > this->path_nodes.size()) { this->path_nodes.resize(bwt_buffer.size()); }
-    this->path_nodes[total_edges - 1] = 1;
-  }
-
-  // Init alpha and bwt; clear unnecessary structures.
-  this->alpha = Alphabet(counts, mapper.alpha.char2comp, mapper.alpha.comp2char);
-  sdsl::util::clear(mapper); sdsl::util::clear(last_char);
-  bwt_buffer.resize(total_edges); this->path_nodes.resize(total_edges);
-  directConstruct(this->bwt, bwt_buffer); sdsl::util::clear(bwt_buffer);
-
-  // This is a useful test when something goes wrong. Disable it when not needed.
-/*  for(size_type i = 0; i < paths.size(); i++)
-  {
-    if(paths[i].outdegree() == 0)
-    {
-      for(size_type j = std::max((size_type)1, i) - 1; j < std::min(i + 2, paths.size()); j++)
-      {
-        std::cout << "Path " << j << ": ";
-        paths[j].print(std::cout, labels);
-        std::cout << " has outdegree " << paths[j].outdegree() << std::endl;
-      }
-    }
-  }*/
-
-  // Init edges and rank/select support.
-  this->edges = bit_vector(total_edges, 0); total_edges = 0;
-  for(size_type i = 0; i < paths.size(); i++)
-  {
-    total_edges += paths[i].outdegree();
-    this->edges[total_edges - 1] = 1;
-  }
-  this->initSupport();
-
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "GCSA::build(): " << total_edges << " edges" << std::endl;
-#endif
-}
-
-//------------------------------------------------------------------------------
-
 void
 GCSA::initSupport()
 {
@@ -564,87 +591,8 @@ GCSA::initSupport()
   sdsl::util::init_support(this->path_select, &(this->path_nodes));
   sdsl::util::init_support(this->edge_rank, &(this->edges));
   sdsl::util::init_support(this->edge_select, &(this->edges));
-}
-
-//------------------------------------------------------------------------------
-
-std::vector<node_type>
-fromNodes(size_type path, const std::vector<PathNode>& paths,
-  size_type& additional, const std::vector<range_type>& from_nodes)
-{
-  std::vector<node_type> res;
-  res.push_back(paths[path].from);
-
-  while(additional < from_nodes.size() && from_nodes[additional].first < path) { additional++; }
-  while(additional < from_nodes.size() && from_nodes[additional].first == path)
-  {
-    res.push_back(from_nodes[additional].second); additional++;
-  }
-
-  removeDuplicates(res, false);
-  return res;
-}
-
-void
-GCSA::sample(std::vector<PathNode>& paths, std::vector<range_type>& from_nodes)
-{
-  this->sampled_paths = bit_vector(paths.size(), 0);
-  this->samples = bit_vector(paths.size() + from_nodes.size(), 0);
-
-  size_type sample_bits = 0;
-  std::vector<node_type> sample_buffer;
-  ValueIndex<range_type, FirstGetter> from_index(from_nodes);
-  for(size_type i = 0, j = 0; i < paths.size(); i++)
-  {
-    bool sample_this = false;
-    std::vector<node_type> curr = fromNodes(i, paths, j, from_nodes);
-    if(paths[i].indegree() > 1) { sample_this = true; }
-    if(paths[i].hasPredecessor(Alphabet::SINK_COMP)) { sample_this = true; }
-    for(size_type k = 0; k < curr.size(); k++)
-    {
-      if(Node::offset(curr[k]) == 0) { sample_this = true; break; }
-    }
-
-    if(!sample_this)  // Compare to the from nodes at the predecessor.
-    {
-      size_type pred = this->LF(i);
-      size_type temp = from_index.find(pred);
-      std::vector<node_type> prev = fromNodes(pred, paths, temp, from_nodes);
-      if(prev.size() != curr.size()) { sample_this = true; }
-      else
-      {
-        for(size_type k = 0; k < curr.size(); k++)
-        {
-          if(curr[k] != prev[k] + 1) { sample_this = true; break; }
-        }
-      }
-    }
-
-    if(sample_this)
-    {
-      this->sampled_paths[i] = 1;
-      for(size_type k = 0; k < curr.size(); k++)
-      {
-        sample_bits = std::max(sample_bits, bit_length(curr[k]));
-        sample_buffer.push_back(curr[k]);
-      }
-      this->samples[sample_buffer.size() - 1] = 1;
-    }
-  }
-  sdsl::util::clear(from_nodes);
-
   sdsl::util::init_support(this->sampled_path_rank, &(this->sampled_paths));
-  this->samples.resize(sample_buffer.size());
   sdsl::util::init_support(this->sample_select, &(this->samples));
-
-  this->stored_samples = sdsl::int_vector<0>(sample_buffer.size(), 0, sample_bits);
-  for(size_type i = 0; i < sample_buffer.size(); i++) { this->stored_samples[i] = sample_buffer[i]; }
-  sdsl::util::clear(sample_buffer);
-
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "GCSA::sample(): " << this->sample_count() << " samples at "
-            << this->sampled_positions() << " positions" << std::endl;
-#endif
 }
 
 //------------------------------------------------------------------------------

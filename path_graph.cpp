@@ -467,7 +467,6 @@ PathGraphMerger::mergePathNodes(range_type range, std::vector<range_type>& from_
   from_nodes.clear();
 
   PathNode& merged = this->buffer[range.second].node;
-  merged.initDegree();  // GCSA construction will use 'to' for recording the indegree/outdegree.
   for(size_type i = range.first; i < range.second; i++)
   {
     merged.addPredecessors(this->buffer[i].node);
@@ -709,43 +708,18 @@ PathGraph::extend(size_type size_limit)
 //------------------------------------------------------------------------------
 
 void
-PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels) const
+PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type file) const
 {
   sdsl::util::clear(paths); sdsl::util::clear(labels);
-  paths.reserve(this->size()); labels.reserve(this->ranks());
-
-  for(size_type file = 0; file < this->files(); file++)
-  {
-    this->read(paths, labels, file, true);
-  }
-
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "PathGraph::read(): Read " << paths.size() << " order-" << this->k() << " paths" << std::endl;
-#endif
-
-  // Sort the paths by their (first) labels.
-  // FIXME Later: A priority queue should be faster.
-  PathFirstComparator first_c(labels);
-  parallelQuickSort(paths.begin(), paths.end(), first_c);
-}
-
-void
-PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels,
-                size_type file, bool append) const
-{
-  if(!append) { sdsl::util::clear(paths); sdsl::util::clear(labels); }
 
   std::ifstream input; this->open(input, file);
-  if(!append) { paths.reserve(this->sizes[file]); labels.reserve(this->rank_counts[file]); }
+  paths.reserve(this->sizes[file]); labels.reserve(this->rank_counts[file]);
   for(size_type i = 0; i < this->sizes[file]; i++) { paths.push_back(PathNode(input, labels)); }
   input.close();
 
 #ifdef VERBOSE_STATUS_INFO
-  if(!append)
-  {
-    std::cerr << "PathGraph::read(): File " << file << ": Read " << paths.size()
-              << " order-" << this->k()<< " paths" << std::endl;
-  }
+  std::cerr << "PathGraph::read(): File " << file << ": Read " << paths.size()
+            << " order-" << this->k()<< " paths" << std::endl;
 #endif
 }
 
@@ -936,26 +910,6 @@ blockCopy(Element* source, Element* dest, size_type size)
     manager.access(i);
     std::memcpy((void*)(dest + i), (void*)(source + i), bytes);
   }
-}
-
-void
-MergedGraph::read(std::vector<PathNode>& _paths, std::vector<PathNode::rank_type>& _labels,
-    std::vector<range_type>& _from_nodes) const
-{
-  sdsl::util::clear(_paths); sdsl::util::clear(_labels); sdsl::util::clear(_from_nodes);
-
-  _paths.resize(this->size());
-  blockCopy(this->paths, _paths.data(), this->size());
-
-  _labels.resize(this->ranks());
-  blockCopy(this->labels, _labels.data(), this->ranks());
-
-  _from_nodes.resize(this->extra());
-  blockCopy(this->from_nodes, _from_nodes.data(), this->extra());
-
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "MergedGraph::read(): Read " << _paths.size() << " order-" << this->k() << " paths" << std::endl;
-#endif
 }
 
 //------------------------------------------------------------------------------
