@@ -266,9 +266,9 @@ fromNodes(const MergedGraph& graph, size_type path, size_type& pointer, std::vec
   results.clear();
   results.push_back(graph.paths[path].from);
 
-  while(pointer < graph.size() && graph.from_nodes[pointer].first < path) { pointer++; }
+  while(pointer < graph.extra() && graph.from_nodes[pointer].first < path) { pointer++; }
   size_type old_pointer = pointer;
-  while(pointer < graph.size() && graph.from_nodes[pointer].first == path)
+  while(pointer < graph.extra() && graph.from_nodes[pointer].first == path)
   {
     results.push_back(graph.from_nodes[pointer].second); pointer++;
   }
