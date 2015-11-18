@@ -234,10 +234,17 @@ struct MemoryMapManager
   {
   }
 
+  // Element i is the first one we need to access with this head.
   inline void access(size_type i, size_type head)
   {
     if(i < this->limits[head]) { return; }
     this->free(i, head);
+  }
+
+  // Initialize head to access i.
+  inline void init(size_type head, size_type i)
+  {
+    this->limits[head] = i + BUFFER_SIZE - (i % BUFFER_SIZE);
   }
 
   // When i is a limit, blockFor(i) - 1 is the actual block.
@@ -419,9 +426,15 @@ GCSA::GCSA(const InputGraph& graph,
   MemoryMapManager<PathNode> path_manager(merged_graph.paths, merged_graph.size(), mapper.alpha.sigma + 1);
   MemoryMapManager<PathNode::rank_type> label_manager(merged_graph.labels, merged_graph.ranks(), mapper.alpha.sigma + 1);
   MemoryMapManager<range_type> from_manager(merged_graph.from_nodes, merged_graph.extra(), mapper.alpha.sigma + 1);
+  path_manager.init(0, 0); label_manager.init(0, 0); from_manager.init(0, 0);
+  for(size_type comp = 0; comp < mapper.alpha.sigma; comp++)
+  {
+    path_manager.init(comp + 1, merged_graph.next[comp]);
+    label_manager.init(comp + 1, merged_graph.paths[merged_graph.next[comp]].pointer());
+    from_manager.init(comp + 1, merged_graph.next_from[comp]);
+  }
 
   // The actual construction.
-  // FIXME use MemoryMapManagers
   PathLabel first, last;
   size_type from_pointer = 0, total_edges = 0, sample_bits = 0;
   std::vector<node_type> pred_from, curr_from;
@@ -486,7 +499,7 @@ GCSA::GCSA(const InputGraph& graph,
     if(!sample_this)
     {
       fromNodes(merged_graph, pred_id, merged_graph.next_from[pred_comp], pred_from, true);
-      from_manager.access(merged_graph.next_from[pred_comp], pred_comp);
+      from_manager.access(merged_graph.next_from[pred_comp], pred_comp + 1);
       if(pred_from.size() != curr_from.size()) { sample_this = true; }
       else
       {

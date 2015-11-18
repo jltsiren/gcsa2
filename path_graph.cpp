@@ -502,14 +502,20 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
       std::exit(EXIT_FAILURE);
     }
 
-    // Read KMers, sort them, and convert them to PathNodes.
+    // Read KMers, sort them, and convert the keys labels to the ranks of those labels.
     std::vector<KMer> kmers;
     source.read(kmers, file);
     parallelQuickSort(kmers.begin(), kmers.end());
-    std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
+    #pragma omp parallel for schedule(static)
     for(size_type i = 0; i < kmers.size(); i++)
     {
       kmers[i].key = Key::replace(kmers[i].key, key_rank(Key::label(kmers[i].key)));
+    }
+
+    // Convert the KMers to PathNodes.
+    std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
+    for(size_type i = 0; i < kmers.size(); i++)
+    {
       PathNode temp(kmers[i], temp_labels);
       temp.serialize(out, temp_labels);
       temp_labels.resize(0);
