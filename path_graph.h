@@ -25,11 +25,17 @@
 #ifndef _GCSA_PATH_GRAPH_H
 #define _GCSA_PATH_GRAPH_H
 
+#include <sdsl/rmq_support.hpp>
+
 #include "dbg.h"
 #include "files.h"
 
 namespace gcsa
 {
+
+/*
+  path_graph.h: Internal graph manipulation methods.
+*/
 
 //------------------------------------------------------------------------------
 

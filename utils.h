@@ -39,6 +39,10 @@
 namespace gcsa
 {
 
+/*
+  utils.h: Common utility methods.
+*/
+
 //------------------------------------------------------------------------------
 
 typedef std::uint64_t size_type;

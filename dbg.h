@@ -30,6 +30,10 @@
 namespace gcsa
 {
 
+/*
+  dbg.h: Specialization of GCSA for de Bruijn graphs.
+*/
+
 //------------------------------------------------------------------------------
 
 /*

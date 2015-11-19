@@ -25,6 +25,7 @@
 #include <cstring>
 #include <deque>
 
+#include "internal.h"
 #include "path_graph.h"
 
 namespace gcsa
@@ -447,67 +448,12 @@ PathGraphBuilder::sort(size_type file)
 
 //------------------------------------------------------------------------------
 
-struct PriorityQueue
-{
-  std::vector<PriorityNode> data;
-
-  explicit PriorityQueue(size_type n);
-
-  inline size_type size() const { return this->data.size(); }
-  inline static size_type parent(size_type i) { return (i - 1) / 2; }
-  inline static size_type left(size_type i) { return 2 * i + 1; }
-  inline static size_type right(size_type i) { return 2 * i + 2; }
-
-  inline size_type smaller(size_type i, size_type j) const
-  {
-    return (this->data[j] < this->data[i] ? j : i);
-  }
-
-  inline void down(size_type i)
-  {
-    while(left(i) < this->size())
-    {
-      size_type next = this->smaller(i, left(i));
-      if(right(i) < this->size()) { next = this->smaller(next, right(i)); }
-      if(next == i) { return; }
-      std::swap(this->data[i], this->data[next]);
-      i = next;
-    }
-  }
-
-  inline PriorityNode& operator[] (size_type i) { return this->data[i]; }
-  inline const PriorityNode& operator[] (size_type i) const { return this->data[i]; }
-
-  void heapify();
-};
-
-PriorityQueue::PriorityQueue(size_type n) :
-  data(n)
-{
-}
-
-void
-PriorityQueue::heapify()
-{
-  if(this->size() <= 1) { return; }
-
-  size_type i = parent(this->size() - 1);
-  while(true)
-  {
-    this->down(i);
-    if(i == 0) { break; }
-    i--;
-  }
-}
-
-//------------------------------------------------------------------------------
-
 struct PathGraphMerger
 {
   const PathGraph& graph;
   std::vector<std::ifstream> files;
 
-  PriorityQueue inputs;
+  PriorityQueue<PriorityNode> inputs;
   std::deque<PriorityNode> buffer;
 
   const static size_type BUFFER_SIZE = MEGABYTE;  // Minimum size in nodes.

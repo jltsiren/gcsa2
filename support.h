@@ -25,14 +25,14 @@
 #ifndef _GCSA_SUPPORT_H
 #define _GCSA_SUPPORT_H
 
-#include <map>
-
-#include <sdsl/rmq_support.hpp>
-
 #include "utils.h"
 
 namespace gcsa
 {
+
+/*
+  support.h: Support structures included in the public interface.
+*/
 
 //------------------------------------------------------------------------------
 
@@ -251,92 +251,6 @@ operator< (key_type key, const KMer& kmer)
 {
   return (Key::label(key) < Key::label(kmer.key));
 }
-
-//------------------------------------------------------------------------------
-
-template<class ValueType, class Getter>
-struct ValueIndex
-{
-  sdsl::sd_vector<>               values;     // Marks the values that are present.
-  sdsl::sd_vector<>::rank_1_type  value_rank;
-
-  sdsl::bit_vector                first_occ;  // Marks the first occurrence of each rank.
-  sdsl::bit_vector::select_1_type first_select;
-
-  ValueIndex(const std::vector<ValueType>& input)
-  {
-    std::vector<size_type> buffer;
-    this->first_occ = sdsl::bit_vector(input.size(), 0);
-
-    size_type prev = ~(size_type)0;
-    for(size_type i = 0; i < input.size(); i++)
-    {
-      size_type curr = Getter::get(input[i]);
-      if(curr != prev)
-      {
-        buffer.push_back(curr);
-        this->first_occ[i] = 1;
-        prev = curr;
-      }
-    }
-
-    // Fills in values, but only works if there are any values to fill
-    if(buffer.size() > 0)
-    {
-      sdsl::sd_vector<> temp(buffer.begin(), buffer.end());
-      this->values.swap(temp);
-      sdsl::util::clear(buffer);
-    }
-
-    sdsl::util::init_support(this->value_rank, &(this->values));
-    sdsl::util::init_support(this->first_select, &(this->first_occ));
-  }
-
-  // Finds the first occurrence of the value.
-  size_type find(size_type value) const
-  {
-    if(value >= this->values.size() || this->values[value] == 0) { return this->first_occ.size(); }
-    return this->first_select(this->value_rank(value) + 1);
-  }
-
-  ValueIndex(const ValueIndex&) = delete;
-  ValueIndex& operator= (const ValueIndex&) = delete;
-};
-
-//------------------------------------------------------------------------------
-
-/*
-  A simple byte array that stores large values in an std::map. Values start as 0s.
-  Supports access and increment().
-*/
-struct SLArray
-{
-  std::vector<byte_type> data;
-  std::map<size_type, size_type> large_values;
-
-  const static byte_type LARGE_VALUE = 255;
-
-  explicit SLArray(size_type n);
-
-  inline bool size() const { return data.size(); }
-
-  inline size_type operator[] (size_type i) const
-  {
-    return (this->data[i] == LARGE_VALUE ? this->large_values.at(i) : this->data[i]);
-  }
-
-  inline void increment(size_type i)
-  {
-    if(this->data[i] == LARGE_VALUE) { this->large_values[i]++; }
-    else
-    {
-      this->data[i]++;
-      if(this->data[i] == LARGE_VALUE) { this->large_values[i] = LARGE_VALUE; }
-    }
-  }
-
-  void clear();
-};
 
 //------------------------------------------------------------------------------
 

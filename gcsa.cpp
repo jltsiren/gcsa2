@@ -27,6 +27,7 @@
 #include <deque>
 
 #include "gcsa.h"
+#include "internal.h"
 #include "path_graph.h"
 
 namespace gcsa
@@ -149,20 +150,6 @@ GCSA::operator=(GCSA&& g)
   return *this;
 }
 
-void
-GCSA::setVectors()
-{
-  this->path_rank.set_vector(&(this->path_nodes));
-  this->path_select.set_vector(&(this->path_nodes));
-
-  this->edge_rank.set_vector(&(this->edges));
-  this->edge_select.set_vector(&(this->edges));
-
-  this->sampled_path_rank.set_vector(&(this->sampled_paths));
-
-  this->sample_select.set_vector(&(this->samples));
-}
-
 GCSA::size_type
 GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* s, std::string name) const
 {
@@ -217,117 +204,6 @@ GCSA::load(std::istream& in)
   this->stored_samples.load(in);
   this->samples.load(in);
   this->sample_select.load(in, &(this->samples));
-}
-
-//------------------------------------------------------------------------------
-
-/*
-  A buffer for reading a file of Elements sequentially. The buffer contains Elements
-  offset to offset + buffer.size() - 1.
-*/
-
-template<class Element>
-struct ReadBuffer
-{
-  std::ifstream       file;
-  size_type           elements, offset;
-  std::deque<Element> buffer;
-
-  // After seek(), buffer size should in [MINIMUM_SIZE, BUFFER_SIZE].
-  const static size_type BUFFER_SIZE = MEGABYTE;
-  const static size_type MINIMUM_SIZE = BUFFER_SIZE / 2;
-
-  ReadBuffer();
-  ~ReadBuffer();
-
-  inline size_type size() const { return this->elements; }
-  inline void pop() { this->buffer.pop_front(); this->offset++; }
-
-  inline bool buffered(size_type i) const
-  {
-    return (i >= this->offset && i < this->offset + this->buffer.size());
-  }
-
-  void init(const std::string& filename);
-  void clear();
-  void seek(size_type i);
-  void fill();
-
-  inline const Element& operator[] (size_type i)
-  {
-    if(!(this->buffered(i))) { this->seek(i); }
-    return this->buffer[i - this->offset];
-  }
-
-  ReadBuffer(const ReadBuffer&) = delete;
-  ReadBuffer& operator= (const ReadBuffer&) = delete;
-};
-
-template<class Element>
-ReadBuffer<Element>::ReadBuffer()
-{
-}
-
-template<class Element>
-ReadBuffer<Element>::~ReadBuffer()
-{
-  this->clear();
-}
-
-template<class Element>
-void
-ReadBuffer<Element>::init(const std::string& filename)
-{
-  this->clear();
-  this->file.open(filename.c_str(), std::ios_base::binary);
-  if(!(this->file))
-  {
-    std::cerr << "ReadBuffer::init(): Cannot open input file " << filename << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  this->elements = fileSize(this->file) / sizeof(Element);
-  this->offset = 0;
-}
-
-template<class Element>
-void
-ReadBuffer<Element>::clear()
-{
-  sdsl::util::clear(this->buffer);
-  if(this->file.is_open()) { this->file.close(); }
-}
-
-template<class Element>
-void
-ReadBuffer<Element>::seek(size_type i)
-{
-  if(i >= this->size()) { return; }
-
-  if(this->buffered(i))
-  {
-    while(this->offset < i) { this->pop(); }
-    if(this->buffer.size() < MINIMUM_SIZE) { this->fill(); }
-  }
-  else
-  {
-    this->buffer.clear();
-    this->file.seekg(i * sizeof(Element), std::ios_base::beg);
-    this->offset = i;
-    this->fill();
-  }
-}
-
-template<class Element>
-void
-ReadBuffer<Element>::fill()
-{
-  size_type target_size = std::min(BUFFER_SIZE, this->size() - this->offset);
-  if(this->buffer.size() >= target_size) { return; }
-
-  size_type count = target_size - this->buffer.size();
-  std::vector<Element> temp(count);
-  this->file.read((char*)(temp.data()), count * sizeof(Element));
-  this->buffer.insert(this->buffer.end(), temp.begin(), temp.end());
 }
 
 //------------------------------------------------------------------------------
@@ -827,6 +703,20 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
 }
 
 //------------------------------------------------------------------------------
+
+void
+GCSA::setVectors()
+{
+  this->path_rank.set_vector(&(this->path_nodes));
+  this->path_select.set_vector(&(this->path_nodes));
+
+  this->edge_rank.set_vector(&(this->edges));
+  this->edge_select.set_vector(&(this->edges));
+
+  this->sampled_path_rank.set_vector(&(this->sampled_paths));
+
+  this->sample_select.set_vector(&(this->samples));
+}
 
 void
 GCSA::initSupport()

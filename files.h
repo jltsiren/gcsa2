@@ -30,6 +30,10 @@
 namespace gcsa
 {
 
+/*
+  files.h: Public interface for graph files.
+*/
+
 //------------------------------------------------------------------------------
 
 struct GraphFileHeader

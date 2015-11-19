@@ -22,8 +22,6 @@
   SOFTWARE.
 */
 
-#include <sstream>
-
 #include "support.h"
 
 namespace gcsa
@@ -255,20 +253,6 @@ operator<< (std::ostream& out, const KMer& kmer)
       << ", from " << Node::decode(kmer.from)
       << ", to " << Node::decode(kmer.to) << ")";
   return out;
-}
-
-//------------------------------------------------------------------------------
-
-SLArray::SLArray(size_type n) :
-  data(n, 0)
-{
-}
-
-void
-SLArray::clear()
-{
-  sdsl::util::clear(this->data);
-  sdsl::util::clear(this->large_values);
 }
 
 //------------------------------------------------------------------------------

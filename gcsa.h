@@ -30,6 +30,10 @@
 namespace gcsa
 {
 
+/*
+  gcsa.h: The main public interface.
+*/
+
 //------------------------------------------------------------------------------
 
 class GCSA
