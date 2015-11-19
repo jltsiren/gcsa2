@@ -77,6 +77,22 @@ memoryUsage()
 #endif
 }
 
+size_type
+readVolume()
+{
+  rusage usage;
+  getrusage(RUSAGE_SELF, &usage);
+  return usage.ru_inblock * DISK_BLOCK_SIZE;
+}
+
+size_type
+writeVolume()
+{
+  rusage usage;
+  getrusage(RUSAGE_SELF, &usage);
+  return usage.ru_oublock * DISK_BLOCK_SIZE;
+}
+
 //------------------------------------------------------------------------------
 
 size_type

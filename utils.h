@@ -178,6 +178,11 @@ void printTime(const std::string& header, size_type queries, double seconds, siz
 double readTimer();       // Seconds from an arbitrary time point.
 size_type memoryUsage();  // Peak memory usage in bytes.
 
+const static size_type DISK_BLOCK_SIZE = 512;
+
+size_type readVolume();   // In bytes.
+size_type writeVolume();  // In bytes.
+
 //------------------------------------------------------------------------------
 
 // Returns the total length of the rows, excluding line ends.
@@ -189,6 +194,11 @@ size_type fileSize(std::ifstream& file);
 size_type fileSize(std::ofstream& file);
 
 //------------------------------------------------------------------------------
+
+/*
+  parallelQuickSort() uses less working space than parallelMergeSort(). Calling omp_set_nested(1)
+  may improve the speed of parallelQuickSort().
+*/
 
 template<class Iterator, class Comparator>
 void
