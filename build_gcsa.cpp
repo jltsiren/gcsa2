@@ -26,7 +26,6 @@
 #include <string>
 #include <unistd.h>
 
-#include "files.h"
 #include "gcsa.h"
 
 using namespace gcsa;
@@ -45,6 +44,11 @@ using namespace gcsa;
 #endif
 
 //------------------------------------------------------------------------------
+
+#ifdef VERIFY_MAPPER
+#include "dbg.h"
+#include "path_graph.h"
+#endif
 
 bool verifyGraph(const InputGraph& input_graph);
 void verifyMapper(const InputGraph& graph);
@@ -260,6 +264,7 @@ verifyGraph(const InputGraph& input_graph)
 
 //------------------------------------------------------------------------------
 
+#ifdef VERIFY_MAPPER
 void
 verifyMapper(const InputGraph& graph)
 {
@@ -308,5 +313,6 @@ verifyMapper(const InputGraph& graph)
 
   std::cout << std::endl;
 }
+#endif
 
 //------------------------------------------------------------------------------
