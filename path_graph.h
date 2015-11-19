@@ -163,19 +163,8 @@ struct PathNode
     return labels[this->pointer() + i];
   }
 
-  inline rank_type firstLabel(size_type i, const rank_type* labels) const
-  {
-    return labels[this->pointer() + i];
-  }
-
   template<class ArrayType>
   inline rank_type lastLabel(size_type i, ArrayType& labels) const
-  {
-    if(i < this->lcp()) { return labels[this->pointer() + i]; }
-    else { return labels[this->pointer() + this->order()]; }
-  }
-
-  inline rank_type lastLabel(size_type i, const rank_type* labels) const
   {
     if(i < this->lcp()) { return labels[this->pointer() + i]; }
     else { return labels[this->pointer() + this->order()]; }
@@ -199,7 +188,7 @@ struct PathNode
     - the second one sets it to 0
 
     The third serialize() version sets the pointer to ptr. It can be used to write
-    PathNodes into memory mappable files.
+    PathNodes into memory mappable files or into files used with ReadBuffer.
   */
   PathNode(std::istream& in, std::vector<rank_type>& labels);
   PathNode(std::istream& in, rank_type* labels);
