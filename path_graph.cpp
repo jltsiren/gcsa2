@@ -25,11 +25,6 @@
 #include <cstring>
 #include <deque>
 
-// For memory mapped files.
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-
 #include "path_graph.h"
 
 namespace gcsa
@@ -735,8 +730,6 @@ const std::string MergedGraph::PREFIX = ".gcsa";
 
 MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
   path_name(tempFile(PREFIX)), rank_name(tempFile(PREFIX)), from_name(tempFile(PREFIX)),
-  path_d(NO_FILE), rank_d(NO_FILE), from_d(NO_FILE),
-  paths(0), labels(0), from_nodes(0),
   path_count(0), rank_count(0), from_count(0),
   order(source.k()),
   next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0)
@@ -797,10 +790,6 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
   merger.close();
   path_file.close(); rank_file.close(); from_file.close();
 
-  this->paths = (PathNode*)(this->map(this->path_name, "path", this->path_d, this->path_bytes()));
-  this->labels = (PathNode::rank_type*)(this->map(this->rank_name, "rank", this->rank_d, this->rank_bytes()));
-  this->from_nodes = (range_type*)(this->map(this->from_name, "from", this->from_d, this->from_bytes()));
-
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "MergedGraph::MergedGraph(): " << this->size() << " paths with "
             << this->ranks() << " ranks and " << this->extra() << " additional from nodes" << std::endl;
@@ -816,17 +805,6 @@ MergedGraph::~MergedGraph()
 void
 MergedGraph::clear()
 {
-  // Unmap.
-  if(this->paths != 0) { munmap(this->paths, this->path_bytes()); this->paths = 0; }
-  if(this->labels != 0) { munmap(this->labels, this->rank_bytes()); this->labels = 0; }
-  if(this->from_nodes != 0) { munmap(this->from_nodes, this->from_bytes()); this->from_nodes = 0; }
-
-  // Close.
-  if(this->path_d != NO_FILE) { close(this->path_d); this->path_d = NO_FILE; }
-  if(this->rank_d != NO_FILE) { close(this->rank_d); this->rank_d = NO_FILE; }
-  if(this->from_d != NO_FILE) { close(this->from_d); this->from_d = NO_FILE; }
-
-  // Remove.
   remove(this->path_name.c_str()); this->path_name = "";
   remove(this->rank_name.c_str()); this->rank_name = "";
   remove(this->from_name.c_str()); this->from_name = "";
@@ -835,26 +813,7 @@ MergedGraph::clear()
   this->order = 0;
 
   for(size_type i = 0; i < this->next.size(); i++) { this->next[i] = 0; }
-}
-
-void*
-MergedGraph::map(const std::string& filename, const std::string& file_type, int& fd, size_type n)
-{
-  if((fd = open(filename.c_str(), O_RDONLY)) == NO_FILE)
-  {
-    std::cerr << "MergedGraph::map(): Cannot open " << file_type << " file " << filename << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-
-  void* pointer = mmap(0, n, PROT_READ, MAP_FILE | MAP_SHARED, fd, 0);
-  if(pointer == 0)
-  {
-    std::cerr << "MergedGraph::map(): Cannot memory map " << file_type << " file " << filename << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  madvise(pointer, n, MADV_SEQUENTIAL);
-
-  return pointer;
+  for(size_type i = 0; i < this->next_from.size(); i++) { this->next_from[i] = 0; }
 }
 
 //------------------------------------------------------------------------------

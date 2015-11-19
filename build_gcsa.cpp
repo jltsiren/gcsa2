@@ -122,7 +122,6 @@ main(int argc, char** argv)
   std::cout << std::endl;
 
   InputGraph graph(argc - optind, argv + optind, binary);
-  graph.size();
 
 #ifdef VERIFY_GRAPH
   if(!(verifyGraph(graph))) { std::exit(EXIT_FAILURE); }

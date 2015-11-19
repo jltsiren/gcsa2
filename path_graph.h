@@ -86,21 +86,11 @@ struct PathGraph
   A merged graph is a path graph with the path nodes in one file, the labels in another
   file, and the additional from nodes in a third file. The PathNodes are sorted by their
   labels and their label pointers are set correctly.
-
-  After writing everything to disk, the constructor opens the files and memory maps them.
 */
 
 struct MergedGraph
 {
   std::string path_name, rank_name, from_name;
-
-  // File descriptors.
-  int path_d, rank_d, from_d;
-
-  // Memory mapped files.
-  PathNode*            paths;
-  PathNode::rank_type* labels;
-  range_type*          from_nodes;
 
   size_type path_count, rank_count, from_count;
   size_type order;
@@ -108,14 +98,8 @@ struct MergedGraph
   std::vector<size_type> next;  // paths[next[comp]] is the first path starting with comp.
   std::vector<size_type> next_from; // Where to find the corresponding additional from nodes.
 
-  const static int NO_FILE = -1;
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa
-
-  /*
-    FIXME: Constructor should open the files and memory map them.
-    clear() should unmap the files and close them.
-  */
 
   MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper);
   ~MergedGraph();
@@ -135,8 +119,6 @@ struct MergedGraph
   {
     return this->path_bytes() + this->rank_bytes() + this->from_bytes();
   }
-
-  void* map(const std::string& filename, const std::string& file_type, int& fd, size_type n);
 
   MergedGraph(const MergedGraph&) = delete;
   MergedGraph& operator= (const MergedGraph&) = delete;

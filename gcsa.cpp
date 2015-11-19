@@ -24,6 +24,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <deque>
 
 #include "gcsa.h"
 #include "path_graph.h"
@@ -221,91 +222,214 @@ GCSA::load(std::istream& in)
 //------------------------------------------------------------------------------
 
 /*
-  This class maintains k sequential read pointers (heads) to a memory mapped file
-  containing n Elements. The file is divided into blocks of BUFFER_SIZE elements.
-  A head at block i may use blocks i-1 to i+1. When a head moves to block i+1,
-  we can free block i-1, unless other heads are using it.
+  A buffer for reading a file of Elements sequentially. The buffer contains Elements
+  offset to offset + buffer.size() - 1.
 */
+
 template<class Element>
-struct MemoryMapManager
+struct ReadBuffer
 {
-  MemoryMapManager(Element* ptr, size_type n, size_type k) :
-    pointer(ptr), limits(k, 0), size(n)
+  std::ifstream       file;
+  size_type           elements, offset;
+  std::deque<Element> buffer;
+
+  // After seek(), buffer size should in [MINIMUM_SIZE, BUFFER_SIZE].
+  const static size_type BUFFER_SIZE = MEGABYTE;
+  const static size_type MINIMUM_SIZE = BUFFER_SIZE / 2;
+
+  ReadBuffer();
+  ~ReadBuffer();
+
+  inline size_type size() const { return this->elements; }
+  inline void pop() { this->buffer.pop_front(); this->offset++; }
+
+  inline bool buffered(size_type i) const
   {
+    return (i >= this->offset && i < this->offset + this->buffer.size());
   }
 
-  // Element i is the first one we need to access with this head.
-  inline void access(size_type i, size_type head)
+  void init(const std::string& filename);
+  void clear();
+  void seek(size_type i);
+  void fill();
+
+  inline const Element& operator[] (size_type i)
   {
-    if(i < this->limits[head]) { return; }
-    this->free(i, head);
+    if(!(this->buffered(i))) { this->seek(i); }
+    return this->buffer[i - this->offset];
   }
 
-  // Initialize head to access i.
-  inline void init(size_type head, size_type i)
-  {
-    this->limits[head] = i + BUFFER_SIZE - (i % BUFFER_SIZE);
-  }
-
-  // When i is a limit, blockFor(i) - 1 is the actual block.
-  inline static size_type blockFor(size_type i) { return i / BUFFER_SIZE; }
-
-  inline bool uses(size_type head, size_type block) const
-  {
-    size_type head_block = blockFor(this->limits[head]);  // head uses blocks head_block - 2 to head_block.
-    return (block + 2 >= head_block && block <= head_block);
-  }
-
-  void free(size_type until, size_type head);
-
-  const static size_type BUFFER_SIZE = MEGABYTE;  // This should be divisible by page size.
-
-  Element* pointer;
-  std::vector<size_type> limits;
-  size_type size;
+  ReadBuffer(const ReadBuffer&) = delete;
+  ReadBuffer& operator= (const ReadBuffer&) = delete;
 };
 
 template<class Element>
-void
-MemoryMapManager<Element>::free(size_type until, size_type head)
+ReadBuffer<Element>::ReadBuffer()
 {
-  until = std::min(until, this->size);
+}
 
-  while(this->limits[head] <= until)
+template<class Element>
+ReadBuffer<Element>::~ReadBuffer()
+{
+  this->clear();
+}
+
+template<class Element>
+void
+ReadBuffer<Element>::init(const std::string& filename)
+{
+  this->clear();
+  this->file.open(filename.c_str(), std::ios_base::binary);
+  if(!(this->file))
   {
-    size_type block = blockFor(this->limits[head]);
-    if(block >= 2)
-    {
-      bool head_conflict = false;
-      for(size_type other_head = 0; other_head < this->limits.size(); other_head++)
-      {
-        if(other_head != head && this->uses(other_head, block - 2)) { head_conflict = true; break; }
-      }
-      if(!head_conflict)
-      {
-        void* ptr = this->pointer + (block - 2) * BUFFER_SIZE;
-        madvise(ptr, BUFFER_SIZE * sizeof(Element), MADV_DONTNEED);
-      }
-    }
-    this->limits[head] += BUFFER_SIZE;
+    std::cerr << "ReadBuffer::init(): Cannot open input file " << filename << std::endl;
+    std::exit(EXIT_FAILURE);
   }
+  this->elements = fileSize(this->file) / sizeof(Element);
+  this->offset = 0;
+}
+
+template<class Element>
+void
+ReadBuffer<Element>::clear()
+{
+  sdsl::util::clear(this->buffer);
+  if(this->file.is_open()) { this->file.close(); }
+}
+
+template<class Element>
+void
+ReadBuffer<Element>::seek(size_type i)
+{
+  if(i >= this->size()) { return; }
+
+  if(this->buffered(i))
+  {
+    while(this->offset < i) { this->pop(); }
+    if(this->buffer.size() < MINIMUM_SIZE) { this->fill(); }
+  }
+  else
+  {
+    this->buffer.clear();
+    this->file.seekg(i * sizeof(Element), std::ios_base::beg);
+    this->offset = i;
+    this->fill();
+  }
+}
+
+template<class Element>
+void
+ReadBuffer<Element>::fill()
+{
+  size_type target_size = std::min(BUFFER_SIZE, this->size() - this->offset);
+  if(this->buffer.size() >= target_size) { return; }
+
+  size_type count = target_size - this->buffer.size();
+  std::vector<Element> temp(count);
+  this->file.read((char*)(temp.data()), count * sizeof(Element));
+  this->buffer.insert(this->buffer.end(), temp.begin(), temp.end());
 }
 
 //------------------------------------------------------------------------------
 
-void
-predecessor(const PathNode& curr, const PathNode::rank_type* labels,
-  comp_type comp, const DeBruijnGraph& mapper, const sdsl::int_vector<0>& last_char,
-  PathLabel& first, PathLabel& last)
+struct MergedGraphReader
 {
+  ReadBuffer<PathNode>            paths;
+  ReadBuffer<PathNode::rank_type> labels;
+  ReadBuffer<range_type>          from_nodes;
+
+  size_type path, rank, from;
+
+  const DeBruijnGraph*            mapper;
+  const sdsl::int_vector<0>*      last_char;
+
+  void init(const MergedGraph& graph, const DeBruijnGraph* _mapper, const sdsl::int_vector<0>* _last_char);
+  void init(const MergedGraph& graph, size_type comp);
+  void clear();
+
+  void seek();
+
+  inline void advance()
+  {
+    if(this->path + 1 >= this->paths.size()) { return; }
+    this->path++;
+    this->seek();
+  }
+
+  void predecessor(comp_type comp, PathLabel& first, PathLabel& last);
+
+  /*
+    Does paths[path + offset] intersect with the given range of labels?
+  */
+  bool intersect(const PathLabel& first, const PathLabel& last, size_type offset);
+
+  void fromNodes(std::vector<node_type>& results);
+};
+
+void
+MergedGraphReader::init(const MergedGraph& graph,
+  const DeBruijnGraph* _mapper, const sdsl::int_vector<0>* _last_char)
+{
+  this->paths.init(graph.path_name);
+  this->labels.init(graph.rank_name);
+  this->from_nodes.init(graph.from_name);
+
+  this->path = this->rank = this->from = 0;
+  this->seek();
+
+  this->mapper = _mapper;
+  this->last_char = _last_char;
+}
+
+void
+MergedGraphReader::init(const MergedGraph& graph, size_type comp)
+{
+  this->paths.init(graph.path_name);
+  this->labels.init(graph.rank_name);
+  this->from_nodes.init(graph.from_name);
+
+  this->path = graph.next[comp];
+  this->from = graph.next_from[comp];
+  this->seek();
+
+  this->mapper = 0;
+  this->last_char = 0;
+}
+
+void
+MergedGraphReader::clear()
+{
+  this->paths.clear(),
+  this->labels.clear();
+  this->from_nodes.clear();
+
+  this->path = this->rank = this->from = 0;
+}
+
+void
+MergedGraphReader::seek()
+{
+  this->paths.seek(this->path);
+  this->rank = this->paths[this->path].pointer();
+  this->labels.seek(this->rank);
+  while(this->from < this->from_nodes.size() && this->from_nodes[this->from].first < this->path)
+  {
+    this->from++;
+  }
+}
+
+void
+MergedGraphReader::predecessor(comp_type comp, PathLabel& first, PathLabel& last)
+{
+  const PathNode& curr = this->paths[this->path];
   size_type i = 0, j = curr.pointer();
   first.first = true; last.first = false;
 
   // Handle the common prefix of the labels.
   while(i < curr.lcp())
   {
-    first.label[i] = last.label[i] = mapper.LF(labels[j], comp);
-    comp = last_char[labels[j]];
+    first.label[i] = last.label[i] = this->mapper->LF(this->labels[j], comp);
+    comp = (*(this->last_char))[labels[j]];
     i++; j++;
   }
 
@@ -313,16 +437,16 @@ predecessor(const PathNode& curr, const PathNode::rank_type* labels,
   comp_type first_comp = comp, last_comp = comp;
   if(i < curr.order())
   {
-    first.label[i] = mapper.LF(labels[j], first_comp);
-    first_comp = last_char[labels[j]];
-    last.label[i] = mapper.LF(labels[j + 1], last_comp);
-    last_comp = last_char[labels[j + 1]];
+    first.label[i] = this->mapper->LF(this->labels[j], first_comp);
+    first_comp = (*(this->last_char))[this->labels[j]];
+    last.label[i] = this->mapper->LF(this->labels[j + 1], last_comp);
+    last_comp = (*(this->last_char))[this->labels[j + 1]];
     i++;
   }
   if(i < PathLabel::LABEL_LENGTH)
   {
-    first.label[i] = mapper.node_rank(mapper.alpha.C[first_comp]);
-    last.label[i] = mapper.node_rank(mapper.alpha.C[last_comp + 1]) - 1;
+    first.label[i] = this->mapper->node_rank(this->mapper->alpha.C[first_comp]);
+    last.label[i] = this->mapper->node_rank(this->mapper->alpha.C[last_comp + 1]) - 1;
     i++;
   }
 
@@ -333,22 +457,61 @@ predecessor(const PathNode& curr, const PathNode::rank_type* labels,
   }
 }
 
+inline PathLabel
+firstLabel(const PathNode& path, ReadBuffer<PathNode::rank_type>& labels)
+{
+  PathLabel res; res.first = true;
+  size_type limit = std::min(path.order(), PathLabel::LABEL_LENGTH);
+  for(size_type i = 0; i < limit; i++) { res.label[i] = path.firstLabel(i, labels); }
+  for(size_type i = limit; i < PathLabel::LABEL_LENGTH; i++) { res.label[i] = 0; }
+  return res;
+}
+
+inline PathLabel
+lastLabel(const PathNode& path, ReadBuffer<PathNode::rank_type>& labels)
+{
+  PathLabel res; res.first = false;
+  size_type limit = std::min(path.order(), PathLabel::LABEL_LENGTH);
+  for(size_type i = 0; i < limit; i++) { res.label[i] = path.lastLabel(i, labels); }
+  for(size_type i = limit; i < PathLabel::LABEL_LENGTH; i++) { res.label[i] = PathLabel::NO_RANK; }
+  return res;
+}
+
+/*
+  Does the path node intersect with the given range of labels?
+*/
+bool
+MergedGraphReader::intersect(const PathLabel& first, const PathLabel& last, size_type offset)
+{
+  PathLabel my_first = firstLabel(this->paths[this->path + offset], this->labels);
+  if(my_first <= first)
+  {
+    PathLabel my_last = lastLabel(this->paths[this->path + offset], this->labels);
+    return (first <= my_last);
+  }
+  else
+  {
+    return my_first <= last;
+  }
+}
+
 void
-fromNodes(const MergedGraph& graph, size_type path, size_type& pointer, std::vector<node_type>& results, bool revert)
+MergedGraphReader::fromNodes(std::vector<node_type>& results)
 {
   results.clear();
-  results.push_back(graph.paths[path].from);
+  results.push_back(this->paths[this->path].from);
 
-  while(pointer < graph.extra() && graph.from_nodes[pointer].first < path) { pointer++; }
-  size_type old_pointer = pointer;
-  while(pointer < graph.extra() && graph.from_nodes[pointer].first == path)
+  size_type old_pointer = this->from;
+  while(this->from < this->from_nodes.size() && this->from_nodes[this->from].first == this->path)
   {
-    results.push_back(graph.from_nodes[pointer].second); pointer++;
+    results.push_back(this->from_nodes[this->from].second); this->from++;
   }
-  if(revert) { pointer = old_pointer; } // We may have the same predecessor for multiple nodes.
+  this->from = old_pointer;
 
   removeDuplicates(results, false);
 }
+
+//------------------------------------------------------------------------------
 
 GCSA::GCSA(const InputGraph& graph,
   size_type doubling_steps, size_type size_limit, const Alphabet& _alpha)
@@ -422,57 +585,45 @@ GCSA::GCSA(const InputGraph& graph,
   std::vector<node_type> sample_buffer; // stored_samples
   this->samples = bit_vector(merged_graph.size() + merged_graph.extra(), 0);
 
-  // MemoryMapManagers avoid reading entire memory mapped files to memory.
-  MemoryMapManager<PathNode> path_manager(merged_graph.paths, merged_graph.size(), mapper.alpha.sigma + 1);
-  MemoryMapManager<PathNode::rank_type> label_manager(merged_graph.labels, merged_graph.ranks(), mapper.alpha.sigma + 1);
-  MemoryMapManager<range_type> from_manager(merged_graph.from_nodes, merged_graph.extra(), mapper.alpha.sigma + 1);
-  path_manager.init(0, 0); label_manager.init(0, 0); from_manager.init(0, 0);
+  // Read pointers to the MergedGraph files.
+  std::vector<MergedGraphReader> reader(mapper.alpha.sigma + 1);
+  reader[0].init(merged_graph, &mapper, &last_char);
   for(size_type comp = 0; comp < mapper.alpha.sigma; comp++)
   {
-    path_manager.init(comp + 1, merged_graph.next[comp]);
-    label_manager.init(comp + 1, merged_graph.paths[merged_graph.next[comp]].pointer());
-    from_manager.init(comp + 1, merged_graph.next_from[comp]);
+    reader[comp + 1].init(merged_graph, comp);
   }
 
   // The actual construction.
   PathLabel first, last;
-  size_type from_pointer = 0, total_edges = 0, sample_bits = 0;
+  size_type total_edges = 0, sample_bits = 0;
   std::vector<node_type> pred_from, curr_from;
-  for(size_type i = 0; i < merged_graph.size(); i++)
+  for(size_type i = 0; i < merged_graph.size(); i++, reader[0].advance())
   {
-    path_manager.access(i, 0);
-    label_manager.access(merged_graph.paths[i].pointer(), 0);
-
     // Find the predecessors.
-    size_type indegree = 0, pred_id = 0, pred_comp = 0;
+    size_type indegree = 0, pred_comp = 0;
     bool sample_this = false;
     for(size_type comp = 0; comp < mapper.alpha.sigma; comp++)
     {
-      if(!(merged_graph.paths[i].hasPredecessor(comp))) { continue; }
+      if(!(reader[0].paths[reader[0].path].hasPredecessor(comp))) { continue; }
 
       // Find the predecessor of paths[i] with comp and the first path intersecting it.
-      predecessor(merged_graph.paths[i], merged_graph.labels, comp, mapper, last_char, first, last);
-      if(!(merged_graph.paths[merged_graph.next[comp]].intersect(first, last, merged_graph.labels)))
+      reader[0].predecessor(comp, first, last);
+      if(!(reader[comp + 1].intersect(first, last, 0)))
       {
-        merged_graph.next[comp]++;
-        path_manager.access(merged_graph.next[comp], comp + 1);
-        label_manager.access(merged_graph.paths[merged_graph.next[comp]].pointer(), comp + 1);
+        reader[comp + 1].advance();
       }
 
       // Add an edge.
-      indegree++; outdegrees.increment(merged_graph.next[comp]); total_edges++;
+      indegree++; outdegrees.increment(reader[comp + 1].path); total_edges++;
       if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + merged_graph.size() / 2); }
       bwt_buffer[total_edges - 1] = comp; counts[comp]++;
-      pred_id = merged_graph.next[comp]; pred_comp = comp; // For sampling.
+      pred_comp = comp; // For sampling.
 
       // Create additional edges if the next path nodes also intersect with the predecessor.
-      while(merged_graph.next[comp] + 1 < merged_graph.size() &&
-            merged_graph.paths[merged_graph.next[comp] + 1].intersect(first, last, merged_graph.labels))
+      while(reader[comp + 1].path + 1 < merged_graph.size() && reader[comp + 1].intersect(first, last, 1))
       {
-        merged_graph.next[comp]++;
-        path_manager.access(merged_graph.next[comp], comp + 1);
-        label_manager.access(merged_graph.paths[merged_graph.next[comp]].pointer(), comp + 1);
-        indegree++; outdegrees.increment(merged_graph.next[comp]); total_edges++;
+        reader[comp + 1].advance();
+        indegree++; outdegrees.increment(reader[comp + 1].path); total_edges++;
         if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + merged_graph.size() / 2); }
         bwt_buffer[total_edges - 1] = comp; counts[comp]++;
       }
@@ -486,10 +637,9 @@ GCSA::GCSA(const InputGraph& graph,
       - at the beginning of the source node with no real predecessors
       - at the beginning of a node in the original graph (makes the previous case redundant)
     */
-    fromNodes(merged_graph, i, from_pointer, curr_from, false);
-    from_manager.access(from_pointer, 0);
+    reader[0].fromNodes(curr_from);
     if(indegree > 1) { sample_this = true; }
-    if(merged_graph.paths[i].hasPredecessor(Alphabet::SINK_COMP)) { sample_this = true; }
+    if(reader[0].paths[reader[0].path].hasPredecessor(Alphabet::SINK_COMP)) { sample_this = true; }
     for(size_type k = 0; k < curr_from.size(); k++)
     {
       if(Node::offset(curr_from[k]) == 0) { sample_this = true; break; }
@@ -498,8 +648,7 @@ GCSA::GCSA(const InputGraph& graph,
     // Sample if the from nodes cannot be derived from the only predecessor.
     if(!sample_this)
     {
-      fromNodes(merged_graph, pred_id, merged_graph.next_from[pred_comp], pred_from, true);
-      from_manager.access(merged_graph.next_from[pred_comp], pred_comp + 1);
+      reader[pred_comp + 1].fromNodes(pred_from);
       if(pred_from.size() != curr_from.size()) { sample_this = true; }
       else
       {
@@ -522,6 +671,7 @@ GCSA::GCSA(const InputGraph& graph,
       this->samples[sample_buffer.size() - 1] = 1;
     }
   }
+  for(size_type i = 0; i < reader.size(); i++) { reader[i].clear(); }
   sdsl::util::clear(last_char);
 
   // Initialize alpha.

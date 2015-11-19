@@ -372,28 +372,8 @@ struct PathNode
   inline size_type ranks() const { return this->order() + 1; }
   inline size_type bytes() const { return sizeof(*this) + this->ranks() * sizeof(rank_type); }
 
-  inline PathLabel firstLabel(const std::vector<rank_type>& labels) const { return this->firstLabel(labels.data()); }
-  inline PathLabel lastLabel(const std::vector<rank_type>& labels) const { return this->lastLabel(labels.data()); }
-
-  inline PathLabel firstLabel(const rank_type* labels) const
-  {
-    PathLabel res; res.first = true;
-    size_type limit = std::min(this->order(), PathLabel::LABEL_LENGTH);
-    for(size_type i = 0; i < limit; i++) { res.label[i] = this->firstLabel(i, labels); }
-    for(size_type i = limit; i < PathLabel::LABEL_LENGTH; i++) { res.label[i] = 0; }
-    return res;
-  }
-
-  inline PathLabel lastLabel(const rank_type* labels) const
-  {
-    PathLabel res; res.first = false;
-    size_type limit = std::min(this->order(), PathLabel::LABEL_LENGTH);
-    for(size_type i = 0; i < limit; i++) { res.label[i] = this->lastLabel(i, labels); }
-    for(size_type i = limit; i < PathLabel::LABEL_LENGTH; i++) { res.label[i] = PathLabel::NO_RANK; }
-    return res;
-  }
-
-  inline rank_type firstLabel(size_type i, const std::vector<rank_type>& labels) const
+  template<class ArrayType>
+  inline rank_type firstLabel(size_type i, ArrayType& labels) const
   {
     return labels[this->pointer() + i];
   }
@@ -403,7 +383,8 @@ struct PathNode
     return labels[this->pointer() + i];
   }
 
-  inline rank_type lastLabel(size_type i, const std::vector<rank_type>& labels) const
+  template<class ArrayType>
+  inline rank_type lastLabel(size_type i, ArrayType& labels) const
   {
     if(i < this->lcp()) { return labels[this->pointer() + i]; }
     else { return labels[this->pointer() + this->order()]; }
@@ -414,9 +395,6 @@ struct PathNode
     if(i < this->lcp()) { return labels[this->pointer() + i]; }
     else { return labels[this->pointer() + this->order()]; }
   }
-
-  // Do the two path nodes intersect?
-  bool intersect(const PathLabel& first, const PathLabel& last, const rank_type* labels) const;
 
 //------------------------------------------------------------------------------
 

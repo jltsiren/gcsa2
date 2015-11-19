@@ -438,24 +438,6 @@ PathNode::print(std::ostream& out, const rank_type* labels) const
 
 //------------------------------------------------------------------------------
 
-bool
-PathNode::intersect(const PathLabel& first, const PathLabel& last, const PathNode::rank_type* labels) const
-{
-  PathLabel my_first = this->firstLabel(labels);
-
-  if(my_first <= first)
-  {
-    PathLabel my_last = this->lastLabel(labels);
-    return (first <= my_last);
-  }
-  else
-  {
-    return my_first <= last;
-  }
-}
-
-//------------------------------------------------------------------------------
-
 LCP::LCP()
 {
 }
