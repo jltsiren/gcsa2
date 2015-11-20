@@ -292,6 +292,7 @@ MergedGraphReader::seek()
   {
     this->from++;
   }
+  this->from_nodes.seek(this->from);
 }
 
 void
@@ -615,6 +616,13 @@ struct KMerSplitComparator
       return (Key::label(left.key) != Key::label(right.key));
     }
 };
+
+bool
+GCSA::verifyIndex(const InputGraph& graph) const
+{
+  std::vector<KMer> kmers; graph.read(kmers);
+  return this->verifyIndex(kmers, graph.k());
+}
 
 bool
 GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const

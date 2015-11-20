@@ -94,41 +94,41 @@ PathNode::PathNode(const PathNode& left, const PathNode& right,
 
 PathNode::PathNode(std::istream& in, std::vector<PathNode::rank_type>& labels)
 {
-  in.read((char*)this, sizeof(*this));
+  DiskIO::read(in, this);
   this->setPointer(labels.size());
 
   size_type old_size = labels.size();
   labels.resize(old_size + this->ranks());
-  in.read((char*)(labels.data() + old_size), this->ranks() * sizeof(rank_type));
+  DiskIO::read(in, labels.data() + old_size, this->ranks());
 }
 
 PathNode::PathNode(std::istream& in, rank_type* labels)
 {
-  in.read((char*)this, sizeof(*this));
+  DiskIO::read(in, this);
   this->setPointer(0);
-  in.read((char*)labels, this->ranks() * sizeof(rank_type));
+  DiskIO::read(in, labels, this->ranks());
 }
 
 void
 PathNode::serialize(std::ostream& out, const std::vector<rank_type>& labels) const
 {
-  out.write((const char*)this, sizeof(*this));
-  out.write((const char*)(labels.data() + this->pointer()), this->ranks() * sizeof(rank_type));
+  DiskIO::write(out, this);
+  DiskIO::write(out, labels.data() + this->pointer(), this->ranks());
 }
 
 void
 PathNode::serialize(std::ostream& out, const rank_type* labels) const
 {
-  out.write((const char*)this, sizeof(*this));
-  out.write((const char*)(labels + this->pointer()), this->ranks() * sizeof(rank_type));
+  DiskIO::write(out, this);
+  DiskIO::write(out, labels + this->pointer(), this->ranks());
 }
 
 void
 PathNode::serialize(std::ostream& node_stream, std::ostream& label_stream, const rank_type* labels, size_type ptr)
 {
-  label_stream.write((const char*)(labels + this->pointer()), this->ranks() * sizeof(rank_type));
+  DiskIO::write(label_stream, labels + this->pointer(), this->ranks());
   this->setPointer(ptr);
-  node_stream.write((const char*)this, sizeof(*this));
+  DiskIO::write(node_stream, this);
 }
 
 PathNode::PathNode()
@@ -977,7 +977,7 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
     merger.buffer[range.second].serialize(path_file, rank_file, this->rank_count);
     if(curr_from.size() > 0)
     {
-      from_file.write((char*)(curr_from.data()), curr_from.size() * sizeof(range_type));
+      DiskIO::write(from_file, curr_from.data(), curr_from.size());
     }
     while(merger.buffer[range.second].firstLabel(0) >= this->next[curr_comp])
     {

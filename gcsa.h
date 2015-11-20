@@ -90,6 +90,7 @@ public:
     Returns false if the index fails verification, and true otherwise.
   */
   bool verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const;
+  bool verifyIndex(const InputGraph& graph) const;
 
 //------------------------------------------------------------------------------
 

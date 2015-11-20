@@ -109,6 +109,32 @@ std::ostream& operator<<(std::ostream& stream, const std::pair<A, B>& data)
 
 //------------------------------------------------------------------------------
 
+/*
+  Utility methods for disk I/O and read/write volume measurement. These methods don't use
+  mutexes / critical sections for performance reasons.
+*/
+
+struct DiskIO
+{
+  static size_type read_volume, write_volume;
+
+  template<class Element>
+  inline static void read(std::istream& in, Element* data, size_type n = 1)
+  {
+    read_volume += n * sizeof(Element);
+    in.read((char*)data, n * sizeof(Element));
+  }
+
+  template<class Element>
+  inline static void write(std::ostream& out, const Element* data, size_type n = 1)
+  {
+    write_volume += n * sizeof(Element);
+    out.write((const char*)data, n * sizeof(Element));
+  }
+};
+
+//------------------------------------------------------------------------------
+
 template<class IntegerType>
 inline size_type
 bit_length(IntegerType val)
@@ -178,11 +204,6 @@ void printTime(const std::string& header, size_type queries, double seconds, siz
 double readTimer();       // Seconds from an arbitrary time point.
 size_type memoryUsage();  // Peak memory usage in bytes.
 
-const static size_type DISK_BLOCK_SIZE = 512;
-
-size_type readVolume();   // In bytes.
-size_type writeVolume();  // In bytes.
-
 //------------------------------------------------------------------------------
 
 // Returns the total length of the rows, excluding line ends.
@@ -197,7 +218,7 @@ size_type fileSize(std::ofstream& file);
 
 /*
   parallelQuickSort() uses less working space than parallelMergeSort(). Calling omp_set_nested(1)
-  may improve the speed of parallelQuickSort().
+  improves the speed of parallelQuickSort().
 */
 
 template<class Iterator, class Comparator>
@@ -205,7 +226,10 @@ void
 parallelQuickSort(Iterator first, Iterator last, const Comparator& comp)
 {
 #ifdef _GLIBCXX_PARALLEL
+  int nested = omp_get_nested();
+  omp_set_nested(1);
   std::sort(first, last, comp, __gnu_parallel::balanced_quicksort_tag());
+  omp_set_nested(nested);
 #else
   std::sort(first, last, comp);
 #endif
@@ -216,7 +240,10 @@ void
 parallelQuickSort(Iterator first, Iterator last)
 {
 #ifdef _GLIBCXX_PARALLEL
+  int nested = omp_get_nested();
+  omp_set_nested(1);
   std::sort(first, last, __gnu_parallel::balanced_quicksort_tag());
+  omp_set_nested(nested);
 #else
   std::sort(first, last);
 #endif

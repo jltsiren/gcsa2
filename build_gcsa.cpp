@@ -125,7 +125,6 @@ main(int argc, char** argv)
   std::cout << "Size limit: " << size_limit << " GB" << std::endl;
   std::cout << std::endl;
 
-  omp_set_nested(1);
   InputGraph graph(argc - optind, argv + optind, binary);
 
 #ifdef VERIFY_GRAPH
@@ -146,8 +145,8 @@ main(int argc, char** argv)
     double seconds = readTimer() - start;
     std::cout << "Index built in " << seconds << " seconds" << std::endl;
     std::cout << "Memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;
-    std::cout << "I/O volume: " << inGigabytes(readVolume()) << " GB read, "
-              << inGigabytes(writeVolume()) << " GB write" << std::endl;
+    std::cout << "I/O volume: " << inGigabytes(DiskIO::read_volume) << " GB read, "
+              << inGigabytes(DiskIO::write_volume) << " GB write" << std::endl;
     std::cout << std::endl;
     sdsl::store_to_file(index, output_file);
   }
@@ -167,11 +166,7 @@ main(int argc, char** argv)
   std::cout << std::endl;
 
 #ifdef VERIFY_INDEX
-  {
-    std::vector<KMer> kmers;
-    graph.read(kmers);
-    index.verifyIndex(kmers, graph.k());
-  }
+  index.verifyIndex(graph);
 #endif
 
   std::cout << "Final memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;

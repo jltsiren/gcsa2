@@ -287,7 +287,7 @@ ReadBuffer<Element>::fill()
 
   size_type count = target_size - this->buffer.size();
   std::vector<Element> temp(count);
-  this->file.read((char*)(temp.data()), count * sizeof(Element));
+  DiskIO::read(this->file, temp.data(), count);
   this->buffer.insert(this->buffer.end(), temp.begin(), temp.end());
 }
 

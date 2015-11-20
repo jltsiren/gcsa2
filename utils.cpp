@@ -34,6 +34,11 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+size_type DiskIO::read_volume = 0;
+size_type DiskIO::write_volume = 0;
+
+//------------------------------------------------------------------------------
+
 void
 printHeader(const std::string& header, size_type indent)
 {
@@ -75,22 +80,6 @@ memoryUsage()
 #else
   return KILOBYTE * usage.ru_maxrss;
 #endif
-}
-
-size_type
-readVolume()
-{
-  rusage usage;
-  getrusage(RUSAGE_SELF, &usage);
-  return usage.ru_inblock * DISK_BLOCK_SIZE;
-}
-
-size_type
-writeVolume()
-{
-  rusage usage;
-  getrusage(RUSAGE_SELF, &usage);
-  return usage.ru_oublock * DISK_BLOCK_SIZE;
 }
 
 //------------------------------------------------------------------------------

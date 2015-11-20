@@ -136,7 +136,7 @@ readBinary(std::istream& in, std::vector<KMer>& kmers, bool append)
 
     size_type old_size = kmers.size();
     kmers.resize(old_size + header.kmer_count);
-    in.read((char*)(kmers.data() + old_size), header.kmer_count * sizeof(KMer));
+    DiskIO::read(in, kmers.data() + old_size, header.kmer_count);
     section++;
   }
 
@@ -150,7 +150,7 @@ writeBinary(std::ostream& out, std::vector<KMer>& kmers, size_type kmer_length)
 {
   GraphFileHeader header(kmers.size(), kmer_length);
   header.serialize(out);
-  out.write((char*)(kmers.data()), header.kmer_count * sizeof(KMer));
+  DiskIO::write(out, kmers.data(), header.kmer_count);
 }
 
 void
@@ -186,7 +186,7 @@ GraphFileHeader::GraphFileHeader(size_type kmers, size_type length) :
 
 GraphFileHeader::GraphFileHeader(std::istream& in)
 {
-  in.read((char*)this, sizeof(*this));
+  DiskIO::read(in, this);
 }
 
 GraphFileHeader::~GraphFileHeader()
@@ -196,7 +196,7 @@ GraphFileHeader::~GraphFileHeader()
 size_type
 GraphFileHeader::serialize(std::ostream& out)
 {
-  out.write((char*)this, sizeof(*this));
+  DiskIO::write(out, this);
   return sizeof(*this);
 }
 
