@@ -6,7 +6,7 @@ This is a reimplementation of the Generalized Compressed Suffix Array (GCSA), a 
 
 The input to index construction is a set of paths of length *k* in the input graph. The prefix-doubling algorithm transforms the input into an order-*8k* (order-*2k*, order-*4k*) pruned de Bruijn graph for paths in the input graph. A pruned de Bruijn graph differs from a de Bruijn graph in that its nodes may have shorter labels than the order of the graph, if the shorter labels uniquely determine the start nodes of the corresponding paths in the input graph. As such, pruned de Bruijn graphs are usually smaller than proper de Bruijn graphs.
 
-At the moment, GCSA2 is being developed as a plugin to Erik Garrison's [variation graph tools](https://github.com/ekg/vg). The only implemented construction option is based on extracting *k*-mers from vg. Later, GCSA2 should become a more general graph indexing library.
+At the moment, GCSA2 is being developed as a part of Erik Garrison's [variation graph tools](https://github.com/ekg/vg). The only implemented construction option is based on extracting *k*-mers from vg. Later, GCSA2 should become a more general graph indexing library.
 
 See [the wiki](https://github.com/jltsiren/gcsa2/wiki) for further documentation.
 
@@ -14,7 +14,7 @@ See [the wiki](https://github.com/jltsiren/gcsa2/wiki) for further documentation
 
 The maximum resident size reported by `getrusage()` is in kilobytes in Linux and in bytes in OS X. By default, the implementation assumes Linux-like behavior. To get the correct memory usage reports in OS X, uncomment the line `RUSAGE_FLAGS=-DRUSAGE_IN_BYTES` in the makefile.
 
-There are some verification/debugging options in `build_gcsa`. To disable them, comment out the line `VERIFY_FLAGS=-DVERIFY_CONSTRUCTION` in the makefile.
+There are some verification/debugging options in `build_gcsa`. To disable them, comment out the line `VERIFY_FLAGS=-DVERIFY_CONSTRUCTION` in the makefile. This may reduce the memory usage of index construction significantly (see [the wiki](https://github.com/jltsiren/gcsa2/wiki/Construction-Benchmarks)).
 
 Index construction can be set to output some status information to `stderr` by uncommenting the line `OUTPUT_FLAGS=-DVERBOSE_STATUS_INFO` in the makefile.
 
