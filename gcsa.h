@@ -66,11 +66,11 @@ public:
 //------------------------------------------------------------------------------
 
   /*
-    FIXME Later: Rewrite the description when the parameters have stabilized.
-
-    This is the main constructor. We build GCSA from the kmers, doubling the path length
-    the specified number of times (up to DOUBLING_STEPS). The kmer array will be cleared
-    during the construction.
+    This is the main constructor. We build GCSA from the graph, doubling the path length
+    the specified number of times (up to DOUBLING_STEPS). size_limit is the limit for the
+    size of individual graph on disk in gigabytes. Actual disk usage may be up to 2x higher.
+    If the graph was encoded using non-default Alphabet, an alphabet object must also be
+    supplied.
 
     FIXME Later: We should pass an object containing construction parameters.
   */

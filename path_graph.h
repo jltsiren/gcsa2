@@ -298,18 +298,6 @@ struct LCP
     return lcp;
   }
 
-  /*
-    Extends the given rank range into a maximal range having the given lcp.
-
-    FIXME Later: Build an LCP interval tree to do this faster.
-  */
-  inline rank_range extendRange(rank_range range, size_type lcp) const
-  {
-    while(range.first > 0 && this->kmer_lcp[range.first] >= lcp) { range.first--; }
-    while(range.second + 1 < this->total_keys && this->kmer_lcp[range.second + 1] >= lcp) { range.second++; }
-    return range;
-  }
-
   void swap(LCP& another);
 };
 

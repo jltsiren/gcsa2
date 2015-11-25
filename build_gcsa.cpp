@@ -66,6 +66,7 @@ main(int argc, char** argv)
     std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << GCSA::SIZE_LIMIT << ")" << std::endl;
     std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
     std::cerr << "  -t    Read the input in text format" << std::endl;
+    std::cerr << "  -T X  Use X as the directory for temporary files (default: " << DiskIO::DEFAULT_TEMP_DIR << ")" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
@@ -74,7 +75,7 @@ main(int argc, char** argv)
   int c = 0;
   bool binary = true;
   std::string output_file;
-  while((c = getopt(argc, argv, "bd:l:o:t")) != -1)
+  while((c = getopt(argc, argv, "bd:l:o:tT:")) != -1)
   {
     switch(c)
     {
@@ -84,18 +85,18 @@ main(int argc, char** argv)
       doubling_steps =  std::stoul(optarg);
       if(doubling_steps > GCSA::DOUBLING_STEPS)
       {
-        std::cerr << "build_gcsa: Number of doubling steps is too high: " << doubling_steps << std::endl;
+        std::cerr << "build_gcsa: The number of doubling steps is too high: " << doubling_steps << std::endl;
         std::exit(EXIT_FAILURE);
       }
       break;
     case 'l':
-      size_limit = std::stoul(optarg);
-      break;
+      size_limit = std::stoul(optarg); break;
     case 'o':
-      output_file = std::string(optarg) + GCSA::EXTENSION;
-      break;
+      output_file = std::string(optarg) + GCSA::EXTENSION; break;
     case 't':
       binary = false; break;
+    case 'T':
+      DiskIO::setTemp(optarg); break;
     case '?':
       std::exit(EXIT_FAILURE);
     default:
@@ -116,13 +117,14 @@ main(int argc, char** argv)
   std::cout << std::endl;
   for(int i = optind; i < argc; i++)
   {
-    std::cout << "Input: " << argv[i];
+    std::cout << "Input:           " << argv[i];
     if(binary) { std::cout << InputGraph::BINARY_EXTENSION << " (binary format)" << std::endl; }
     else { std::cout << InputGraph::TEXT_EXTENSION << " (text format)" << std::endl; }
   }
-  std::cout << "Output: " << output_file << std::endl;
-  std::cout << "Doubling steps: " << doubling_steps << std::endl;
-  std::cout << "Size limit: " << size_limit << " GB" << std::endl;
+  std::cout << "Output:          " << output_file << std::endl;
+  std::cout << "Doubling steps:  " << doubling_steps << std::endl;
+  std::cout << "Size limit:      " << size_limit << " GB" << std::endl;
+  std::cout << "Temp directory:  " << DiskIO::temp_dir << std::endl;
   std::cout << std::endl;
 
   InputGraph graph(argc - optind, argv + optind, binary);

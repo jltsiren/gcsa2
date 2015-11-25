@@ -523,7 +523,7 @@ struct PathGraphMerger
     the list of all unique from nodes different from the one at paths[range.second]
     as (path_id, from_node).
   */
-  void mergePathNodes(range_type range, range_type range_lcp, const LCP& lcp);
+  void mergePathNodes(range_type range, range_type range_lcp);
   void mergePathNodes(range_type range, std::vector<range_type>& from_nodes, size_type path_id);
 };
 
@@ -595,13 +595,12 @@ PathGraphMerger::clearUntil(range_type& range)
   range.first = range.second = 0;
 }
 
-// FIXME Disabled because kmer_lcp does not work
 range_type
-PathGraphMerger::extendRange(range_type& range, const LCP&)
+PathGraphMerger::extendRange(range_type& range, const LCP& lcp)
 {
-/*  range_type lower_bound(0, 0); // Minimum acceptable LCP.
-  if(range.first > 0) { lower_bound = lcp.increment(this->max_lcp(lcp, range.first - 1, range.first)); }*/
-  range_type range_lcp(this->buffer[range.first].node.order(), 0);
+  range_type left_lcp(0, 0); // Minimum acceptable LCP.
+  if(range.first > 0) { left_lcp = this->max_lcp(lcp, range.first - 1, range.first); }
+  range_type range_lcp = this->min_lcp(lcp, range.first, range.second);
 
   /*
     Iterate over one range at a time, doing the following tests:
@@ -609,7 +608,7 @@ PathGraphMerger::extendRange(range_type& range, const LCP&)
     2. Is the LCP still high enough? Stop if not.
     3. Is [range.first, next_range.second] an ancestor of range and next_range? Extend if true.
   */
-/*  for(range_type next_range = this->nextRange(range);
+  for(range_type next_range = this->nextRange(range);
     !(this->atEnd(next_range)); next_range = this->nextRange(next_range))
   {
     if(!(this->sameFrom(range_type(next_range.first - 1, next_range.first))) || !(this->sameFrom(next_range)))
@@ -617,21 +616,21 @@ PathGraphMerger::extendRange(range_type& range, const LCP&)
       break;
     }
     range_type parent_lcp = this->min_lcp(lcp, range.first, next_range.second);
-    if(parent_lcp < lower_bound) { break; }
+    if(parent_lcp <= left_lcp) { break; }
     this->readItem(next_range.second + 1);
     if(!(this->atEnd(next_range.second + 1)))
     {
-      range_type border_lcp = this->max_lcp(lcp, next_range.second, next_range.second + 1);
-      if(border_lcp >= parent_lcp) { continue; }
+      range_type right_lcp = this->max_lcp(lcp, next_range.second, next_range.second + 1);
+      if(right_lcp >= parent_lcp) { continue; }
     }
     range.second = next_range.second; range_lcp = parent_lcp;
-  }*/
+  }
 
   return range_lcp;
 }
 
 void
-PathGraphMerger::mergePathNodes(range_type range, range_type range_lcp, const LCP&)
+PathGraphMerger::mergePathNodes(range_type range, range_type range_lcp)
 {
   PathNode& merged = this->buffer[range.second].node;
   if(Range::length(range) == 1)
@@ -643,10 +642,8 @@ PathGraphMerger::mergePathNodes(range_type range, range_type range_lcp, const LC
   size_type order = range_lcp.first;
   if(range_lcp.second > 0)
   {
-    LCP::rank_range ranks(this->buffer[range.first].node.firstLabel(order, this->buffer[range.first].label),
+    range_type ranks(this->buffer[range.first].node.firstLabel(order, this->buffer[range.first].label),
       this->buffer[range.second].node.lastLabel(order, this->buffer[range.second].label));
-// FIXME disabled because kmer lcps don't work
-//    ranks = lcp.extendRange(ranks, range_lcp.second);
     this->buffer[range.second].label[order] = ranks.first;
     this->buffer[range.second].label[order + 1] = ranks.second;
     order++;
@@ -688,7 +685,7 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
   sdsl::sd_vector<>::rank_1_type key_rank(&key_exists);
   for(size_type file = 0; file < source.files(); file++)
   {
-    std::string temp_file = tempFile(PREFIX);
+    std::string temp_file = DiskIO::tempFile(PREFIX);
     this->filenames.push_back(temp_file);
     this->sizes.push_back(source.sizes[file]); this->path_count += source.sizes[file];
     this->rank_counts.push_back(2 * source.sizes[file]); this->rank_count += 2 * source.sizes[file];
@@ -736,7 +733,7 @@ PathGraph::PathGraph(size_type file_count, size_type path_order) :
 {
   for(size_type file = 0; file < this->files(); file++)
   {
-    this->filenames[file] = tempFile(PREFIX);
+    this->filenames[file] = DiskIO::tempFile(PREFIX);
   }
 }
 
@@ -810,7 +807,7 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
     if(merger.sameFrom(range))
     {
       range_type range_lcp = merger.extendRange(range, lcp);
-      merger.mergePathNodes(range, range_lcp, lcp);
+      merger.mergePathNodes(range, range_lcp);
       builder.write(merger.buffer[range.second]);
       builder.graph.unique++;
     }
@@ -932,7 +929,7 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 const std::string MergedGraph::PREFIX = ".gcsa";
 
 MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
-  path_name(tempFile(PREFIX)), rank_name(tempFile(PREFIX)), from_name(tempFile(PREFIX)),
+  path_name(DiskIO::tempFile(PREFIX)), rank_name(DiskIO::tempFile(PREFIX)), from_name(DiskIO::tempFile(PREFIX)),
   path_count(0), rank_count(0), from_count(0),
   order(source.k()),
   next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0)
