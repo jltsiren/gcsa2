@@ -102,11 +102,13 @@ main(int argc, char** argv)
   sdsl::load_from_file(index, input_name);
   std::cout << "GCSA size: " << inMegabytes(sdsl::size_in_bytes(index)) << " MB" << std::endl;
   componentSizes(index, base_name);
+  std::cout << std::endl;
 
   std::string alt_name = base_name + "_alt";
   ExperimentalGCSA alt(index);
   std::cout << "Alternative encoding: " << inMegabytes(sdsl::size_in_bytes(alt)) << " MB" << std::endl;
   componentSizes(alt, alt_name);
+  std::cout << std::endl;
 
   return 0;
 }
@@ -132,22 +134,26 @@ ExperimentalGCSA::ExperimentalGCSA(const GCSA& source)
   this->sampled_paths = source.sampled_paths;
   sdsl::util::init_support(this->sampled_path_rank, &(this->sampled_paths));
 
-  // Convert sampled nodes into the ranks of distinct node values.
+  // Find the distinct nodes.
   std::vector<node_type> values(source.stored_samples.begin(), source.stored_samples.end());
   removeDuplicates(values, true);
-  std::cout << values.size() << " distinct values in " << source.stored_samples.size() << " samples" << std::endl;
-  sdsl::sd_vector_builder builder(values[values.size() - 1] + 1, values.size());
-  for(size_type i = 0; i < values.size(); i++) { builder.set(values[i]); }
+  size_type distinct = values.size();
+  std::cout << distinct << " distinct values in " << source.stored_samples.size() << " samples" << std::endl;
 
-  this->sample_values = sd_vector(builder);
+  this->sample_values = sd_vector(values.begin(), values.end());
   sdsl::util::init_support(this->sample_value_select, &(this->sample_values));
 
-  this->stored_samples = sdsl::int_vector<0>(source.stored_samples.size(), 0, bit_length(values.size() - 1));
+  // Convert sampled nodes to their ranks.
   sd_vector::rank_1_type value_rank(&(this->sample_values));
-  for(size_type i = 0; i < this->stored_samples.size(); i++)
+  values.resize(source.stored_samples.size());
+  #pragma omp parallel for schedule(static)
+  for(size_type i = 0; i < values.size(); i++)
   {
-    this->stored_samples[i] = value_rank(source.stored_samples[i]);
+    values[i] = value_rank(source.stored_samples[i]);
   }
+
+  this->stored_samples = sdsl::int_vector<0>(source.stored_samples.size(), 0, bit_length(distinct - 1));
+  for(size_type i = 0; i < this->stored_samples.size(); i++) { this->stored_samples[i] = values[i]; }
   this->samples = source.samples;
   sdsl::util::init_support(this->sample_select, &(this->samples));
 }
@@ -193,17 +199,26 @@ void
 componentSizes(const IndexType& index, const std::string& base_name)
 {
   std::string html_name = base_name + ".html";
-  std::ofstream output(html_name.c_str());
-  if(!output)
+  std::ofstream html_output(html_name.c_str());
+  if(!html_output)
   {
     std::cerr << "componentSizes(): Cannot open HTML file " << html_name << std::endl;
     std::exit(EXIT_FAILURE);
   }
-
-  sdsl::write_structure<sdsl::HTML_FORMAT>(index, output);
-  output.close();
+  sdsl::write_structure<sdsl::HTML_FORMAT>(index, html_output);
+  html_output.close();
   std::cout << "Size breakdown written to " << html_name << std::endl;
-  std::cout << std::endl;
+
+  std::string json_name = base_name + ".json";
+  std::ofstream json_output(json_name.c_str());
+  if(!json_output)
+  {
+    std::cerr << "componentSizes(): Cannot open HTML file " << json_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  sdsl::write_structure<sdsl::JSON_FORMAT>(index, json_output);
+  json_output.close();
+  std::cout << "Size breakdown written to " << json_name << std::endl;
 }
 
 //------------------------------------------------------------------------------
