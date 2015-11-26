@@ -24,7 +24,7 @@ HEADERS=$(wildcard *.h)
 OBJS=$(SOURCES:.cpp=.o)
 LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
 LIBRARY=libgcsa2.a
-PROGRAMS=build_gcsa convert_graph
+PROGRAMS=build_gcsa convert_gcsa convert_graph
 
 all: $(LIBRARY) $(PROGRAMS)
 
@@ -35,6 +35,9 @@ $(LIBRARY):$(LIBOBJS)
 	ar rcs $@ $(LIBOBJS)
 
 build_gcsa:build_gcsa.o $(LIBRARY)
+	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
+
+convert_gcsa:convert_gcsa.o $(LIBRARY)
 	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
 convert_graph:convert_graph.o $(LIBRARY)
