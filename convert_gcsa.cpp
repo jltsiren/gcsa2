@@ -213,7 +213,7 @@ componentSizes(const IndexType& index, const std::string& base_name)
   std::ofstream json_output(json_name.c_str());
   if(!json_output)
   {
-    std::cerr << "componentSizes(): Cannot open HTML file " << json_name << std::endl;
+    std::cerr << "componentSizes(): Cannot open JSON file " << json_name << std::endl;
     std::exit(EXIT_FAILURE);
   }
   sdsl::write_structure<sdsl::JSON_FORMAT>(index, json_output);

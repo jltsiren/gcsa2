@@ -448,64 +448,132 @@ PathGraphBuilder::sort(size_type file)
 
 //------------------------------------------------------------------------------
 
+/*
+  A reader for PriorityNodes. Use with ReadBuffer.
+*/
+
+struct PriorityNodeReader
+{
+  PriorityNodeReader() : files(0), inputs(0), elements(0) { }
+  ~PriorityNodeReader() { this->close(); }
+
+  void init(const PathGraph& graph);
+  void close();
+
+  inline size_type size() const { return this->elements; }
+  void seek(size_type i);
+  void read(std::vector<PriorityNode>& buffer);
+
+  const static bool SEEKABLE = false;
+
+  std::vector<std::ifstream>  files;
+  PriorityQueue<PriorityNode> inputs;
+  size_type                   elements;
+
+  PriorityNodeReader(const PriorityNodeReader&) = delete;
+  PriorityNodeReader& operator= (const PriorityNodeReader&) = delete;
+};
+
+void
+PriorityNodeReader::init(const PathGraph& graph)
+{
+  if(this->files.size() != 0)
+  {
+    std::cerr << "PriorityNodeReader::init(): The reader is already initialized" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  this->elements = graph.size();
+  this->files = std::vector<std::ifstream>(graph.files());
+  this->inputs.resize(graph.files());
+  for(size_type file = 0; file < this->files.size(); file++)
+  {
+    graph.open(this->files[file], file);
+    this->inputs[file].file = file;
+    this->inputs[file].load(this->files);
+  }
+  this->inputs.heapify();
+}
+
+void
+PriorityNodeReader::close()
+{
+  for(size_type file = 0; file < this->files.size(); file++)
+  {
+    this->files[file].close();
+  }
+  this->elements = 0;
+}
+
+void
+PriorityNodeReader::seek(size_type)
+{
+  std::cerr << "PriorityNodeReader::seek(): The function is not supported" << std::endl;
+  std::exit(EXIT_FAILURE);
+}
+
+void
+PriorityNodeReader::read(std::vector<PriorityNode>& buffer)
+{
+  for(size_type i = 0; i < buffer.size(); i++)
+  {
+    if(this->inputs[0].eof()) { buffer.resize(i); return; }
+    buffer[i] = this->inputs[0];
+    this->inputs[0].load(this->files);
+    this->inputs.down(0);
+  }
+}
+
+//------------------------------------------------------------------------------
+
 struct PathGraphMerger
 {
-  const PathGraph& graph;
-  std::vector<std::ifstream> files;
-
-  PriorityQueue<PriorityNode> inputs;
-  std::deque<PriorityNode> buffer;
-
-  const static size_type BUFFER_SIZE = MEGABYTE;  // Minimum size in nodes.
+  const PathGraph&                             graph;
+  ReadBuffer<PriorityNode, PriorityNodeReader> buffer;
 
   explicit PathGraphMerger(const PathGraph& path_graph);
 
-  void fill(size_type limit = BUFFER_SIZE); // Resize buffer to the new limit if currently smaller.
-  inline void readItem(size_type i) { this->fill(std::max(i + 1, BUFFER_SIZE)); }
+  void close() { this->buffer.clear(); }
 
-  void close();
-
-  inline range_type firstRange() { return this->nextRange(Range::empty_range()); }
-
-  // Call readItem(i) first.
-  inline bool atEnd(size_type i) const { return (i >= this->buffer.size()); }
-  inline bool atEnd(range_type range) const { return this->atEnd(range.first); }
+  inline size_type size() const { return this->graph.size(); }
 
   /*
     Iterates through ranges of paths with the same label. Empty range means start from
     the beginning, and a range past buffer size means the end.
   */
+  inline range_type firstRange() { return this->nextRange(Range::empty_range()); }
   range_type nextRange(range_type range);
+  inline bool atEnd(size_type i) const { return (i >= this->size()); }
+  inline bool atEnd(range_type range) const { return (range.first >= this->size()); }
 
   /*
     Each file must have its own source/sink nodes, even though they might share their
     labels. Hence we check for the file number here.
   */
-  inline bool sameFrom(size_type i, size_type j) const
+  inline bool sameFrom(size_type i, size_type j)
   {
     return (this->buffer[i].node.from == this->buffer[j].node.from &&
             this->buffer[i].file == this->buffer[j].file);
   }
 
-  bool sameFrom(range_type range) const;
+  bool sameFrom(range_type range);
 
-  inline range_type min_lcp(const LCP& lcp, size_type i, size_type j) const // i < j
+  inline range_type min_lcp(const LCP& lcp, size_type i, size_type j) // i < j
   {
     return lcp.min_lcp(this->buffer[i].node, this->buffer[j].node,
       this->buffer[i].label, this->buffer[j].label);
   }
 
-  inline range_type max_lcp(const LCP& lcp, size_type i, size_type j) const // i < j
+  inline range_type max_lcp(const LCP& lcp, size_type i, size_type j) // i < j
   {
     return lcp.max_lcp(this->buffer[i].node, this->buffer[j].node,
       this->buffer[i].label, this->buffer[j].label);
   }
 
   /*
-    Clears elements 0 to range.second - 1 from the buffer and updates the range to (0, 0).
-    The remaining element at buffer[0] is assumed to contain the previous merged path.
+    Clears elements 0 to range.second - 1 from the buffer.
   */
-  void clearUntil(range_type& range);
+  void clearUntil(range_type range);
 
   /*
     Extends the range forward into a maximal range of paths starting from the same node
@@ -528,37 +596,9 @@ struct PathGraphMerger
 };
 
 PathGraphMerger::PathGraphMerger(const PathGraph& path_graph) :
-  graph(path_graph), files(path_graph.files()), inputs(path_graph.files())
+  graph(path_graph)
 {
-  for(size_type file = 0; file < this->files.size(); file++)
-  {
-    this->graph.open(this->files[file], file);
-    this->inputs[file].file = file;
-    this->inputs[file].load(this->files);
-  }
-  this->inputs.heapify();
-  this->fill();
-}
-
-void
-PathGraphMerger::fill(size_type limit)
-{
-  while(this->buffer.size() < limit)
-  {
-    if(this->inputs[0].eof()) { return; }
-    this->buffer.push_back(this->inputs[0]);
-    this->inputs[0].load(this->files);
-    this->inputs.down(0);
-  }
-}
-
-void
-PathGraphMerger::close()
-{
-  for(size_type file = 0; file < this->files.size(); file++)
-  {
-    this->files[file].close();
-  }
+  this->buffer.init(std::ref(this->graph));
 }
 
 range_type
@@ -567,19 +607,17 @@ PathGraphMerger::nextRange(range_type range)
   if(Range::empty(range)) { range.first = range.second = 0; }
   else { range.first = range.second = range.second + 1; }
 
-  this->readItem(range.second + 1);
   while(range.second + 1 < this->buffer.size()
     && !(this->buffer[range.first] < this->buffer[range.second + 1]))
   {
     range.second++;
-    this->readItem(range.second + 1);
   }
 
   return range;
 }
 
 bool
-PathGraphMerger::sameFrom(range_type range) const
+PathGraphMerger::sameFrom(range_type range)
 {
   for(size_type i = range.first + 1; i <= range.second; i++)
   {
@@ -589,16 +627,15 @@ PathGraphMerger::sameFrom(range_type range) const
 }
 
 void
-PathGraphMerger::clearUntil(range_type& range)
+PathGraphMerger::clearUntil(range_type range)
 {
-  for(size_type i = 0; i < range.second; i++) { this->buffer.pop_front(); }
-  range.first = range.second = 0;
+  if(range.second > 0) { this->buffer.seek(range.second - 1); }
 }
 
 range_type
 PathGraphMerger::extendRange(range_type& range, const LCP& lcp)
 {
-  range_type left_lcp(0, 0); // Minimum acceptable LCP.
+  range_type left_lcp(0, 0);
   if(range.first > 0) { left_lcp = this->max_lcp(lcp, range.first - 1, range.first); }
   range_type range_lcp = this->min_lcp(lcp, range.first, range.second);
 
@@ -617,7 +654,6 @@ PathGraphMerger::extendRange(range_type& range, const LCP& lcp)
     }
     range_type parent_lcp = this->min_lcp(lcp, range.first, next_range.second);
     if(parent_lcp <= left_lcp) { break; }
-    this->readItem(next_range.second + 1);
     if(!(this->atEnd(next_range.second + 1)))
     {
       range_type right_lcp = this->max_lcp(lcp, next_range.second, next_range.second + 1);
@@ -632,10 +668,9 @@ PathGraphMerger::extendRange(range_type& range, const LCP& lcp)
 void
 PathGraphMerger::mergePathNodes(range_type range, range_type range_lcp)
 {
-  PathNode& merged = this->buffer[range.second].node;
   if(Range::length(range) == 1)
   {
-    merged.makeSorted();
+    this->buffer[range.second].node.makeSorted();
     return;
   }
 
@@ -649,10 +684,12 @@ PathGraphMerger::mergePathNodes(range_type range, range_type range_lcp)
     order++;
   }
 
-  merged.makeSorted(); merged.setOrder(order); merged.setLCP(range_lcp.first);
+  this->buffer[range.second].node.makeSorted();
+  this->buffer[range.second].node.setOrder(order);
+  this->buffer[range.second].node.setLCP(range_lcp.first);
   for(size_type i = range.first; i < range.second; i++)
   {
-    merged.addPredecessors(this->buffer[i].node);
+    this->buffer[range.second].node.addPredecessors(this->buffer[i].node);
   }
 }
 
@@ -661,12 +698,12 @@ PathGraphMerger::mergePathNodes(range_type range, std::vector<range_type>& from_
 {
   from_nodes.clear();
 
-  PathNode& merged = this->buffer[range.second].node;
+  node_type merged_from = this->buffer[range.second].node.from;
   for(size_type i = range.first; i < range.second; i++)
   {
-    merged.addPredecessors(this->buffer[i].node);
+    this->buffer[range.second].node.addPredecessors(this->buffer[i].node);
     node_type from = this->buffer[i].node.from;
-    if(from != merged.from) { from_nodes.push_back(range_type(path_id, from)); }
+    if(from != merged_from) { from_nodes.push_back(range_type(path_id, from)); }
   }
 
   removeDuplicates(from_nodes, false);
