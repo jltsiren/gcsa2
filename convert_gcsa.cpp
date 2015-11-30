@@ -35,11 +35,10 @@ using namespace gcsa;
 
 struct ExperimentalGCSA
 {
-  typedef GCSA::size_type    size_type;
-//  typedef GCSA::bit_vector   bit_vector;
-  typedef sdsl::rrr_vector<> bit_vector;
-  typedef sdsl::sd_vector<>  sd_vector;
-  typedef GCSA::bwt_type     bwt_type;
+  typedef GCSA::size_type           size_type;
+  typedef sdsl::rrr_vector<>        bit_vector;
+  typedef sdsl::sd_vector<>         sd_vector;
+  typedef sdsl::wt_huff<bit_vector> bwt_type;
 
   explicit ExperimentalGCSA(const GCSA& source);
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
@@ -120,7 +119,15 @@ ExperimentalGCSA::ExperimentalGCSA(const GCSA& source)
   this->path_node_count = source.path_node_count;
   this->max_query_length = source.max_query_length;
 
-  this->bwt = source.bwt;
+  // Extract plain BWT.
+  std::string filename = DiskIO::tempFile(".convert_gcsa");
+  sdsl::int_vector_buffer<8> bwt_buffer(filename, std::ios::out);
+  for(size_type i = 0; i < source.bwt.size(); i++) { bwt_buffer[i] = source.bwt[i]; }
+  bwt_buffer.close();
+
+  bwt_buffer = sdsl::int_vector_buffer<8>(filename);
+  this->bwt = bwt_type(bwt_buffer, source.bwt.size());
+  bwt_buffer.close(); remove(filename.c_str());
   this->alpha = source.alpha;
 
   this->path_nodes = source.path_nodes;
