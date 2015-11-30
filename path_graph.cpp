@@ -290,6 +290,11 @@ LCP::swap(LCP& another)
 
 //------------------------------------------------------------------------------
 
+/*
+  This structure combines a PathNode and its label. It also stores the identifier of
+  its source file.
+*/
+
 struct PriorityNode
 {
   typedef PathLabel::rank_type rank_type;
@@ -347,6 +352,11 @@ struct PriorityNode
 
 //------------------------------------------------------------------------------
 
+/*
+  This structure builds a PathGraph. It expects a stream of PriorityNodes. When all paths
+  for a certain file have been written, call sort() for that file.
+*/
+
 struct PathGraphBuilder
 {
   PathGraph graph;
@@ -397,7 +407,7 @@ PathGraphBuilder::write(const PriorityNode& path)
 {
   if(this->graph.bytes() + path.bytes() > limit)
   {
-    std::cerr << "PathGraphBuilder::write(): Size limit exceeded, construction aborted." << std::endl;
+    std::cerr << "PathGraphBuilder::write(): Size limit exceeded, construction aborted" << std::endl;
     std::exit(EXIT_FAILURE);
   }
 
@@ -415,7 +425,7 @@ PathGraphBuilder::write(std::vector<PathNode>& paths, std::vector<PathNode::rank
   {
     if(bytes_required + this->graph.bytes() > limit)
     {
-      std::cerr << "PathGraphBuilder::write(): Size limit exceeded, construction aborted." << std::endl;
+      std::cerr << "PathGraphBuilder::write(): Size limit exceeded, construction aborted" << std::endl;
       std::exit(EXIT_FAILURE);
     }
     for(auto& path : paths) { path.serialize(this->files[file], labels); }
@@ -449,7 +459,8 @@ PathGraphBuilder::sort(size_type file)
 //------------------------------------------------------------------------------
 
 /*
-  A reader for PriorityNodes. Use with ReadBuffer.
+  This Reader reads PathNodes and their labels from a PathGraph, merging them into a
+  single sorted stream of PriorityNodes.
 */
 
 struct PriorityNodeReader

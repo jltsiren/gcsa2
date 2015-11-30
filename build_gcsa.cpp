@@ -257,7 +257,7 @@ verifyGraph(const InputGraph& input_graph)
     }
   }
 
-  std::cout << "Graph verification " << (ok ? "complete." : "failed.") << std::endl;
+  std::cout << "Graph verification " << (ok ? "complete" : "failed") << std::endl;
   std::cout << std::endl;
   return ok;
 }
@@ -290,7 +290,7 @@ verifyMapper(const InputGraph& graph)
       ok = false;
     }
   }
-  std::cout << "Mapper verification " << (ok ? "complete." : "failed.") << std::endl;
+  std::cout << "Mapper verification " << (ok ? "complete" : "failed") << std::endl;
 
 
   ok = true;
@@ -309,7 +309,7 @@ verifyMapper(const InputGraph& graph)
       ok = false;
     }
   }
-  std::cout << "LCP verification " << (ok ? "complete." : "failed.") << std::endl;
+  std::cout << "LCP verification " << (ok ? "complete" : "failed") << std::endl;
 
   std::cout << std::endl;
 }

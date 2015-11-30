@@ -699,11 +699,11 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
 
   if(fails == 0)
   {
-    std::cout << "Index verification complete." << std::endl;
+    std::cout << "Index verification complete" << std::endl;
   }
   else
   {
-    std::cout << "Index verification failed for " << fails << " patterns." << std::endl;
+    std::cout << "Index verification failed for " << fails << " patterns" << std::endl;
   }
   std::cout << std::endl;
 
