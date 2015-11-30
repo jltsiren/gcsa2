@@ -63,10 +63,11 @@ main(int argc, char** argv)
     std::cerr << "Usage: build_gcsa [options] base_name [base_name2 ..]" << std::endl;
     std::cerr << "  -b    Read the input in binary format (default)" << std::endl;
     std::cerr << "  -d N  Doubling steps (default and max " << GCSA::DOUBLING_STEPS << ")" << std::endl;
+    std::cerr << "  -D X  Use X as the directory for temporary files (default: " << DiskIO::DEFAULT_TEMP_DIR << ")" << std::endl;
     std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << GCSA::SIZE_LIMIT << ")" << std::endl;
     std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
     std::cerr << "  -t    Read the input in text format" << std::endl;
-    std::cerr << "  -T X  Use X as the directory for temporary files (default: " << DiskIO::DEFAULT_TEMP_DIR << ")" << std::endl;
+    std::cerr << "  -T N  Set the number of threads to N (default and max " << omp_get_max_threads() << " on this system)" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
@@ -75,7 +76,7 @@ main(int argc, char** argv)
   int c = 0;
   bool binary = true;
   std::string output_file;
-  while((c = getopt(argc, argv, "bd:l:o:tT:")) != -1)
+  while((c = getopt(argc, argv, "bd:D:l:o:tT:")) != -1)
   {
     switch(c)
     {
@@ -89,6 +90,8 @@ main(int argc, char** argv)
         std::exit(EXIT_FAILURE);
       }
       break;
+    case 'D':
+      DiskIO::setTemp(optarg); break;
     case 'l':
       size_limit = std::stoul(optarg); break;
     case 'o':
@@ -96,7 +99,7 @@ main(int argc, char** argv)
     case 't':
       binary = false; break;
     case 'T':
-      DiskIO::setTemp(optarg); break;
+      omp_set_num_threads(Range::bound(std::stoul(optarg), 1, omp_get_max_threads())); break;
     case '?':
       std::exit(EXIT_FAILURE);
     default:
@@ -124,6 +127,7 @@ main(int argc, char** argv)
   std::cout << "Output:          " << output_file << std::endl;
   std::cout << "Doubling steps:  " << doubling_steps << std::endl;
   std::cout << "Size limit:      " << size_limit << " GB" << std::endl;
+  std::cout << "Threads:         " << omp_get_max_threads() << std::endl;
   std::cout << "Temp directory:  " << DiskIO::temp_dir << std::endl;
   std::cout << std::endl;
 
