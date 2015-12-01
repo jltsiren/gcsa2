@@ -446,11 +446,11 @@ GCSA::GCSA(const InputGraph& graph,
     path_graph.prune(lcp, size_limit * GIGABYTE);
   }
   this->max_query_length = (path_graph.unsorted == 0 ? ~(size_type)0 : path_graph.k());
+  sdsl::util::clear(lcp);
 
   // Merge the paths into the nodes of a pruned de Bruijn graph.
-  MergedGraph merged_graph(path_graph, mapper, lcp);
+  MergedGraph merged_graph(path_graph, mapper);
   this->path_node_count = merged_graph.size();
-  sdsl::util::clear(lcp);
   path_graph.clear();
 
   // Structures used to build GCSA.

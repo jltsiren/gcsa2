@@ -45,8 +45,9 @@ namespace gcsa
 class DeBruijnGraph
 {
 public:
-  typedef gcsa::size_type  size_type;
-  typedef sdsl::bit_vector bit_vector;
+  typedef gcsa::size_type       size_type;
+  typedef sdsl::bit_vector      bit_vector;
+  typedef sdsl::bit_vector_il<> fast_bit_vector;
 
 //------------------------------------------------------------------------------
 
@@ -128,18 +129,18 @@ public:
 
 //------------------------------------------------------------------------------
 
-  size_type               node_count;
-  size_type               graph_order;
+  size_type                    node_count;
+  size_type                    graph_order;
 
-  Alphabet                alpha;
+  Alphabet                     alpha;
 
   // If node i has predecessor comp, bit comp * size + i is set.
-  bit_vector              bwt;
-  bit_vector::rank_1_type bwt_rank;
+  fast_bit_vector              bwt;
+  fast_bit_vector::rank_1_type bwt_rank;
 
   // The last outgoing edge from each path is marked with an 1-bit.
-  bit_vector              nodes;
-  bit_vector::rank_1_type node_rank;
+  fast_bit_vector              nodes;
+  fast_bit_vector::rank_1_type node_rank;
 
 //------------------------------------------------------------------------------
 

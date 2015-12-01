@@ -171,8 +171,8 @@ DeBruijnGraph::DeBruijnGraph(const std::vector<key_type>& keys, size_type kmer_l
   for(size_type i = 0; i < keys.size(); i++) { total_edges += sdsl::bits::lt_cnt[Key::predecessors(keys[i])]; }
 
   sdsl::int_vector<64> counts(_alpha.sigma, 0);
-  this->bwt = bit_vector(_alpha.sigma * total_edges, 0);
-  this->nodes = bit_vector(total_edges, 0);
+  bit_vector bwt_buffer(_alpha.sigma * total_edges, 0);
+  bit_vector node_buffer(total_edges, 0);
   for(size_type i = 0, edge_pos = 0; i < keys.size(); i++)
   {
     size_type pred = Key::predecessors(keys[i]);
@@ -180,14 +180,16 @@ DeBruijnGraph::DeBruijnGraph(const std::vector<key_type>& keys, size_type kmer_l
     {
       if(pred & (((size_type)1) << j))
       {
-        this->bwt[j * this->size() + i] = 1;
+        bwt_buffer[j * this->size() + i] = 1;
         counts[j]++;
       }
     }
     edge_pos += sdsl::bits::lt_cnt[Key::successors(keys[i])];
-    this->nodes[edge_pos - 1] = 1;
+    node_buffer[edge_pos - 1] = 1;
   }
   this->alpha = Alphabet(counts, _alpha.char2comp, _alpha.comp2char);
+  this->bwt = bwt_buffer; sdsl::util::clear(bwt_buffer);
+  this->nodes = node_buffer; sdsl::util::clear(node_buffer);
 
   this->initSupport();
 }
