@@ -252,13 +252,13 @@ struct ReadBuffer
   const static size_type PREFETCH_SIZE = BUFFER_SIZE / 2;
 
   ReadBuffer() { this->offset = 0; }
-  ~ReadBuffer() { this->clear(); }
+  ~ReadBuffer() { this->close(); }
 
   template<class... ReaderParameters> void init(ReaderParameters... parameters)
   {
     this->reader.init(parameters...);
   }
-  void clear() { sdsl::util::clear(this->buffer); this->reader.close(); }
+  void close() { sdsl::util::clear(this->buffer); this->reader.close(); }
 
   inline size_type size() const { return this->reader.size(); }
   inline bool buffered(size_type i) const

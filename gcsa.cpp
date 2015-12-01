@@ -221,7 +221,7 @@ struct MergedGraphReader
 
   void init(const MergedGraph& graph, const DeBruijnGraph* _mapper, const sdsl::int_vector<0>* _last_char);
   void init(const MergedGraph& graph, size_type comp);
-  void clear();
+  void close();
 
   void seek();
 
@@ -273,11 +273,11 @@ MergedGraphReader::init(const MergedGraph& graph, size_type comp)
 }
 
 void
-MergedGraphReader::clear()
+MergedGraphReader::close()
 {
-  this->paths.clear(),
-  this->labels.clear();
-  this->from_nodes.clear();
+  this->paths.close(),
+  this->labels.close();
+  this->from_nodes.close();
 
   this->path = this->rank = this->from = 0;
 }
@@ -446,11 +446,11 @@ GCSA::GCSA(const InputGraph& graph,
     path_graph.prune(lcp, size_limit * GIGABYTE);
   }
   this->max_query_length = (path_graph.unsorted == 0 ? ~(size_type)0 : path_graph.k());
-  sdsl::util::clear(lcp);
 
   // Merge the paths into the nodes of a pruned de Bruijn graph.
-  MergedGraph merged_graph(path_graph, mapper);
+  MergedGraph merged_graph(path_graph, mapper, lcp);
   this->path_node_count = merged_graph.size();
+  sdsl::util::clear(lcp);
   path_graph.clear();
 
   // Structures used to build GCSA.
@@ -548,7 +548,7 @@ GCSA::GCSA(const InputGraph& graph,
       this->samples[sample_buffer.size() - 1] = 1;
     }
   }
-  for(size_type i = 0; i < reader.size(); i++) { reader[i].clear(); }
+  for(size_type i = 0; i < reader.size(); i++) { reader[i].close(); }
   sdsl::util::clear(last_char);
 
   // Initialize alpha.

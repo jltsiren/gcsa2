@@ -371,7 +371,7 @@ struct MergedGraph
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa
 
-  MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper);
+  MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, const LCP& lcp);
   ~MergedGraph();
 
   void clear();
