@@ -770,9 +770,10 @@ PathGraphMerger::mergePathNodes(range_type range, std::vector<range_type>& from_
 PathRange::PathRange(size_type start, size_type stop, range_type _left_lcp, PathGraphMerger& merger) :
   from(start), to(stop),
   left_lcp(_left_lcp),
-  range_lcp(merger.range_lcp(start, stop)),
+  range_lcp(0, 0),
   right_lcp(0, 0)
 {
+  if(stop < merger.size()) { this->range_lcp = merger.range_lcp(start, stop); }
   if(stop + 1 < merger.size()) { this->right_lcp = merger.border_lcp(stop, stop + 1); }
 }
 
