@@ -472,14 +472,19 @@ struct PriorityNodeReader
   void close();
 
   inline size_type size() const { return this->elements; }
+  void append(std::deque<PriorityNode>& buffer, size_type n);
   void seek(size_type i);
-  void read(std::vector<PriorityNode>& buffer);
 
-  const static bool SEEKABLE = false;
+  inline void next()
+  {
+    this->inputs[0].load(this->files);
+    this->inputs.down(0);
+    this->offset++;
+  }
 
   std::vector<std::ifstream>  files;
   PriorityQueue<PriorityNode> inputs;
-  size_type                   elements;
+  size_type                   elements, offset;
 
   PriorityNodeReader(const PriorityNodeReader&) = delete;
   PriorityNodeReader& operator= (const PriorityNodeReader&) = delete;
@@ -494,7 +499,7 @@ PriorityNodeReader::init(const PathGraph& graph)
     std::exit(EXIT_FAILURE);
   }
 
-  this->elements = graph.size();
+  this->elements = graph.size(); this->offset = 0;
   this->files = std::vector<std::ifstream>(graph.files());
   this->inputs.resize(graph.files());
   for(size_type file = 0; file < this->files.size(); file++)
@@ -517,22 +522,27 @@ PriorityNodeReader::close()
 }
 
 void
-PriorityNodeReader::seek(size_type)
+PriorityNodeReader::append(std::deque<PriorityNode>& buffer, size_type n)
 {
-  std::cerr << "PriorityNodeReader::seek(): The function is not supported" << std::endl;
-  std::exit(EXIT_FAILURE);
+  n = std::min(this->size() - this->offset, n);
+  while(n > 0)
+  {
+    buffer.push_back(this->inputs[0]); n--;
+    this->next();
+  }
 }
 
 void
-PriorityNodeReader::read(std::vector<PriorityNode>& buffer)
+PriorityNodeReader::seek(size_type i)
 {
-  for(size_type i = 0; i < buffer.size(); i++)
+  if(i < this->offset)
   {
-    if(this->inputs[0].eof()) { buffer.resize(i); return; }
-    buffer[i] = this->inputs[0];
-    this->inputs[0].load(this->files);
-    this->inputs.down(0);
+    std::cerr << "PriorityNodeReader::seek(): Cannot seek backwards" << std::endl;
+    std::exit(EXIT_FAILURE);
   }
+
+  if(i > this->size()) { i = this->size(); }
+  while(this->offset < i) { this->next(); }
 }
 
 //------------------------------------------------------------------------------

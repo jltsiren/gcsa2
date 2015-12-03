@@ -186,6 +186,9 @@ PriorityQueue<Element>::heapify()
 template<class Element>
 struct ElementReader
 {
+  // Read this many Elements in one call of Reader::read().
+  const static size_type READ_SIZE = MEGABYTE;
+
   ElementReader() { this->elements = 0; }
   ~ElementReader() { this->close(); }
 
@@ -193,17 +196,11 @@ struct ElementReader
   void close() { this->file.close(); this->elements = 0; }
 
   inline size_type size() const { return this->elements; }
-  inline void seek(size_type i) { this->file.seekg(i * sizeof(Element), std::ios_base::beg); }
-  inline void read(std::vector<Element>& buffer)
-  {
-    DiskIO::read(this->file, buffer.data(), buffer.size());
-  }
-
-  const static bool SEEKABLE = true;
+  void append(std::deque<Element>& buffer, size_type n);
+  void seek(size_type i);
 
   std::ifstream file;
-  size_type elements;
-std::string fn;
+  size_type elements, offset;
 
   ElementReader(const ElementReader&) = delete;
   ElementReader& operator= (const ElementReader&) = delete;
@@ -226,7 +223,30 @@ ElementReader<Element>::init(const std::string& filename)
     std::exit(EXIT_FAILURE);
   }
   this->elements = fileSize(this->file) / sizeof(Element);
-this->fn = filename;
+  this->offset = 0;
+}
+
+template<class Element>
+void
+ElementReader<Element>::append(std::deque<Element>& buffer, size_type n)
+{
+  n = std::min(this->size() - this->offset, n);
+  while(n > 0)
+  {
+    std::vector<Element> temp(std::min(READ_SIZE, n));
+    DiskIO::read(this->file, temp.data(), temp.size());
+    this->offset += temp.size(); n -= temp.size();
+    buffer.insert(buffer.end(), temp.begin(), temp.end());
+  }
+}
+
+template<class Element>
+void
+ElementReader<Element>::seek(size_type i)
+{
+  if(i > this->size()) { i = this->size(); }
+  this->file.seekg(i * sizeof(Element), std::ios_base::beg);
+  this->offset = i;
 }
 
 //------------------------------------------------------------------------------
@@ -240,15 +260,17 @@ this->fn = filename;
 template<class Element, class Reader = ElementReader<Element>>
 struct ReadBuffer
 {
-  Reader              reader;
   size_type           offset;
   std::deque<Element> buffer;
+  Reader              reader;
 
-  // After seek(), buffer size should in [MINIMUM_SIZE, BUFFER_SIZE].
+  // Minimum size when refilling the buffer.
   const static size_type BUFFER_SIZE = MEGABYTE;
+
+  // Refill the buffer if its size falls below this threshold.
   const static size_type MINIMUM_SIZE = BUFFER_SIZE / 2;
 
-  // Read this many Elements past the desired position.
+  // Read this many elements at once if reading past the buffer.
   const static size_type PREFETCH_SIZE = BUFFER_SIZE / 2;
 
   ReadBuffer() { this->offset = 0; }
@@ -267,20 +289,18 @@ struct ReadBuffer
   }
 
   /*
-    Beware: Any buffer manipulations (seek(), prefetch(), resize(), pop()) may invalidate
-    the reference. The same may also happen when calling operator[] with a non-buffered
-    position.
+    Beware: Calling seek() may invalidate the reference. The same may also happen when
+    calling operator[] with a non-buffered position.
   */
   inline Element& operator[] (size_type i)
   {
-    if(!(this->buffered(i))) { if(Reader::SEEKABLE) { this->seek(i); } else { this->prefetch(i); } }
+    if(!(this->buffered(i)))
+    {
+      this->reader.append(this->buffer, i + PREFETCH_SIZE - this->buffer.size() - this->offset);
+    }
     return this->buffer[i - this->offset];
   }
-  void seek(size_type i);     // Set offset to i.
-
-  void prefetch(size_type i); // Prefetch i and subsequent positions. Does not move offset.
-  void resize(size_type target_size = BUFFER_SIZE);
-  inline void pop() { this->buffer.pop_front(); this->offset++; }
+  void seek(size_type i); // Set offset to i.
 
   ReadBuffer(const ReadBuffer&) = delete;
   ReadBuffer& operator= (const ReadBuffer&) = delete;
@@ -291,49 +311,21 @@ void
 ReadBuffer<Element, Reader>::seek(size_type i)
 {
   if(i >= this->size()) { return; }
+
   if(this->buffered(i))
   {
-    while(this->offset < i) { this->pop(); }
-    if(this->buffer.size() < MINIMUM_SIZE) { this->resize(); }
-    return;
-  }
-
-  this->offset += this->buffer.size(); this->buffer.clear();
-  if(Reader::SEEKABLE)
-  {
-    this->reader.seek(i); this->offset = i;
+    while(this->offset < i) { this->buffer.pop_front(); this->offset++; }
   }
   else
   {
-    std::vector<Element> temp(BUFFER_SIZE);
-    while(this->offset < i)
-    {
-      temp.resize(std::min(i - this->offset, BUFFER_SIZE));
-      this->reader.read(temp); this->offset += temp.size();
-    }
+    this->buffer.clear();
+    this->reader.seek(i);
+    this->offset = i;
   }
-  this->resize();
-}
-
-template<class Element, class Reader>
-void
-ReadBuffer<Element, Reader>::prefetch(size_type i)
-{
-  if(i < this->offset + this->buffer.size()) { return; }
-  this->resize(i + PREFETCH_SIZE - this->offset);
-}
-
-template<class Element, class Reader>
-void
-ReadBuffer<Element, Reader>::resize(size_type target_size)
-{
-  target_size = std::min(target_size, this->size() - this->offset);
-  if(this->buffer.size() >= target_size) { return; }
-
-  size_type count = target_size - this->buffer.size();
-  std::vector<Element> temp(count);
-  this->reader.read(temp);
-  this->buffer.insert(this->buffer.end(), temp.begin(), temp.end());
+  if(this->buffer.size() < MINIMUM_SIZE)
+  {
+    this->reader.append(this->buffer, BUFFER_SIZE - this->buffer.size());
+  }
 }
 
 //------------------------------------------------------------------------------
