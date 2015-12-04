@@ -587,11 +587,12 @@ PriorityNodeReader::seek(size_type i)
   // Handle the buffer first.
   if(i - this->offset < this->read_buffer.size())
   {
-    for(size_type j = i - this->offset; j < this->read_buffer.size(); j++)
+    size_type skip = i - this->offset;
+    for(size_type j = skip; j < this->read_buffer.size(); j++)
     {
-      this->read_buffer[j - this->offset] = this->read_buffer[j];
+      this->read_buffer[j - skip] = this->read_buffer[j];
     }
-    this->read_buffer.resize(this->read_buffer.size() - (i - this->offset));
+    this->read_buffer.resize(this->read_buffer.size() - skip);
     this->offset = i;
   }
   else
