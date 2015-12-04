@@ -9,7 +9,7 @@ VERIFY_FLAGS=-DVERIFY_CONSTRUCTION
 
 # Multithreading with OpenMP and libstdc++ Parallel Mode. Requires g++ 4.7
 # or newer.
-PARALLEL_FLAGS=-fopenmp -D_GLIBCXX_PARALLEL
+PARALLEL_FLAGS=-fopenmp -pthread -D_GLIBCXX_PARALLEL
 
 # Verbose output during index construction etc.
 OUTPUT_FLAGS=-DVERBOSE_STATUS_INFO
