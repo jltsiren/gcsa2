@@ -29,8 +29,8 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
-size_type DiskIO::read_volume = 0;
-size_type DiskIO::write_volume = 0;
+std::atomic<size_type> DiskIO::read_volume(0);
+std::atomic<size_type> DiskIO::write_volume(0);
 
 //------------------------------------------------------------------------------
 

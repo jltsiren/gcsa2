@@ -25,11 +25,6 @@
 #include <cstring>
 #include <deque>
 
-// C++ threads for PriorityNodeReader
-#include <condition_variable>
-#include <mutex>
-#include <thread>
-
 #include "internal.h"
 #include "path_graph.h"
 
@@ -477,8 +472,11 @@ struct PriorityNodeReader
   void close();
 
   inline size_type size() const { return this->elements; }
-  void append(std::deque<PriorityNode>& buffer, size_type n);
+  void append(std::deque<PriorityNode>& buffer, size_type n, std::vector<PriorityNode>& read_buffer);
+  void read(std::vector<PriorityNode>& read_buffer);
   void seek(size_type i);
+  void finish() { this->offset = this->size(); }
+  bool finished() { return (this->offset >= this->size()); }
 
   inline void next()
   {
@@ -490,25 +488,9 @@ struct PriorityNodeReader
   PriorityQueue<PriorityNode> inputs;
   size_type                   elements, offset;
 
-  const static size_type BUFFER_SIZE = MEGABYTE;
-
-  // Buffered PriorityNodes are in range [offset, offset + read_buffer.size() - 1].
-  std::vector<PriorityNode>   read_buffer;
-  std::mutex                  mtx;
-  std::condition_variable     empty;
-  std::thread                 reader_thread;
-
-  bool fill();  // Internal function.
-
   PriorityNodeReader(const PriorityNodeReader&) = delete;
   PriorityNodeReader& operator= (const PriorityNodeReader&) = delete;
 };
-
-void
-readerThread(PriorityNodeReader* reader)
-{
-  while(reader->fill());
-}
 
 void
 PriorityNodeReader::init(const PathGraph& graph)
@@ -529,19 +511,11 @@ PriorityNodeReader::init(const PathGraph& graph)
     this->inputs[file].load(this->files);
   }
   this->inputs.heapify();
-
-  this->reader_thread = std::thread(readerThread, this);
 }
 
 void
 PriorityNodeReader::close()
 {
-  // We need to stop the reader thread.
-  std::unique_lock<std::mutex> lock(this->mtx);
-  this->read_buffer.clear(); this->offset = this->size();
-  this->empty.notify_one();
-  if(this->reader_thread.joinable()) { this->reader_thread.join(); }
-
   for(size_type file = 0; file < this->files.size(); file++)
   {
     this->files[file].close();
@@ -550,33 +524,30 @@ PriorityNodeReader::close()
 }
 
 void
-PriorityNodeReader::append(std::deque<PriorityNode>& buffer, size_type n)
+PriorityNodeReader::append(std::deque<PriorityNode>& buffer, size_type n, std::vector<PriorityNode>&)
 {
-  std::unique_lock<std::mutex> lock(this->mtx);
-  n = Range::bound(n, this->read_buffer.size(), this->size() - this->offset);
-
-  // Always append the entire read buffer.
-  buffer.insert(buffer.end(), this->read_buffer.begin(), this->read_buffer.end());
-  n -= this->read_buffer.size();
-  this->offset += this->read_buffer.size();
-  this->read_buffer.clear();
-
-  // Read manually if needed.
+  n = std::min(this->size() - this->offset, n);
   while(n > 0)
   {
     buffer.push_back(this->inputs[0]); n--;
     this->next(); this->offset++;
   }
+}
 
-  // Tell the reader thread to fill the read buffer.
-  this->empty.notify_one();
+void
+PriorityNodeReader::read(std::vector<PriorityNode>& read_buffer)
+{
+  if(read_buffer.size() > this->size() - this->offset) { read_buffer.resize(this->size() - this->offset); }
+  for(size_type i = 0; i < read_buffer.size(); i++)
+  {
+    read_buffer[i] = this->inputs[0];
+    this->next(); this->offset++;
+  }
 }
 
 void
 PriorityNodeReader::seek(size_type i)
 {
-  std::unique_lock<std::mutex> lock(this->mtx);
-  if(i == this->offset) { return; }
   if(i > this->size()) { i = this->size(); }
   if(i < this->offset)
   {
@@ -584,43 +555,7 @@ PriorityNodeReader::seek(size_type i)
     std::exit(EXIT_FAILURE);
   }
 
-  // Handle the buffer first.
-  if(i - this->offset < this->read_buffer.size())
-  {
-    size_type skip = i - this->offset;
-    for(size_type j = skip; j < this->read_buffer.size(); j++)
-    {
-      this->read_buffer[j - skip] = this->read_buffer[j];
-    }
-    this->read_buffer.resize(this->read_buffer.size() - skip);
-    this->offset = i;
-  }
-  else
-  {
-    this->offset += this->read_buffer.size();
-    this->read_buffer.clear();
-  }
   while(this->offset < i) { this->next(); this->offset++; }
-
-  // Tell the reader thread to fill the read buffer.
-  if(this->read_buffer.empty()) { this->empty.notify_one(); }
-}
-
-bool
-PriorityNodeReader::fill()
-{
-  std::unique_lock<std::mutex> lock(this->mtx);
-  this->empty.wait(lock, [this]() { return read_buffer.empty(); } );
-
-  size_type n = std::min(this->size() - this->offset, BUFFER_SIZE);
-  this->read_buffer.resize(n);
-  for(size_type i = 0; i < this->read_buffer.size(); i++)
-  {
-    this->read_buffer[i] = this->inputs[0];
-    this->next(); // We do not increment the offset yet.
-  }
-
-  return (this->offset < this->size());
 }
 
 //------------------------------------------------------------------------------
