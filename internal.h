@@ -433,7 +433,6 @@ template<class Element, class Reader>
 void
 ReadBuffer<Element, Reader>::seek(size_type i)
 {
-  std::unique_lock<std::mutex> lock(this->mtx);
   if(i >= this->size()) { return; }
 
   if(this->buffered(i))
@@ -442,11 +441,13 @@ ReadBuffer<Element, Reader>::seek(size_type i)
   }
   else
   {
+    std::unique_lock<std::mutex> lock(this->mtx);
     this->buffer.clear(); this->read_buffer.clear();
     this->reader.seek(i); this->offset = i;
   }
   if(this->buffer.size() < MINIMUM_SIZE)
   {
+    std::unique_lock<std::mutex> lock(this->mtx);
     this->addBlock();
     this->empty.notify_one();
   }
