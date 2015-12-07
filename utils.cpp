@@ -27,38 +27,10 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
-#include "utils.h"
+#include "internal.h"
 
 namespace gcsa
 {
-
-//------------------------------------------------------------------------------
-
-size_type DiskIO::read_volume = 0;
-size_type DiskIO::write_volume = 0;
-
-const std::string DiskIO::DEFAULT_TEMP_DIR = ".";
-std::string DiskIO::temp_dir = DiskIO::DEFAULT_TEMP_DIR;
-
-void
-DiskIO::setTemp(const std::string& directory)
-{
-  if(directory.length() == 0) { temp_dir = DEFAULT_TEMP_DIR; }
-  else if(directory[directory.length() - 1] != '/') { temp_dir = directory; }
-  else { temp_dir = directory.substr(0, directory.length() - 1); }
-}
-
-std::string
-DiskIO::tempFile(const std::string& name_part)
-{
-  char hostname[32];
-  gethostname(hostname, 32); hostname[31] = 0;
-
-  return temp_dir + '/' + name_part + '_'
-    + std::string(hostname) + '_'
-    + sdsl::util::to_string(sdsl::util::pid()) + '_'
-    + sdsl::util::to_string(sdsl::util::id());
-}
 
 //------------------------------------------------------------------------------
 
@@ -105,7 +77,42 @@ memoryUsage()
 #endif
 }
 
+size_type
+readVolume()
+{
+  return DiskIO::read_volume;
+}
+
+size_type
+writeVolume()
+{
+  return DiskIO::write_volume;
+}
+
 //------------------------------------------------------------------------------
+
+const std::string TempFile::DEFAULT_TEMP_DIR = ".";
+std::string TempFile::temp_dir = TempFile::DEFAULT_TEMP_DIR;
+
+void
+TempFile::setDirectory(const std::string& directory)
+{
+  if(directory.length() == 0) { temp_dir = DEFAULT_TEMP_DIR; }
+  else if(directory[directory.length() - 1] != '/') { temp_dir = directory; }
+  else { temp_dir = directory.substr(0, directory.length() - 1); }
+}
+
+std::string
+TempFile::getName(const std::string& name_part)
+{
+  char hostname[32];
+  gethostname(hostname, 32); hostname[31] = 0;
+
+  return temp_dir + '/' + name_part + '_'
+    + std::string(hostname) + '_'
+    + sdsl::util::to_string(sdsl::util::pid()) + '_'
+    + sdsl::util::to_string(sdsl::util::id());
+}
 
 size_type
 readRows(const std::string& filename, std::vector<std::string>& rows, bool skip_empty_rows)

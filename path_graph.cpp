@@ -878,7 +878,7 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
   sdsl::sd_vector<>::rank_1_type key_rank(&key_exists);
   for(size_type file = 0; file < source.files(); file++)
   {
-    std::string temp_file = DiskIO::tempFile(PREFIX);
+    std::string temp_file = TempFile::getName(PREFIX);
     this->filenames.push_back(temp_file);
     this->sizes.push_back(source.sizes[file]); this->path_count += source.sizes[file];
     this->rank_counts.push_back(2 * source.sizes[file]); this->rank_count += 2 * source.sizes[file];
@@ -926,7 +926,7 @@ PathGraph::PathGraph(size_type file_count, size_type path_order) :
 {
   for(size_type file = 0; file < this->files(); file++)
   {
-    this->filenames[file] = DiskIO::tempFile(PREFIX);
+    this->filenames[file] = TempFile::getName(PREFIX);
   }
 }
 
@@ -1121,7 +1121,7 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 const std::string MergedGraph::PREFIX = ".gcsa";
 
 MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
-  path_name(DiskIO::tempFile(PREFIX)), rank_name(DiskIO::tempFile(PREFIX)), from_name(DiskIO::tempFile(PREFIX)),
+  path_name(TempFile::getName(PREFIX)), rank_name(TempFile::getName(PREFIX)), from_name(TempFile::getName(PREFIX)),
   path_count(0), rank_count(0), from_count(0),
   order(source.k()),
   next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0)

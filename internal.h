@@ -38,6 +38,52 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+/*
+  Utility methods for disk I/O and read/write volume measurement. These methods don't use
+  mutexes / critical sections for performance reasons.
+*/
+
+struct DiskIO
+{
+  static size_type read_volume, write_volume;
+
+  template<class Element>
+  inline static void read(std::istream& in, Element* data, size_type n = 1)
+  {
+    read_volume += n * sizeof(Element);
+    in.read((char*)data, n * sizeof(Element));
+  }
+
+  template<class Element>
+  inline static void write(std::ostream& out, const Element* data, size_type n = 1)
+  {
+    write_volume += n * sizeof(Element);
+    out.write((const char*)data, n * sizeof(Element));
+  }
+};
+
+//------------------------------------------------------------------------------
+
+/*
+  Generic in-memory construction from int_vector_buffer<8> and size. Not very space-efficient, as it
+  duplicates the data.
+*/
+template<class Type>
+void
+directConstruct(Type& structure, const sdsl::int_vector<8>& data)
+{
+  std::string ramfile = sdsl::ram_file_name(sdsl::util::to_string(&structure));
+  sdsl::store_to_file(data, ramfile);
+  {
+    sdsl::int_vector_buffer<8> buffer(ramfile); // Must remove the buffer before removing the ramfile.
+    Type temp(buffer, data.size());
+    structure.swap(temp);
+  }
+  sdsl::ram_fs::remove(ramfile);
+}
+
+//------------------------------------------------------------------------------
+
 template<class ValueType, class Getter>
 struct ValueIndex
 {

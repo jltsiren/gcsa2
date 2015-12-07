@@ -29,6 +29,11 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+size_type DiskIO::read_volume = 0;
+size_type DiskIO::write_volume = 0;
+
+//------------------------------------------------------------------------------
+
 SLArray::SLArray(size_type n) :
   data(n, 0)
 {

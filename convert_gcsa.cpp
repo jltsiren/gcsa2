@@ -120,7 +120,7 @@ ExperimentalGCSA::ExperimentalGCSA(const GCSA& source)
   this->max_query_length = source.max_query_length;
 
   // Extract plain BWT.
-  std::string filename = DiskIO::tempFile(".convert_gcsa");
+  std::string filename = TempFile::getName(".convert_gcsa");
   sdsl::int_vector_buffer<8> bwt_buffer(filename, std::ios::out);
   for(size_type i = 0; i < source.bwt.size(); i++) { bwt_buffer[i] = source.bwt[i]; }
   bwt_buffer.close();

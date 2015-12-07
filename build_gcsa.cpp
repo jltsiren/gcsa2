@@ -63,7 +63,7 @@ main(int argc, char** argv)
     std::cerr << "Usage: build_gcsa [options] base_name [base_name2 ..]" << std::endl;
     std::cerr << "  -b    Read the input in binary format (default)" << std::endl;
     std::cerr << "  -d N  Doubling steps (default and max " << GCSA::DOUBLING_STEPS << ")" << std::endl;
-    std::cerr << "  -D X  Use X as the directory for temporary files (default: " << DiskIO::DEFAULT_TEMP_DIR << ")" << std::endl;
+    std::cerr << "  -D X  Use X as the directory for temporary files (default: " << TempFile::DEFAULT_TEMP_DIR << ")" << std::endl;
     std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << GCSA::SIZE_LIMIT << ")" << std::endl;
     std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
     std::cerr << "  -t    Read the input in text format" << std::endl;
@@ -91,7 +91,7 @@ main(int argc, char** argv)
       }
       break;
     case 'D':
-      DiskIO::setTemp(optarg); break;
+      TempFile::setDirectory(optarg); break;
     case 'l':
       size_limit = std::stoul(optarg); break;
     case 'o':
@@ -128,7 +128,7 @@ main(int argc, char** argv)
   std::cout << "Doubling steps:  " << doubling_steps << std::endl;
   std::cout << "Size limit:      " << size_limit << " GB" << std::endl;
   std::cout << "Threads:         " << omp_get_max_threads() << std::endl;
-  std::cout << "Temp directory:  " << DiskIO::temp_dir << std::endl;
+  std::cout << "Temp directory:  " << TempFile::temp_dir << std::endl;
   std::cout << std::endl;
 
   InputGraph graph(argc - optind, argv + optind, binary);
@@ -151,8 +151,8 @@ main(int argc, char** argv)
     double seconds = readTimer() - start;
     std::cout << "Index built in " << seconds << " seconds" << std::endl;
     std::cout << "Memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;
-    std::cout << "I/O volume: " << inGigabytes(DiskIO::read_volume) << " GB read, "
-              << inGigabytes(DiskIO::write_volume) << " GB write" << std::endl;
+    std::cout << "I/O volume: " << inGigabytes(readVolume()) << " GB read, "
+              << inGigabytes(writeVolume()) << " GB write" << std::endl;
     std::cout << std::endl;
     sdsl::store_to_file(index, output_file);
   }

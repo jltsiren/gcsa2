@@ -23,6 +23,7 @@
 */
 
 #include "files.h"
+#include "internal.h"
 
 namespace gcsa
 {
