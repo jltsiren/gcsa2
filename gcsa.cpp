@@ -35,6 +35,25 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+ConstructionParameters::ConstructionParameters() :
+  doubling_steps(DOUBLING_STEPS), size_limit(SIZE_LIMIT * GIGABYTE)
+{
+}
+
+void
+ConstructionParameters::setSteps(size_type steps)
+{
+  this->doubling_steps = Range::bound(steps, 1, DOUBLING_STEPS);
+}
+
+void
+ConstructionParameters::setLimit(size_type gigabytes)
+{
+  this->size_limit = Range::bound(gigabytes, 1, ABSOLUTE_LIMIT) * GIGABYTE;
+}
+
+//------------------------------------------------------------------------------
+
 const std::string GCSA::EXTENSION = ".gcsa";
 
 GCSA::GCSA()
@@ -390,24 +409,11 @@ MergedGraphReader::fromNodes(std::vector<node_type>& results)
 
 //------------------------------------------------------------------------------
 
-GCSA::GCSA(const InputGraph& graph,
-  size_type doubling_steps, size_type size_limit, const Alphabet& _alpha)
+GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, const Alphabet& _alpha)
 {
   if(graph.size() == 0) { return; }
-  if(doubling_steps > DOUBLING_STEPS)
-  {
-    std::cerr << "GCSA::GCSA(): The number of doubling steps is too high: " << doubling_steps << std::endl;
-    std::cerr << "GCSA::GCSA(): Reverting the number of doubling steps to " << DOUBLING_STEPS << std::endl;
-    doubling_steps = DOUBLING_STEPS;
-  }
-  if(size_limit > ABSOLUTE_SIZE_LIMIT)
-  {
-    std::cerr << "GCSA::GCSA(): The size limit is suspiciously high: " << size_limit << " GB" << std::endl;
-    std::cerr << "GCSA::GCSA(): Reverting the size limit to " << ABSOLUTE_SIZE_LIMIT << " GB" << std::endl;
-    size_limit = ABSOLUTE_SIZE_LIMIT;
-  }
   size_type bytes_required = graph.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
-  if(bytes_required > size_limit * GIGABYTE)
+  if(bytes_required > parameters.size_limit)
   {
     std::cerr << "GCSA::GCSA(): The input is too large: " << (bytes_required / GIGABYTE_DOUBLE) << " GB" << std::endl;
     std::cerr << "GCSA::GCSA(): Construction aborted" << std::endl;
@@ -435,15 +441,15 @@ GCSA::GCSA(const InputGraph& graph,
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "GCSA::GCSA(): Initial path length: " << path_graph.k() << std::endl;
 #endif
-  path_graph.prune(lcp, size_limit * GIGABYTE);
-  for(size_type step = 1; step <= doubling_steps && path_graph.unsorted > 0; step++)
+  path_graph.prune(lcp, parameters.size_limit);
+  for(size_type step = 1; step <= parameters.doubling_steps && path_graph.unsorted > 0; step++)
   {
 #ifdef VERBOSE_STATUS_INFO
     std::cerr << "GCSA::GCSA(): Step " << step << " (path length " << path_graph.k() << " -> "
               << (2 * path_graph.k()) << ")" << std::endl;
 #endif
-    path_graph.extend(size_limit * GIGABYTE);
-    path_graph.prune(lcp, size_limit * GIGABYTE);
+    path_graph.extend(parameters.size_limit);
+    path_graph.prune(lcp, parameters.size_limit);
   }
   this->max_query_length = (path_graph.unsorted == 0 ? ~(size_type)0 : path_graph.k());
   sdsl::util::clear(lcp);

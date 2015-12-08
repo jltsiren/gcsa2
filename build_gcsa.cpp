@@ -62,9 +62,9 @@ main(int argc, char** argv)
   {
     std::cerr << "Usage: build_gcsa [options] base_name [base_name2 ..]" << std::endl;
     std::cerr << "  -b    Read the input in binary format (default)" << std::endl;
-    std::cerr << "  -d N  Doubling steps (default and max " << GCSA::DOUBLING_STEPS << ")" << std::endl;
+    std::cerr << "  -d N  Doubling steps (default and max " << ConstructionParameters::DOUBLING_STEPS << ")" << std::endl;
     std::cerr << "  -D X  Use X as the directory for temporary files (default: " << TempFile::DEFAULT_TEMP_DIR << ")" << std::endl;
-    std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << GCSA::SIZE_LIMIT << ")" << std::endl;
+    std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << ConstructionParameters::SIZE_LIMIT << ")" << std::endl;
     std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
     std::cerr << "  -t    Read the input in text format" << std::endl;
     std::cerr << "  -T N  Set the number of threads to N (default and max " << omp_get_max_threads() << " on this system)" << std::endl;
@@ -72,10 +72,10 @@ main(int argc, char** argv)
     std::exit(EXIT_SUCCESS);
   }
 
-  size_type doubling_steps = GCSA::DOUBLING_STEPS, size_limit = GCSA::SIZE_LIMIT;
   int c = 0;
   bool binary = true;
   std::string output_file;
+  ConstructionParameters parameters;
   while((c = getopt(argc, argv, "bd:D:l:o:tT:")) != -1)
   {
     switch(c)
@@ -83,17 +83,11 @@ main(int argc, char** argv)
     case 'b':
       binary = true; break;
     case 'd':
-      doubling_steps =  std::stoul(optarg);
-      if(doubling_steps > GCSA::DOUBLING_STEPS)
-      {
-        std::cerr << "build_gcsa: The number of doubling steps is too high: " << doubling_steps << std::endl;
-        std::exit(EXIT_FAILURE);
-      }
-      break;
+      parameters.setSteps(std::stoul(optarg)); break;
     case 'D':
       TempFile::setDirectory(optarg); break;
     case 'l':
-      size_limit = std::stoul(optarg); break;
+      parameters.setLimit(std::stoul(optarg)); break;
     case 'o':
       output_file = std::string(optarg) + GCSA::EXTENSION; break;
     case 't':
@@ -125,8 +119,8 @@ main(int argc, char** argv)
     else { std::cout << InputGraph::TEXT_EXTENSION << " (text format)" << std::endl; }
   }
   std::cout << "Output:          " << output_file << std::endl;
-  std::cout << "Doubling steps:  " << doubling_steps << std::endl;
-  std::cout << "Size limit:      " << size_limit << " GB" << std::endl;
+  std::cout << "Doubling steps:  " << parameters.doubling_steps << std::endl;
+  std::cout << "Size limit:      " << inGigabytes(parameters.size_limit) << " GB" << std::endl;
   std::cout << "Threads:         " << omp_get_max_threads() << std::endl;
   std::cout << "Temp directory:  " << TempFile::temp_dir << std::endl;
   std::cout << std::endl;
@@ -147,7 +141,7 @@ main(int argc, char** argv)
 #else
   {
     double start = readTimer();
-    GCSA temp(graph, doubling_steps, size_limit); index.swap(temp);
+    GCSA temp(graph, parameters); index.swap(temp);
     double seconds = readTimer() - start;
     std::cout << "Index built in " << seconds << " seconds" << std::endl;
     std::cout << "Memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;

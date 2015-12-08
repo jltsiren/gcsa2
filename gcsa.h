@@ -36,6 +36,22 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+struct ConstructionParameters
+{
+  const static size_type DOUBLING_STEPS = 3;
+  const static size_type SIZE_LIMIT     = 500;    // Gigabytes.
+  const static size_type ABSOLUTE_LIMIT = 16384;  // Gigabytes.
+
+  ConstructionParameters();
+  void setSteps(size_type steps);
+  void setLimit(size_type gigabytes);
+
+  size_type doubling_steps;
+  size_type size_limit;
+};
+
+//------------------------------------------------------------------------------
+
 class GCSA
 {
 public:
@@ -59,23 +75,16 @@ public:
 
   const static std::string EXTENSION;       // .gcsa
 
-  const static size_type DOUBLING_STEPS = 3;
-  const static size_type SIZE_LIMIT = 500;  // Gigabytes.
-  const static size_type ABSOLUTE_SIZE_LIMIT = 16384;
-
 //------------------------------------------------------------------------------
 
   /*
-    This is the main constructor. We build GCSA from the graph, doubling the path length
-    the specified number of times (up to DOUBLING_STEPS). size_limit is the limit for the
-    size of individual graph on disk in gigabytes. Actual disk usage may be up to 2x higher.
-    If the graph was encoded using non-default Alphabet, an alphabet object must also be
-    supplied.
-
-    FIXME Later: We should pass an object containing construction parameters.
+    This is the main constructor. We build GCSA from the graph according to the parameters,
+    using a given number of doubling steps. The construction is mostly disk-based. There
+    are at most two graphs on disk at once, and the size of each graph is bounded by the
+    size limit. If the graph was encoded using non-default Alphabet, an alphabet object
+    must also be supplied.
   */
-  GCSA(const InputGraph& graph,
-    size_type doubling_steps = DOUBLING_STEPS, size_type size_limit = SIZE_LIMIT,
+  GCSA(const InputGraph& graph, const ConstructionParameters& parameters = ConstructionParameters(),
     const Alphabet& _alpha = Alphabet());
 
   /*
