@@ -363,9 +363,9 @@ struct PathGraphBuilder
   std::vector<std::ofstream> files;
   size_type limit;  // Bytes of disk space.
 
-  const static size_type WRITE_BUFFER_SIZE = MEGABYTE; // PathNodes per thread.
+  const static size_type WRITE_BUFFER_SIZE = MEGABYTE;  // PathNodes per thread.
 
-  PathGraphBuilder(size_type file_count, size_type path_order, size_type size_limit);
+  PathGraphBuilder(size_type file_count, size_type path_order, size_type step, size_type size_limit);
   void close();
 
   /*
@@ -378,8 +378,8 @@ struct PathGraphBuilder
   void sort(size_type file);
 };
 
-PathGraphBuilder::PathGraphBuilder(size_type file_count, size_type path_order, size_type size_limit) :
-  graph(file_count, path_order), files(file_count), limit(size_limit)
+PathGraphBuilder::PathGraphBuilder(size_type file_count, size_type path_order, size_type step, size_type size_limit) :
+  graph(file_count, path_order, step), files(file_count), limit(size_limit)
 {
   for(size_type file = 0; file < this->files.size(); file++)
   {
@@ -807,7 +807,7 @@ const std::string PathGraph::PREFIX = ".gcsa";
 PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 {
   this->path_count = 0; this->rank_count = 0;
-  this->order = source.k();
+  this->order = source.k(); this->doubling_steps = 0;
   this->unique = UNKNOWN; this->unsorted = UNKNOWN; this->nondeterministic = UNKNOWN;
 
   sdsl::sd_vector<>::rank_1_type key_rank(&key_exists);
@@ -854,9 +854,9 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 #endif
 }
 
-PathGraph::PathGraph(size_type file_count, size_type path_order) :
+PathGraph::PathGraph(size_type file_count, size_type path_order, size_type steps) :
   filenames(file_count), sizes(file_count, 0), rank_counts(file_count, 0),
-  path_count(0), rank_count(0), order(path_order),
+  path_count(0), rank_count(0), order(path_order), doubling_steps(steps),
   unique(0), unsorted(0), nondeterministic(0)
 {
   for(size_type file = 0; file < this->files(); file++)
@@ -896,6 +896,7 @@ PathGraph::swap(PathGraph& another)
   std::swap(this->path_count, another.path_count);
   std::swap(this->rank_count, another.rank_count);
   std::swap(this->order, another.order);
+  std::swap(this->doubling_steps, another.doubling_steps);
 
   std::swap(this->unique, another.unique);
   std::swap(this->unsorted, another.unsorted);
@@ -929,7 +930,7 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
 #endif
 
   PathGraphMerger merger(*this, &lcp);
-  PathGraphBuilder builder(this->files(), this->k(), size_limit);
+  PathGraphBuilder builder(this->files(), this->k(), this->step(), size_limit);
   for(range_type range = merger.first(); !(merger.atEnd(range)); range = merger.next())
   {
     if(merger.sameFrom(range))
@@ -970,7 +971,7 @@ PathGraph::extend(size_type size_limit)
   size_type old_path_count = this->size();
 #endif
 
-  PathGraphBuilder builder(this->files(), 2 * this->k(), size_limit);
+  PathGraphBuilder builder(this->files(), 2 * this->k(), this->step() + 1, size_limit);
   for(size_type file = 0; file < this->files(); file++)
   {
     // Read the current file.
@@ -984,9 +985,16 @@ PathGraph::extend(size_type size_limit)
     ValueIndex<PathNode, FromGetter> from_index(paths);
     size_type threads = omp_get_max_threads();
 
-    // Create the next generation.
+    // Create thread-specific buffers.
     std::vector<PathNode> temp_nodes[threads];
     std::vector<PathNode::rank_type> temp_labels[threads];
+    for(size_type thread = 0; thread < threads; thread++)
+    {
+      temp_nodes[thread].reserve(PathGraphBuilder::WRITE_BUFFER_SIZE);
+      temp_labels[thread].reserve(((1 << builder.graph.step()) + 1) * PathGraphBuilder::WRITE_BUFFER_SIZE);
+    }
+
+    // Create the next generation.
     #pragma omp parallel for schedule(static)
     for(size_type i = 0; i < paths.size(); i++)
     {
@@ -994,6 +1002,10 @@ PathGraph::extend(size_type size_limit)
       if(paths[i].sorted())
       {
         temp_nodes[thread].push_back(PathNode(paths[i], labels, temp_labels[thread]));
+        if(temp_nodes[thread].size() >= PathGraphBuilder::WRITE_BUFFER_SIZE)
+        {
+          builder.write(temp_nodes[thread], temp_labels[thread], file);
+        }
       }
       else
       {
@@ -1001,11 +1013,11 @@ PathGraph::extend(size_type size_limit)
         for(size_type j = first; j < paths.size() && paths[j].from == paths[i].to; j++)
         {
           temp_nodes[thread].push_back(PathNode(paths[i], paths[j], labels, temp_labels[thread]));
+          if(temp_nodes[thread].size() >= PathGraphBuilder::WRITE_BUFFER_SIZE)
+          {
+            builder.write(temp_nodes[thread], temp_labels[thread], file);
+          }
         }
-      }
-      if(temp_nodes[thread].size() >= PathGraphBuilder::WRITE_BUFFER_SIZE)
-      {
-        builder.write(temp_nodes[thread], temp_labels[thread], file);
       }
     }
     for(size_type thread = 0; thread < threads; thread++)

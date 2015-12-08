@@ -315,7 +315,7 @@ struct PathGraph
   std::vector<size_type>   sizes, rank_counts;
 
   size_type path_count, rank_count;
-  size_type order;
+  size_type order, doubling_steps;
 
   size_type unique, unsorted, nondeterministic;
 
@@ -323,7 +323,7 @@ struct PathGraph
   const static std::string PREFIX;  // .gcsa
 
   PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists);
-  PathGraph(size_type file_count, size_type path_order);
+  PathGraph(size_type file_count, size_type path_order, size_type steps);
   ~PathGraph();
 
   void clear();
@@ -333,6 +333,7 @@ struct PathGraph
   inline size_type size() const { return this->path_count; }
   inline size_type ranks() const { return this->rank_count; }
   inline size_type k() const { return this->order; }
+  inline size_type step() const { return this->doubling_steps; }
   inline size_type files() const { return this->filenames.size(); }
 
   inline size_type bytes() const
