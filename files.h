@@ -132,30 +132,6 @@ std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header);
 
 //------------------------------------------------------------------------------
 
-/*
-  Old GCSA file headers.
-
-  GCSAHeader_0 - version 0.1 to version 0.4
-*/
-
-struct GCSAHeader_0
-{
-  uint64_t path_nodes;
-  uint64_t order;
-
-  const static uint32_t VERSION = 0;
-
-  GCSAHeader_0();
-
-  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
-  void load(std::istream& in);
-  bool check() const;
-};
-
-std::ostream& operator<<(std::ostream& stream, const GCSAHeader_0& header);
-
-//------------------------------------------------------------------------------
-
 } // namespace gcsa
 
 #endif // _GCSA_UTILS_H

@@ -37,6 +37,7 @@ using namespace gcsa;
 
 void identifyGCSA(const std::string& input_name);
 void compressGCSA(const std::string& input_name, const std::string& output_name);
+void convertGCSA(const std::string& input_name, const std::string& output_name);
 
 //------------------------------------------------------------------------------
 
@@ -62,9 +63,9 @@ main(int argc, char** argv)
     switch(c)
     {
     case 'c':
-      convert = true; output_needed = true; break;
+      convert = true; compress = false; output_needed = true; break;
     case 'C':
-      compress = true; output_needed = true; break;
+      compress = true; convert = false; output_needed = true; break;
     case 'i':
       identify = true; break;
     case '?':
@@ -91,6 +92,7 @@ main(int argc, char** argv)
   }
 
   if(identify) { identifyGCSA(input_name); }
+  if(convert)  { convertGCSA(input_name, output_name); }
   if(compress) { compressGCSA(input_name, output_name); }
 
   return 0;
@@ -98,7 +100,70 @@ main(int argc, char** argv)
 
 //------------------------------------------------------------------------------
 
-template<class BWTType, class BitVector>
+/*
+  This is GCSA file format header version 0. It was used in pre-releases 0.1 to 0.4.
+*/
+
+struct GCSAHeader_0
+{
+  uint64_t path_nodes;
+  uint64_t order;
+
+  const static uint32_t VERSION = 0;
+
+  GCSAHeader_0();
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+  bool check() const;
+};
+
+GCSAHeader_0::GCSAHeader_0() :
+  path_nodes(0), order(0)
+{
+}
+
+size_type
+GCSAHeader_0::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+{
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+  size_type written_bytes = 0;
+  written_bytes += sdsl::write_member(this->path_nodes, out, child, "path_nodes");
+  written_bytes += sdsl::write_member(this->order, out, child, "order");
+  sdsl::structure_tree::add_size(child, written_bytes);
+  return written_bytes;
+}
+
+void
+GCSAHeader_0::load(std::istream& in)
+{
+  sdsl::read_member(this->path_nodes, in);
+  sdsl::read_member(this->order, in);
+}
+
+bool
+GCSAHeader_0::check() const
+{
+  return true;
+}
+
+std::ostream& operator<<(std::ostream& stream, const GCSAHeader_0& header)
+{
+  return stream << "GCSA header version " << GCSAHeader_0::VERSION << ": "
+                << header.path_nodes << " path nodes, order " << header.order;
+}
+
+//------------------------------------------------------------------------------
+
+/*
+  This is a generic encoder for the GCSA body. With the default template parameters, it is
+  identical to file format versions 0 and 1.
+
+  serialize() does not create a new structure tree node. Calling it is equivalent to
+  serializing each of the fields separately.
+*/
+
+template<class BWTType = GCSA::bwt_type, class BitVector = GCSA::bit_vector>
 struct GCSABody
 {
   GCSABody();
@@ -231,6 +296,11 @@ GCSABody<BWTType, BitVector>::load(std::istream& in)
 
 //------------------------------------------------------------------------------
 
+/*
+  An experiment for compressing the GCSA. Bitvectors are entropy-compressed, while
+  samples are stored as their ranks in the set of sampled nodes.
+*/
+
 struct ExperimentalGCSA
 {
   typedef GCSA::size_type           size_type;
@@ -255,7 +325,6 @@ ExperimentalGCSA::ExperimentalGCSA(const GCSA& source) :
   this->header.edges = source.edgeCount();
   this->header.order = source.order();
   this->header.flags = GCSAHeader::COMPRESSED;
-std::cout << this->header << std::endl;
 
   // Find the distinct sampled nodes.
   std::vector<node_type> values(source.stored_samples.begin(), source.stored_samples.end());
@@ -370,13 +439,14 @@ compressGCSA(const std::string& input_name, const std::string& output_name)
 
 //------------------------------------------------------------------------------
 
+std::ostream& operator<<(std::ostream& stream, const GCSAHeader_0& header);
 template<class Header>
 bool tryVersion(std::ifstream& input)
 {
-  input.seekg(0);
-
+  std::streampos pos = input.tellg();
   Header header;
   header.load(input);
+  input.seekg(pos);
 
   if(header.check())
   {
@@ -407,33 +477,32 @@ identifyGCSA(const std::string& input_name)
     std::cout << "File format cannot be identified, trying version 0" << std::endl;
     tryVersion<GCSAHeader_0>(input);
   }
-  std::cout << std::endl;
-  std::cout << std::endl;
-
   input.close();
+
+  std::cout << std::endl;
+  std::cout << std::endl;
 }
 
 //------------------------------------------------------------------------------
 
 /*
-  GCSA file format version 0. This was used in versions 0.1 to 0.4.
+  A simple GCSA encoding consisting of a header and a body. File format versions 0 and 1
+  are of that form.
 */
 
-struct GCSA_0
+template<class Header, class Body>
+struct GenericGCSA
 {
-  typedef gcsa::size_type  size_type;
-  typedef sdsl::wt_huff<>  bwt_type;
-  typedef sdsl::bit_vector bit_vector;
-
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
 
-  GCSAHeader_0                   header;
-  GCSABody<bwt_type, bit_vector> body;
+  Header header;
+  Body   body;
 };
 
+template<class Header, class Body>
 size_type
-GCSA_0::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+GenericGCSA<Header, Body>::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
 {
   sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
@@ -445,11 +514,66 @@ GCSA_0::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string n
   return written_bytes;
 }
 
+template<class Header, class Body>
 void
-GCSA_0::load(std::istream& in)
+GenericGCSA<Header, Body>::load(std::istream& in)
 {
   this->header.load(in);
   this->body.load(in);
+}
+
+//------------------------------------------------------------------------------
+
+void
+convertGCSA(const std::string& input_name, const std::string& output_name)
+{
+  std::cout << "GCSA converter" << std::endl;
+  std::cout << std::endl;
+
+  std::cout << "Input: " << input_name << std::endl;
+  std::cout << "Output: " << output_name << std::endl;
+  std::cout << std::endl;
+
+  std::ifstream input(input_name.c_str(), std::ios_base::binary);
+  if(!input)
+  {
+    std::cerr << "convertGCSA(): Cannot open input file " << input_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  std::ofstream output(output_name.c_str(), std::ios_base::binary);
+  if(!output)
+  {
+    std::cerr << "convertGCSA(): Cannot open output file " << output_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  if(tryVersion<GCSAHeader>(input))
+  {
+    GenericGCSA<GCSAHeader, GCSABody<>> source;
+    source.load(input);
+    source.serialize(output);
+  }
+  else
+  {
+    std::cout << "File format cannot be identified, trying version 0" << std::endl;
+    tryVersion<GCSAHeader_0>(input);
+
+    // Load GCSA version 0.
+    GenericGCSA<GCSAHeader_0, GCSABody<sdsl::wt_huff<>, sdsl::bit_vector>> source;
+    source.load(input);
+
+    // Build the current version of GCSA. At the moment the body is identical.
+    GCSAHeader header;
+    header.path_nodes = source.header.path_nodes;
+    header.edges = source.body.bwt.size();
+    header.order = source.header.order;
+    header.serialize(output);
+    source.body.serialize(output);
+  }
+  input.close(); output.close();
+
+  std::cout << std::endl;
+  std::cout << std::endl;
 }
 
 //------------------------------------------------------------------------------

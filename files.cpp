@@ -461,41 +461,4 @@ std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header)
 
 //------------------------------------------------------------------------------
 
-GCSAHeader_0::GCSAHeader_0() :
-  path_nodes(0), order(0)
-{
-}
-
-size_type
-GCSAHeader_0::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
-{
-  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
-  size_type written_bytes = 0;
-  written_bytes += sdsl::write_member(this->path_nodes, out, child, "path_nodes");
-  written_bytes += sdsl::write_member(this->order, out, child, "order");
-  sdsl::structure_tree::add_size(child, written_bytes);
-  return written_bytes;
-}
-
-void
-GCSAHeader_0::load(std::istream& in)
-{
-  sdsl::read_member(this->path_nodes, in);
-  sdsl::read_member(this->order, in);
-}
-
-bool
-GCSAHeader_0::check() const
-{
-  return true;
-}
-
-std::ostream& operator<<(std::ostream& stream, const GCSAHeader_0& header)
-{
-  return stream << "GCSA header version " << GCSAHeader_0::VERSION << ": "
-                << header.path_nodes << " path nodes, order " << header.order;
-}
-
-//------------------------------------------------------------------------------
-
 } // namespace gcsa
