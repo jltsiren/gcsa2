@@ -151,16 +151,16 @@ public:
 
   /*
     The low-level interface deals with paths, path ranges, and contiguous character values.
+    There are no sanity checks for the parameter values.
   */
 
   inline size_type size() const { return this->path_node_count; }
-  inline size_type edge_count() const { return this->bwt.size(); }
+  inline size_type edgeCount() const { return this->bwt.size(); }
   inline size_type order() const { return this->max_query_length; }
 
-  inline bool has_samples() const { return (this->stored_samples.size() > 0); }
-  inline size_type sample_count() const { return this->stored_samples.size(); }
-  inline size_type sample_bits() const { return this->stored_samples.width(); }
-  inline size_type sampled_positions() const { return this->sampled_path_rank(this->sampled_paths.size()); }
+  inline size_type sampleCount() const { return this->stored_samples.size(); }
+  inline size_type sampleBits() const { return this->stored_samples.width(); }
+  inline size_type sampledPositions() const { return this->sampled_path_rank(this->sampled_paths.size()); }
 
   inline range_type charRange(comp_type comp) const
   {
@@ -183,6 +183,19 @@ public:
     path_node = this->alpha.C[temp.second] + temp.first;
     return this->edge_rank(path_node);
   }
+
+  inline bool sampled(size_type path_node) const { return this->sampled_paths[path_node]; }
+
+  inline range_type sampleRange(size_type path_node) const
+  {
+    path_node = this->sampled_path_rank(path_node);
+    range_type sample_range;
+    sample_range.first = (path_node > 0 ? this->sample_select(path_node) + 1 : 0);
+    sample_range.second = this->sample_select(path_node + 1);
+    return sample_range;
+  }
+
+  inline node_type sample(size_type i) const { return this->stored_samples[i]; }
 
 //------------------------------------------------------------------------------
 
@@ -250,15 +263,6 @@ private:
     outgoing_range.first = this->edge_rank(outgoing_range.first);
     outgoing_range.second = this->edge_rank(outgoing_range.second);
     return outgoing_range;
-  }
-
-  inline range_type sampleRange(size_type path_node) const
-  {
-    path_node = this->sampled_path_rank(path_node);
-    range_type sample_range;
-    sample_range.first = (path_node > 0 ? this->sample_select(path_node) + 1 : 0);
-    sample_range.second = this->sample_select(path_node + 1);
-    return sample_range;
   }
 };  // class GCSA
 

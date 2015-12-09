@@ -97,7 +97,7 @@ std::string TempFile::temp_dir = TempFile::DEFAULT_TEMP_DIR;
 void
 TempFile::setDirectory(const std::string& directory)
 {
-  if(directory.length() == 0) { temp_dir = DEFAULT_TEMP_DIR; }
+  if(directory.empty()) { temp_dir = DEFAULT_TEMP_DIR; }
   else if(directory[directory.length() - 1] != '/') { temp_dir = directory; }
   else { temp_dir = directory.substr(0, directory.length() - 1); }
 }
@@ -129,7 +129,7 @@ readRows(const std::string& filename, std::vector<std::string>& rows, bool skip_
   {
     std::string buf;
     std::getline(input, buf);
-    if(skip_empty_rows && buf.length() == 0) { continue; }
+    if(skip_empty_rows && buf.empty()) { continue; }
     rows.push_back(buf);
     chars += buf.length();
   }

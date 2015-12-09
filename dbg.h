@@ -77,7 +77,7 @@ public:
 
   inline size_type size() const { return this->node_count; }
   inline size_type order() const { return this->graph_order; }
-  inline size_type edge_count() const { return this->nodes.size(); }
+  inline size_type edgeCount() const { return this->nodes.size(); }
 
   inline size_type LF(size_type node, comp_type comp) const
   {

@@ -413,4 +413,87 @@ InputGraph::read(std::vector<key_type>& keys) const
 
 //------------------------------------------------------------------------------
 
+GCSAHeader::GCSAHeader() :
+  tag(TAG), version(VERSION),
+  path_nodes(0), edges(0), order(0),
+  flags(0)
+{
+}
+
+size_type
+GCSAHeader::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+{
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+  size_type written_bytes = 0;
+  written_bytes += sdsl::write_member(this->tag, out, child, "tag");
+  written_bytes += sdsl::write_member(this->path_nodes, out, child, "path_nodes");
+  written_bytes += sdsl::write_member(this->edges, out, child, "edges");
+  written_bytes += sdsl::write_member(this->order, out, child, "order");
+  written_bytes += sdsl::write_member(this->flags, out, child, "flags");
+  sdsl::structure_tree::add_size(child, written_bytes);
+  return written_bytes;
+}
+
+void
+GCSAHeader::load(std::istream& in)
+{
+  sdsl::read_member(this->tag, in);
+  sdsl::read_member(this->path_nodes, in);
+  sdsl::read_member(this->edges, in);
+  sdsl::read_member(this->order, in);
+  sdsl::read_member(this->flags, in);
+}
+
+bool
+GCSAHeader::check() const
+{
+  return (this->tag == TAG && this->version == VERSION && this->flags == 0);
+}
+
+std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header)
+{
+  return stream << "GCSA header version " << GCSAHeader::VERSION << ": "
+                << header.path_nodes << " path nodes, "
+                << header.edges << " edges, order " << header.order;
+}
+
+//------------------------------------------------------------------------------
+
+GCSAHeader_0::GCSAHeader_0() :
+  path_nodes(0), order(0)
+{
+}
+
+size_type
+GCSAHeader_0::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+{
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+  size_type written_bytes = 0;
+  written_bytes += sdsl::write_member(this->path_nodes, out, child, "path_nodes");
+  written_bytes += sdsl::write_member(this->order, out, child, "order");
+  sdsl::structure_tree::add_size(child, written_bytes);
+  return written_bytes;
+}
+
+void
+GCSAHeader_0::load(std::istream& in)
+{
+  sdsl::read_member(this->path_nodes, in);
+  sdsl::read_member(this->order, in);
+}
+
+bool
+GCSAHeader_0::check() const
+{
+  return true;
+}
+
+std::ostream& operator<<(std::ostream& stream, const GCSAHeader_0& header)
+{
+  return stream << "GCSA header version " << GCSAHeader_0::VERSION << ": "
+                << header.path_nodes << " path nodes, order " << header.order;
+}
+
+//------------------------------------------------------------------------------
+
 } // namespace gcsa

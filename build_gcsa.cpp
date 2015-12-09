@@ -103,9 +103,9 @@ main(int argc, char** argv)
   if(optind >= argc)
   {
     std::cerr << "build_gcsa: No input files specified" << std::endl;
-    std::exit(EXIT_SUCCESS);
+    std::exit(EXIT_FAILURE);
   }
-  if(output_file.length() == 0)
+  if(output_file.empty())
   {
     output_file = std::string(argv[optind]) + GCSA::EXTENSION;
   }
@@ -153,10 +153,10 @@ main(int argc, char** argv)
 #endif
 
   printHeader("Paths"); std::cout << index.size() << std::endl;
-  printHeader("Edges"); std::cout << index.edge_count() << std::endl;
+  printHeader("Edges"); std::cout << index.edgeCount() << std::endl;
   printHeader("Samples");
-  std::cout << index.sample_count() << " (at " << index.sampled_positions() << " positions, "
-            << index.sample_bits() << " bits each)" << std::endl;
+  std::cout << index.sampleCount() << " (at " << index.sampledPositions() << " positions, "
+            << index.sampleBits() << " bits each)" << std::endl;
   printHeader("Max query"); std::cout << index.order() << std::endl;
 
   size_type index_bytes = sdsl::size_in_bytes(index);

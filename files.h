@@ -31,7 +31,7 @@ namespace gcsa
 {
 
 /*
-  files.h: Public interface for graph files.
+  files.h: Public interface for file formats.
 */
 
 //------------------------------------------------------------------------------
@@ -100,6 +100,57 @@ struct InputGraph
   InputGraph(const InputGraph&) = delete;
   InputGraph& operator= (const InputGraph&) = delete;
 };
+
+//------------------------------------------------------------------------------
+
+/*
+  Current GCSA file header. This header has been used since version 0.5.
+*/
+
+struct GCSAHeader
+{
+  uint32_t tag;
+  uint32_t version;
+  uint64_t path_nodes;
+  uint64_t edges;
+  uint64_t order;
+  uint64_t flags;
+
+  const static uint32_t TAG = 0x6C5A6C5A;
+  const static uint32_t VERSION = 1;
+
+  GCSAHeader();
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+  bool check() const;
+};
+
+std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header);
+
+//------------------------------------------------------------------------------
+
+/*
+  Old GCSA file headers.
+
+  GCSAHeader_0 - version 0.1 to version 0.4
+*/
+
+struct GCSAHeader_0
+{
+  uint64_t path_nodes;
+  uint64_t order;
+
+  const static uint32_t VERSION = 0;
+
+  GCSAHeader_0();
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+  bool check() const;
+};
+
+std::ostream& operator<<(std::ostream& stream, const GCSAHeader_0& header);
 
 //------------------------------------------------------------------------------
 

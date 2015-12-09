@@ -170,9 +170,9 @@ GCSA::operator=(GCSA&& g)
 }
 
 GCSA::size_type
-GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* s, std::string name) const
+GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
 {
-  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(s, name, sdsl::util::class_name(*this));
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
 
   written_bytes += sdsl::write_member(this->path_node_count, out, child, "path_node_count");
@@ -585,8 +585,8 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "GCSA::GCSA(): " << total_edges << " edges" << std::endl;
-  std::cerr << "GCSA::GCSA(): " << this->sample_count() << " samples at "
-            << this->sampled_positions() << " positions" << std::endl;
+  std::cerr << "GCSA::GCSA(): " << this->sampleCount() << " samples at "
+            << this->sampledPositions() << " positions" << std::endl;
 #endif
 }
 
@@ -780,7 +780,7 @@ void
 GCSA::locateInternal(size_type path_node, std::vector<node_type>& results) const
 {
   size_type steps = 0;
-  while(this->sampled_paths[path_node] == 0)
+  while(!(this->sampled(path_node)))
   {
     path_node = this->LF(path_node);
     steps++;
@@ -789,7 +789,7 @@ GCSA::locateInternal(size_type path_node, std::vector<node_type>& results) const
   range_type sample_range = this->sampleRange(path_node);
   for(size_type i = sample_range.first; i <= sample_range.second; i++)
   {
-    results.push_back(this->stored_samples[i] + steps);
+    results.push_back(this->sample(i) + steps);
   }
 }
 

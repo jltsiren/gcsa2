@@ -125,9 +125,9 @@ DeBruijnGraph::setVectors()
 }
 
 DeBruijnGraph::size_type
-DeBruijnGraph::serialize(std::ostream& out, sdsl::structure_tree_node* s, std::string name) const
+DeBruijnGraph::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
 {
-  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(s, name, sdsl::util::class_name(*this));
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
 
   written_bytes += sdsl::write_member(this->node_count, out, child, "node_count");

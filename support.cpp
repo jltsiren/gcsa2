@@ -133,9 +133,9 @@ Alphabet::operator=(Alphabet&& a)
 }
 
 Alphabet::size_type
-Alphabet::serialize(std::ostream& out, sdsl::structure_tree_node* s, std::string name) const
+Alphabet::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
 {
-  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(s, name, sdsl::util::class_name(*this));
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
   written_bytes += this->char2comp.serialize(out, child, "char2comp");
   written_bytes += this->comp2char.serialize(out, child, "comp2char");
