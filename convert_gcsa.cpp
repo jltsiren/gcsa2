@@ -45,46 +45,49 @@ main(int argc, char** argv)
 {
   if(argc < 2)
   {
-    std::cerr << "Usage: convert_gcsa options" << std::endl;
-    std::cerr << "  -c    Compress the GCSA in an experimental file format" << std::endl;
-    std::cerr << "  -i X  Read input from X" << std::endl;
-    std::cerr << "  -I    Identify the file format version without converting" << std::endl;
-    std::cerr << "  -o X  Write output to X" << std::endl;
+    std::cerr << "Usage: convert_gcsa [options] input [output]" << std::endl;
+    std::cerr << "  -c    Convert the GCSA to the current file format (default)" << std::endl;
+    std::cerr << "  -C    Compress the GCSA in an experimental file format" << std::endl;
+    std::cerr << "  -i    Identify the file format version without converting" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
 
   int c = 0;
-  bool compress = false, identify = false;
-  bool input_needed = false, output_needed = false;
+  bool convert = false, compress = false, identify = false;
+  bool output_needed = false;
   std::string input_name, output_name;
-  while((c = getopt(argc, argv, "ci:Io:")) != -1)
+  while((c = getopt(argc, argv, "cCi")) != -1)
   {
     switch(c)
     {
     case 'c':
-      compress = true; input_needed = true; output_needed = true; break;
+      convert = true; output_needed = true; break;
+    case 'C':
+      compress = true; output_needed = true; break;
     case 'i':
-      input_name = optarg; break;
-    case 'I':
-      identify = true; input_needed = true; break;
-    case 'o':
-      output_name = optarg; break;
+      identify = true; break;
     case '?':
       std::exit(EXIT_FAILURE);
     default:
       std::exit(EXIT_FAILURE);
     }
   }
-  if(input_needed && input_name.empty())
+  if(!(compress | identify)) { convert = output_needed = true; }
+  if(optind < argc) { input_name = argv[optind]; optind++; }
+  else
   {
     std::cerr << "convert_gcsa: Input file not specified" << std::endl;
     std::exit(EXIT_FAILURE);
   }
-  if(output_needed && output_name.empty())
+  if(output_needed)
   {
-    std::cerr << "convert_gcsa: Output file not specified" << std::endl;
-    std::exit(EXIT_FAILURE);
+    if(optind < argc) { output_name = argv[optind]; optind++; }
+    else
+    {
+      std::cerr << "convert_gcsa: Output file not specified" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
   }
 
   if(identify) { identifyGCSA(input_name); }
@@ -251,6 +254,8 @@ ExperimentalGCSA::ExperimentalGCSA(const GCSA& source) :
   this->header.path_nodes = source.size();
   this->header.edges = source.edgeCount();
   this->header.order = source.order();
+  this->header.flags = GCSAHeader::COMPRESSED;
+std::cout << this->header << std::endl;
 
   // Find the distinct sampled nodes.
   std::vector<node_type> values(source.stored_samples.begin(), source.stored_samples.end());

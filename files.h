@@ -119,6 +119,8 @@ struct GCSAHeader
   const static uint32_t TAG = 0x6C5A6C5A;
   const static uint32_t VERSION = 1;
 
+  const static uint64_t COMPRESSED = 0x1; // Not in use.
+
   GCSAHeader();
 
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;

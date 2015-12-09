@@ -426,6 +426,7 @@ GCSAHeader::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::stri
   sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
   written_bytes += sdsl::write_member(this->tag, out, child, "tag");
+  written_bytes += sdsl::write_member(this->version, out, child, "version");
   written_bytes += sdsl::write_member(this->path_nodes, out, child, "path_nodes");
   written_bytes += sdsl::write_member(this->edges, out, child, "edges");
   written_bytes += sdsl::write_member(this->order, out, child, "order");
@@ -438,6 +439,7 @@ void
 GCSAHeader::load(std::istream& in)
 {
   sdsl::read_member(this->tag, in);
+  sdsl::read_member(this->version, in);
   sdsl::read_member(this->path_nodes, in);
   sdsl::read_member(this->edges, in);
   sdsl::read_member(this->order, in);
