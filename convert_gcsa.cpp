@@ -90,6 +90,11 @@ main(int argc, char** argv)
       std::exit(EXIT_FAILURE);
     }
   }
+  if(input_name == output_name)
+  {
+    std::cerr << "convert_gcsa: Input and output files must be different" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
 
   if(identify) { identifyGCSA(input_name); }
   if(convert)  { convertGCSA(input_name, output_name); }

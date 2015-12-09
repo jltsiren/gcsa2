@@ -126,6 +126,8 @@ struct GCSAHeader
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
   bool check() const;
+
+  void swap(GCSAHeader& another);
 };
 
 std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header);

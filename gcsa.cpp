@@ -58,8 +58,6 @@ const std::string GCSA::EXTENSION = ".gcsa";
 
 GCSA::GCSA()
 {
-  this->path_node_count = 0;
-  this->max_query_length = 0;
 }
 
 GCSA::GCSA(const GCSA& g)
@@ -79,8 +77,7 @@ GCSA::~GCSA()
 void
 GCSA::copy(const GCSA& g)
 {
-  this->path_node_count = g.path_node_count;
-  this->max_query_length = g.max_query_length;
+  this->header = g.header;
 
   this->bwt = g.bwt;
   this->alpha = g.alpha;
@@ -108,8 +105,7 @@ GCSA::swap(GCSA& g)
 {
   if(this != &g)
   {
-    std::swap(this->path_node_count, g.path_node_count);
-    std::swap(this->max_query_length, g.max_query_length);
+    this->header.swap(g.header);
 
     this->bwt.swap(g.bwt);
     this->alpha.swap(g.alpha);
@@ -143,8 +139,7 @@ GCSA::operator=(GCSA&& g)
 {
   if(this != &g)
   {
-    this->path_node_count = std::move(g.path_node_count);
-    this->max_query_length = std::move(g.max_query_length);
+    this->header = std::move(g.header);
 
     this->bwt = std::move(g.bwt);
     this->alpha = std::move(g.alpha);
@@ -175,8 +170,7 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string nam
   sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
 
-  written_bytes += sdsl::write_member(this->path_node_count, out, child, "path_node_count");
-  written_bytes += sdsl::write_member(this->max_query_length, out, child, "max_query_length");
+  written_bytes += this->header.serialize(out, child, "header");
 
   written_bytes += this->bwt.serialize(out, child, "bwt");
   written_bytes += this->alpha.serialize(out, child, "alpha");
@@ -203,8 +197,7 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string nam
 void
 GCSA::load(std::istream& in)
 {
-  sdsl::read_member(this->path_node_count, in);
-  sdsl::read_member(this->max_query_length, in);
+  this->header.load(in);
 
   this->bwt.load(in);
   this->alpha.load(in);
@@ -451,12 +444,12 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     path_graph.extend(parameters.size_limit);
     path_graph.prune(lcp, parameters.size_limit);
   }
-  this->max_query_length = (path_graph.unsorted == 0 ? ~(size_type)0 : path_graph.k());
+  this->header.order = (path_graph.unsorted == 0 ? ~(size_type)0 : path_graph.k());
   sdsl::util::clear(lcp);
 
   // Merge the paths into the nodes of a pruned de Bruijn graph.
   MergedGraph merged_graph(path_graph, mapper);
-  this->path_node_count = merged_graph.size();
+  this->header.path_nodes = merged_graph.size();
   path_graph.clear();
 
   // Structures used to build GCSA.
@@ -556,6 +549,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   }
   for(size_type i = 0; i < reader.size(); i++) { reader[i].close(); }
   sdsl::util::clear(last_char);
+  this->header.edges = total_edges;
 
   // Initialize alpha.
   this->alpha = Alphabet(counts, mapper.alpha.char2comp, mapper.alpha.comp2char);

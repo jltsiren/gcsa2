@@ -154,9 +154,9 @@ public:
     There are no sanity checks for the parameter values.
   */
 
-  inline size_type size() const { return this->path_node_count; }
-  inline size_type edgeCount() const { return this->bwt.size(); }
-  inline size_type order() const { return this->max_query_length; }
+  inline size_type size() const { return this->header.path_nodes; }
+  inline size_type edgeCount() const { return this->header.edges; }
+  inline size_type order() const { return this->header.order; }
 
   inline size_type sampleCount() const { return this->stored_samples.size(); }
   inline size_type sampleBits() const { return this->stored_samples.width(); }
@@ -199,14 +199,7 @@ public:
 
 //------------------------------------------------------------------------------
 
-  /*
-    We could have a bitvector for mapping between the node identifiers returned by locate()
-    and the original (node, offset) pairs. Alternatively, if the maximum length of a label
-    is reasonable, we can just use (node, offset) = (id / max_length, id % max_length).
-  */
-
-  size_type                 path_node_count;
-  size_type                 max_query_length;
+  GCSAHeader                header;
 
   bwt_type                  bwt;
   Alphabet                  alpha;

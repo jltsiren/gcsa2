@@ -452,6 +452,17 @@ GCSAHeader::check() const
   return (this->tag == TAG && this->version == VERSION && this->flags == 0);
 }
 
+void
+GCSAHeader::swap(GCSAHeader& another)
+{
+  std::swap(this->tag, another.tag);
+  std::swap(this->version, another.version);
+  std::swap(this->path_nodes, another.path_nodes);
+  std::swap(this->edges, another.edges);
+  std::swap(this->order, another.order);
+  std::swap(this->flags, another.flags);
+}
+
 std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header)
 {
   return stream << "GCSA header version " << GCSAHeader::VERSION << ": "
