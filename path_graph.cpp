@@ -220,15 +220,13 @@ LCP::LCP(const std::vector<key_type>& keys, size_type _kmer_length)
 {
   this->kmer_length = _kmer_length;
   this->total_keys = keys.size();
+
+  sdsl::int_vector<8> buffer(keys.size(), 0);
+  for(size_type i = 1; i < keys.size(); i++)
   {
-    sdsl::int_vector<0> temp(keys.size(), 0, bit_length(this->kmer_length - 1));
-    for(size_type i = 1; i < keys.size(); i++)
-    {
-      temp[i] = Key::lcp(keys[i - 1], keys[i], this->kmer_length);
-    }
-    this->kmer_lcp.swap(temp);
+    buffer[i] = Key::lcp(keys[i - 1], keys[i], this->kmer_length);
   }
-  sdsl::util::assign(this->lcp_rmq, rmq_type(&(this->kmer_lcp)));
+  directConstruct(this->kmer_lcp, buffer);
 }
 
 range_type
@@ -255,8 +253,9 @@ LCP::min_lcp(const PathNode& a, const PathNode& b,
   }
   if(lcp.first < order)
   {
+    size_type left = a.firstLabel(lcp.first, a_labels) + 1;
     size_type right = std::min((size_type)(b.lastLabel(lcp.first, b_labels)), this->total_keys - 1);
-    lcp.second = this->kmer_lcp[this->lcp_rmq(a.firstLabel(lcp.first, a_labels) + 1, right)];
+    lcp.second = sdsl::quantile_freq(this->kmer_lcp, left, right, 0).first;
   }
   return lcp;
 }
@@ -273,8 +272,9 @@ LCP::max_lcp(const PathNode& a, const PathNode& b,
   }
   if(lcp.first < order)
   {
-    lcp.second =
-      this->kmer_lcp[this->lcp_rmq(a.lastLabel(lcp.first, a_labels) + 1, b.firstLabel(lcp.first, b_labels))];
+    size_type left = a.lastLabel(lcp.first, a_labels) + 1;
+    size_type right = b.firstLabel(lcp.first, b_labels);
+    lcp.second = sdsl::quantile_freq(this->kmer_lcp, left, right, 0).first;
   }
   return lcp;
 }
@@ -285,7 +285,6 @@ LCP::swap(LCP& another)
   std::swap(this->kmer_length, another.kmer_length);
   std::swap(this->total_keys, another.total_keys);
   this->kmer_lcp.swap(another.kmer_lcp);
-  this->lcp_rmq.swap(another.lcp_rmq);
 }
 
 //------------------------------------------------------------------------------

@@ -25,8 +25,6 @@
 #ifndef _GCSA_PATH_GRAPH_H
 #define _GCSA_PATH_GRAPH_H
 
-#include <sdsl/rmq_support.hpp>
-
 #include "dbg.h"
 #include "files.h"
 
@@ -263,13 +261,11 @@ struct FromGetter
 
 struct LCP
 {
-  typedef sdsl::rmq_succinct_sada<>       rmq_type; // Faster than rmq_support_sct.
   typedef PathNode::rank_type             rank_type;
   typedef std::pair<rank_type, rank_type> rank_range;
 
   size_type           kmer_length, total_keys;
-  sdsl::int_vector<0> kmer_lcp;
-  rmq_type            lcp_rmq;
+  sdsl::wt_blcd<>     kmer_lcp; // Faster than proper RMQ for small values.
 
   LCP();
   LCP(const std::vector<key_type>& keys, size_type _kmer_length);
@@ -279,8 +275,6 @@ struct LCP
     a must be before b in lexicographic order, and the ranges must not overlap.
     The returned lcp value is a pair (x,y), where x is the lcp of the PathNode labels
     and y is the lcp of the first diverging kmers.
-
-    FIXME Later: Do not use the rmq if the kmer ranks are close.
   */
   range_type min_lcp(const PathNode& a, const PathNode& b, const std::vector<rank_type>& labels) const;
   range_type max_lcp(const PathNode& a, const PathNode& b, const std::vector<rank_type>& labels) const;
@@ -293,8 +287,9 @@ struct LCP
   // Increments the lcp by 1.
   inline range_type increment(range_type lcp) const
   {
-    if(lcp.second + 1 < this->kmer_length) { lcp.second++; }
-    else { lcp.first++; lcp.second = 0; }
+    lcp.second++;
+    lcp.first += lcp.second / this->kmer_length;
+    lcp.second %= this->kmer_length;
     return lcp;
   }
 
