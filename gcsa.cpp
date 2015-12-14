@@ -198,6 +198,10 @@ void
 GCSA::load(std::istream& in)
 {
   this->header.load(in);
+  if(!(this->header.check()))
+  {
+    std::cerr << "GCSA::load(): Invalid header: " << this->header << std::endl;
+  }
 
   this->bwt.load(in);
   this->alpha.load(in);

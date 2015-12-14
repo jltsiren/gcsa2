@@ -444,9 +444,9 @@ compressGCSA(const std::string& input_name, const std::string& output_name)
 
 //------------------------------------------------------------------------------
 
-std::ostream& operator<<(std::ostream& stream, const GCSAHeader_0& header);
 template<class Header>
-bool tryVersion(std::ifstream& input)
+bool
+tryVersion(std::ifstream& input)
 {
   std::streampos pos = input.tellg();
   Header header;
@@ -456,6 +456,29 @@ bool tryVersion(std::ifstream& input)
   if(header.check())
   {
     std::cout << header << std::endl;
+    return true;
+  }
+  return false;
+}
+
+template<>
+bool
+tryVersion<GCSAHeader>(std::ifstream& input)
+{
+  std::streampos pos = input.tellg();
+  GCSAHeader header;
+  header.load(input);
+  input.seekg(pos);
+
+  if(header.check())
+  {
+    std::cout << header << std::endl;
+    return true;
+  }
+  else if(header.checkNew())
+  {
+    std::cout << header << std::endl;
+    std::cout << "Note: This version of GCSA only supports version " << GCSAHeader::VERSION << std::endl;
     return true;
   }
   return false;
