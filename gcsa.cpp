@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -24,7 +24,7 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <deque>
+#include <stack>
 
 #include "gcsa.h"
 #include "internal.h"
@@ -712,6 +712,64 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
   std::cout << std::endl;
 
   return fails == 0;
+}
+
+//------------------------------------------------------------------------------
+
+struct ReverseTrieNode
+{
+  range_type range;
+  size_type  depth;
+  bool       ends_at_sink;
+
+  ReverseTrieNode() : range(0, 0), depth(0), ends_at_sink(false) {}
+  ReverseTrieNode(range_type rng, size_type d, bool sink) : range(rng), depth(d), ends_at_sink(sink) {}
+};
+
+size_type
+GCSA::countKMers(size_type k, bool force) const
+{
+  if(k == 0) { return 1; }
+  if(k > this->order())
+  {
+    if(force)
+    {
+      std::cerr << "GCSA::countKMers(): Warning: The value of k (" << k
+                << ") is greater than the order of the grap (" << this->order() << ")" << std::endl;
+    }
+    else
+    {
+      std::cerr << "GCSA::countKMers(): The value of k (" << k
+                << ") is greater than the order of the grap (" << this->order() << ")" << std::endl;
+      return 0;
+    }
+  }
+
+  size_type result = 0; // Including the empty path in the count.
+  std::stack<ReverseTrieNode> node_stack;
+  node_stack.push(ReverseTrieNode(this->charRange(0), 1, true));
+  for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
+  {
+    node_stack.push(ReverseTrieNode(this->charRange(comp), 1, false));
+  }
+
+  std::vector<range_type> predecessors(this->alpha.sigma);
+  while(!(node_stack.empty()))
+  {
+    ReverseTrieNode curr = node_stack.top(); node_stack.pop();
+    if(Range::empty(curr.range)) { continue; }
+    if(curr.ends_at_sink || curr.depth >= k) { result++; }
+    if(curr.depth < k)
+    {
+      this->LF(curr.range, predecessors);
+      for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
+      {
+        node_stack.push(ReverseTrieNode(predecessors[comp], curr.depth + 1, curr.ends_at_sink));
+      }
+    }
+  }
+
+  return result;
 }
 
 //------------------------------------------------------------------------------

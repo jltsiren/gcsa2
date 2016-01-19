@@ -24,7 +24,7 @@ HEADERS=$(wildcard *.h)
 OBJS=$(SOURCES:.cpp=.o)
 LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
 LIBRARY=libgcsa2.a
-PROGRAMS=build_gcsa convert_gcsa convert_graph
+PROGRAMS=build_gcsa convert_gcsa convert_graph count_kmers
 
 all: $(LIBRARY) $(PROGRAMS)
 
@@ -41,6 +41,9 @@ convert_gcsa:convert_gcsa.o $(LIBRARY)
 	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
 convert_graph:convert_graph.o $(LIBRARY)
+	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
+
+count_kmers:count_kmers.o $(LIBRARY)
 	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
 clean:

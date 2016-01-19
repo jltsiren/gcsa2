@@ -3,6 +3,7 @@
 build_gcsa
 convert_gcsa
 convert_graph
+count_kmers
 
 .DS_Store
 
