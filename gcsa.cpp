@@ -722,7 +722,7 @@ struct ReverseTrieNode
   size_type  depth;
   bool       ends_at_sink;
 
-  const static size_type SEED_LENGTH = 4; // Create all patterns of that length before parallelizing.
+  const static size_type SEED_LENGTH = 5; // Create all patterns of that length before parallelizing.
 
   ReverseTrieNode() : range(0, 0), depth(0), ends_at_sink(false) {}
   ReverseTrieNode(range_type rng, size_type d, bool sink) : range(rng), depth(d), ends_at_sink(sink) {}
@@ -784,12 +784,12 @@ GCSA::countKMers(size_type k, bool force) const
     if(force)
     {
       std::cerr << "GCSA::countKMers(): Warning: The value of k (" << k
-                << ") is greater than the order of the grap (" << this->order() << ")" << std::endl;
+                << ") is greater than the order of the graph (" << this->order() << ")" << std::endl;
     }
     else
     {
       std::cerr << "GCSA::countKMers(): The value of k (" << k
-                << ") is greater than the order of the grap (" << this->order() << ")" << std::endl;
+                << ") is greater than the order of the graph (" << this->order() << ")" << std::endl;
       return 0;
     }
   }
