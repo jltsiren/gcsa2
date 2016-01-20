@@ -855,6 +855,47 @@ GCSA::initSupport()
 //------------------------------------------------------------------------------
 
 void
+GCSA::LF(range_type range, std::vector<range_type>& results) const
+{
+  for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++) { results[comp] = Range::empty_range(); }
+  range = this->bwtRange(range);
+
+  if(range.first == range.second) // Single edge.
+  {
+    auto temp = this->bwt.inverse_select(range.first);
+    size_type path_node = this->edge_rank(this->alpha.C[temp.second] + temp.first);
+    results[temp.second] = range_type(path_node, path_node);
+  }
+  else if(Range::length(range) <= SHORT_RANGE) // Use brute force for a few edges.
+  {
+    for(size_type i = range.first; i <= range.second; i++)
+    {
+      auto temp = this->bwt.inverse_select(i);
+      if(Range::empty(results[temp.second]))
+      {
+        size_type edge_pos = this->alpha.C[temp.second] + temp.first;
+        results[temp.second] = range_type(edge_pos, edge_pos);
+      }
+      else { results[temp.second].second++; }
+    }
+    for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
+    {
+      if(!Range::empty(results[comp])) { results[comp] = this->pathNodeRange(results[comp]); }
+    }
+  }
+  else  // General case.
+  {
+    for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
+    {
+      results[comp] = gcsa::LF(this->bwt, this->alpha, range, comp);
+      if(!Range::empty(results[comp])) { results[comp] = this->pathNodeRange(results[comp]); }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+
+void
 GCSA::locate(size_type path_node, std::vector<node_type>& results, bool append, bool sort) const
 {
   if(!append) { sdsl::util::clear(results); }

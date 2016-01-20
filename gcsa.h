@@ -73,7 +73,9 @@ public:
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
 
-  const static std::string EXTENSION;       // .gcsa
+  const static std::string EXTENSION;     // .gcsa
+
+  const static size_type SHORT_RANGE = 5; // Different strategy for LF(range).
 
 //------------------------------------------------------------------------------
 
@@ -197,15 +199,7 @@ public:
   }
 
   // LF(range, c) for 1 <= c < sigma - 1.
-  inline void LF(range_type range, std::vector<range_type>& results) const
-  {
-    range = this->bwtRange(range);
-    for(size_type comp = 1; comp  + 1 < this->alpha.sigma; comp++)
-    {
-      results[comp] = gcsa::LF(this->bwt, this->alpha, range, comp);
-      if(!Range::empty(results[comp])) { results[comp] = this->pathNodeRange(results[comp]); }
-    }
-  }
+  void LF(range_type range, std::vector<range_type>& results) const;
 
   inline bool sampled(size_type path_node) const { return this->sampled_paths[path_node]; }
 
