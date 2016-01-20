@@ -722,9 +722,58 @@ struct ReverseTrieNode
   size_type  depth;
   bool       ends_at_sink;
 
+  const static size_type SEED_LENGTH = 4; // Create all patterns of that length before parallelizing.
+
   ReverseTrieNode() : range(0, 0), depth(0), ends_at_sink(false) {}
   ReverseTrieNode(range_type rng, size_type d, bool sink) : range(rng), depth(d), ends_at_sink(sink) {}
 };
+
+struct KMerCounter
+{
+  size_type count, limit;
+
+  KMerCounter(size_type _limit) : count(0), limit(_limit) {}
+
+  inline void add(const ReverseTrieNode& node)
+  {
+    if(node.ends_at_sink || node.depth >= this->limit) { this->count++; }
+  }
+};
+
+struct SeedCollector
+{
+  size_type count, limit;
+  std::vector<ReverseTrieNode> seeds;
+
+  SeedCollector(size_type _limit) : count(0), limit(_limit), seeds() {}
+
+  inline void add(const ReverseTrieNode& node)
+  {
+    if(node.depth >= this->limit) { this->seeds.push_back(node); }
+    else if(node.ends_at_sink) { this->count++; } // Seeds ending at the sink are counted later.
+  }
+};
+
+template<class Handler>
+void
+processSubtree(const GCSA& index, std::stack<ReverseTrieNode>& node_stack, Handler& handler)
+{
+  std::vector<range_type> predecessors(index.alpha.sigma);
+  while(!(node_stack.empty()))
+  {
+    ReverseTrieNode curr = node_stack.top(); node_stack.pop();
+    if(Range::empty(curr.range)) { continue; }
+    handler.add(curr);
+    if(curr.depth < handler.limit)
+    {
+      index.LF(curr.range, predecessors);
+      for(size_type comp = 1; comp + 1 < index.alpha.sigma; comp++)
+      {
+        node_stack.push(ReverseTrieNode(predecessors[comp], curr.depth + 1, curr.ends_at_sink));
+      }
+    }
+  }
+}
 
 size_type
 GCSA::countKMers(size_type k, bool force) const
@@ -745,28 +794,32 @@ GCSA::countKMers(size_type k, bool force) const
     }
   }
 
-  size_type result = 0; // Including the empty path in the count.
-  std::stack<ReverseTrieNode> node_stack;
-  node_stack.push(ReverseTrieNode(this->charRange(0), 1, true));
-  for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
+  // Create an array of seed kmers of length ReverseTrieNode::SEED_LENGTH.
+  size_type result = 0;
+  std::vector<ReverseTrieNode> seeds;
   {
-    node_stack.push(ReverseTrieNode(this->charRange(comp), 1, false));
+    std::stack<ReverseTrieNode> node_stack;
+    node_stack.push(ReverseTrieNode(this->charRange(0), 1, true));
+    for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
+    {
+      node_stack.push(ReverseTrieNode(this->charRange(comp), 1, false));
+    }
+    SeedCollector collector(std::min(k, ReverseTrieNode::SEED_LENGTH));
+    processSubtree(*this, node_stack, collector);
+    result = collector.count;
+    seeds = collector.seeds;
   }
 
-  std::vector<range_type> predecessors(this->alpha.sigma);
-  while(!(node_stack.empty()))
+  // Extend the seeds in parallel.
+  #pragma omp parallel for schedule (dynamic, 1)
+  for(size_type i = 0; i < seeds.size(); i++)
   {
-    ReverseTrieNode curr = node_stack.top(); node_stack.pop();
-    if(Range::empty(curr.range)) { continue; }
-    if(curr.ends_at_sink || curr.depth >= k) { result++; }
-    if(curr.depth < k)
-    {
-      this->LF(curr.range, predecessors);
-      for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
-      {
-        node_stack.push(ReverseTrieNode(predecessors[comp], curr.depth + 1, curr.ends_at_sink));
-      }
-    }
+    std::stack<ReverseTrieNode> node_stack;
+    node_stack.push(seeds[i]);
+    KMerCounter counter(k);
+    processSubtree(*this, node_stack, counter);
+    #pragma omp atomic
+    result += counter.count;
   }
 
   return result;

@@ -45,7 +45,7 @@ main(int argc, char** argv)
   std::cout << "Kmer counter" << std::endl;
   std::cout << std::endl;
   std::cout << "Base name:  " << base_name << std::endl;
-  std::cout << "K: " << k << std::endl;
+  std::cout << "K:          " << k << std::endl;
   std::cout << std::endl;
 
   GCSA index;
