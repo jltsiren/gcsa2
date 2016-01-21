@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -73,7 +73,9 @@ public:
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
 
-  const static std::string EXTENSION;       // .gcsa
+  const static std::string EXTENSION;     // .gcsa
+
+  const static size_type SHORT_RANGE = 5; // Different strategy for LF(range).
 
 //------------------------------------------------------------------------------
 
@@ -96,10 +98,22 @@ public:
 
     Note: Verification uses multiple threads and sorts the kmer array.
 
-    Returns false if the index fails verification, and true otherwise.
+    Returns false if index verification fails, and true otherwise.
   */
   bool verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const;
   bool verifyIndex(const InputGraph& graph) const;
+
+  /*
+    Kmer counting. Returns the number of kmers of the given length. If k > order(),
+    prints a warning and returns immediately unless force == true.
+
+    A kmer is a path of length k containing comp values 0 <= comp < sigma - 1. Alternatively
+    the path contains either k values 0 < comp < sigma - 1, or k - 1 such values followed
+    by a 0.
+
+    Note: Counting uses multiple threads.
+  */
+  size_type countKMers(size_type k, bool force = false) const;
 
 //------------------------------------------------------------------------------
 
@@ -183,6 +197,9 @@ public:
     path_node = this->alpha.C[temp.second] + temp.first;
     return this->edge_rank(path_node);
   }
+
+  // LF(range, c) for 1 <= c < sigma - 1.
+  void LF(range_type range, std::vector<range_type>& results) const;
 
   inline bool sampled(size_type path_node) const { return this->sampled_paths[path_node]; }
 

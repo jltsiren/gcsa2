@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -24,7 +24,7 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <deque>
+#include <stack>
 
 #include "gcsa.h"
 #include "internal.h"
@@ -716,6 +716,117 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
 
 //------------------------------------------------------------------------------
 
+struct ReverseTrieNode
+{
+  range_type range;
+  size_type  depth;
+  bool       ends_at_sink;
+
+  const static size_type SEED_LENGTH = 5; // Create all patterns of that length before parallelizing.
+
+  ReverseTrieNode() : range(0, 0), depth(0), ends_at_sink(false) {}
+  ReverseTrieNode(range_type rng, size_type d, bool sink) : range(rng), depth(d), ends_at_sink(sink) {}
+};
+
+struct KMerCounter
+{
+  size_type count, limit;
+
+  KMerCounter(size_type _limit) : count(0), limit(_limit) {}
+
+  inline void add(const ReverseTrieNode& node)
+  {
+    if(node.ends_at_sink || node.depth >= this->limit) { this->count++; }
+  }
+};
+
+struct SeedCollector
+{
+  size_type count, limit;
+  std::vector<ReverseTrieNode> seeds;
+
+  SeedCollector(size_type _limit) : count(0), limit(_limit), seeds() {}
+
+  inline void add(const ReverseTrieNode& node)
+  {
+    if(node.depth >= this->limit) { this->seeds.push_back(node); }
+    else if(node.ends_at_sink) { this->count++; } // Seeds ending at the sink are counted later.
+  }
+};
+
+template<class Handler>
+void
+processSubtree(const GCSA& index, std::stack<ReverseTrieNode>& node_stack, Handler& handler)
+{
+  std::vector<range_type> predecessors(index.alpha.sigma);
+  while(!(node_stack.empty()))
+  {
+    ReverseTrieNode curr = node_stack.top(); node_stack.pop();
+    if(Range::empty(curr.range)) { continue; }
+    handler.add(curr);
+    if(curr.depth < handler.limit)
+    {
+      index.LF(curr.range, predecessors);
+      for(size_type comp = 1; comp + 1 < index.alpha.sigma; comp++)
+      {
+        node_stack.push(ReverseTrieNode(predecessors[comp], curr.depth + 1, curr.ends_at_sink));
+      }
+    }
+  }
+}
+
+size_type
+GCSA::countKMers(size_type k, bool force) const
+{
+  if(k == 0) { return 1; }
+  if(k > this->order())
+  {
+    if(force)
+    {
+      std::cerr << "GCSA::countKMers(): Warning: The value of k (" << k
+                << ") is greater than the order of the graph (" << this->order() << ")" << std::endl;
+    }
+    else
+    {
+      std::cerr << "GCSA::countKMers(): The value of k (" << k
+                << ") is greater than the order of the graph (" << this->order() << ")" << std::endl;
+      return 0;
+    }
+  }
+
+  // Create an array of seed kmers of length ReverseTrieNode::SEED_LENGTH.
+  size_type result = 0;
+  std::vector<ReverseTrieNode> seeds;
+  {
+    std::stack<ReverseTrieNode> node_stack;
+    node_stack.push(ReverseTrieNode(this->charRange(0), 1, true));
+    for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
+    {
+      node_stack.push(ReverseTrieNode(this->charRange(comp), 1, false));
+    }
+    SeedCollector collector(std::min(k, ReverseTrieNode::SEED_LENGTH));
+    processSubtree(*this, node_stack, collector);
+    result = collector.count;
+    seeds = collector.seeds;
+  }
+
+  // Extend the seeds in parallel.
+  #pragma omp parallel for schedule (dynamic, 1)
+  for(size_type i = 0; i < seeds.size(); i++)
+  {
+    std::stack<ReverseTrieNode> node_stack;
+    node_stack.push(seeds[i]);
+    KMerCounter counter(k);
+    processSubtree(*this, node_stack, counter);
+    #pragma omp atomic
+    result += counter.count;
+  }
+
+  return result;
+}
+
+//------------------------------------------------------------------------------
+
 void
 GCSA::setVectors()
 {
@@ -739,6 +850,47 @@ GCSA::initSupport()
   sdsl::util::init_support(this->edge_select, &(this->edges));
   sdsl::util::init_support(this->sampled_path_rank, &(this->sampled_paths));
   sdsl::util::init_support(this->sample_select, &(this->samples));
+}
+
+//------------------------------------------------------------------------------
+
+void
+GCSA::LF(range_type range, std::vector<range_type>& results) const
+{
+  for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++) { results[comp] = Range::empty_range(); }
+  range = this->bwtRange(range);
+
+  if(range.first == range.second) // Single edge.
+  {
+    auto temp = this->bwt.inverse_select(range.first);
+    size_type path_node = this->edge_rank(this->alpha.C[temp.second] + temp.first);
+    results[temp.second] = range_type(path_node, path_node);
+  }
+  else if(Range::length(range) <= SHORT_RANGE) // Use brute force for a few edges.
+  {
+    for(size_type i = range.first; i <= range.second; i++)
+    {
+      auto temp = this->bwt.inverse_select(i);
+      if(Range::empty(results[temp.second]))
+      {
+        size_type edge_pos = this->alpha.C[temp.second] + temp.first;
+        results[temp.second] = range_type(edge_pos, edge_pos);
+      }
+      else { results[temp.second].second++; }
+    }
+    for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
+    {
+      if(!Range::empty(results[comp])) { results[comp] = this->pathNodeRange(results[comp]); }
+    }
+  }
+  else  // General case.
+  {
+    for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
+    {
+      results[comp] = gcsa::LF(this->bwt, this->alpha, range, comp);
+      if(!Range::empty(results[comp])) { results[comp] = this->pathNodeRange(results[comp]); }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
