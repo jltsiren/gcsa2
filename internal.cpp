@@ -34,16 +34,17 @@ std::atomic<size_type> DiskIO::write_volume(0);
 
 //------------------------------------------------------------------------------
 
-SLArray::SLArray(size_type n) :
-  data(n, 0)
+CounterArray::CounterArray(size_type n) :
+  data(n, 0), total(0)
 {
 }
 
 void
-SLArray::clear()
+CounterArray::clear()
 {
   sdsl::util::clear(this->data);
   sdsl::util::clear(this->large_values);
+  this->total = 0;
 }
 
 //------------------------------------------------------------------------------
