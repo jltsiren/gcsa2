@@ -423,12 +423,12 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     path_graph.prune(lcp, parameters.size_limit);
   }
   this->header.order = (path_graph.unsorted == 0 ? ~(size_type)0 : path_graph.k());
-  sdsl::util::clear(lcp);
 
   // Merge the paths into the nodes of a pruned de Bruijn graph.
-  MergedGraph merged_graph(path_graph, mapper);
+  MergedGraph merged_graph(path_graph, mapper, lcp);
   this->header.path_nodes = merged_graph.size();
   path_graph.clear();
+  sdsl::util::clear(lcp);
 
   // Structures used to build GCSA.
   sdsl::int_vector<64> counts(mapper.alpha.sigma, 0); // alpha
