@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -1126,7 +1126,7 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
   merger.close();
   path_file.close(); rank_file.close(); from_file.close();
 
-  directConstruct(this->lcp_array, lcp_buffer);
+  this->lcp_rmq = sdsl::rmq_succinct_sada<>(&lcp_buffer);
   sdsl::util::clear(lcp_buffer);
 
 #ifdef VERBOSE_STATUS_INFO

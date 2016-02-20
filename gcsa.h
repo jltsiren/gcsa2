@@ -62,13 +62,13 @@ public:
 //------------------------------------------------------------------------------
 
   GCSA();
-  GCSA(const GCSA& g);
-  GCSA(GCSA&& g);
+  GCSA(const GCSA& source);
+  GCSA(GCSA&& source);
   ~GCSA();
 
-  void swap(GCSA& g);
-  GCSA& operator=(const GCSA& g);
-  GCSA& operator=(GCSA&& g);
+  void swap(GCSA& another);
+  GCSA& operator=(const GCSA& source);
+  GCSA& operator=(GCSA&& source);
 
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
@@ -158,6 +158,8 @@ public:
     return this->find(pattern, pattern + length);
   }
 
+  inline size_type count(range_type range) const { return this->counter.count(range.first, range.second); }
+
   void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;
   void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;
 
@@ -240,10 +242,12 @@ public:
   bit_vector                samples;
   bit_vector::select_1_type sample_select;
 
+  OccurrenceCounter         counter;
+
 //------------------------------------------------------------------------------
 
 private:
-  void copy(const GCSA& g);
+  void copy(const GCSA& source);
   void setVectors();
   void initSupport();
 
@@ -275,67 +279,6 @@ private:
     return outgoing_range;
   }
 };  // class GCSA
-
-//------------------------------------------------------------------------------
-
-/*
-  A generalization of Sadakane's document counting structure. Given BWT range [sp, ep],
-  we get the number of pointers (occurrences) by
-
-    occurrence_select(ep + 1) - occurrence_select(sp)
-
-  and the number of redundant pointers by
-
-    (redundant_select(ep) + 1 - ep) - (redundant_select(sp) + 1 - sp).
-*/
-
-class OccurrenceCounter
-{
-public:
-  typedef gcsa::size_type  size_type;
-  typedef sdsl::bit_vector bit_vector;
-
-  OccurrenceCounter();
-  OccurrenceCounter(const OccurrenceCounter& source);
-  OccurrenceCounter(OccurrenceCounter&& source);
-  ~OccurrenceCounter();
-
-  void swap(OccurrenceCounter& another);
-  OccurrenceCounter& operator=(const OccurrenceCounter& source);
-  OccurrenceCounter& operator=(OccurrenceCounter&& source);
-
-  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
-  void load(std::istream& in);
-
-  // The last pointer belonging to each path node is marked with an 1-bit.
-  bit_vector                occurrences;
-  bit_vector::select_1_type occurrence_select;
-
-  // The number of redundant pointers k in each internal binary suffix tree node is encoded as 0^k 1.
-  bit_vector                redundant;
-  bit_vector::select_1_type redundant_select;
-
-  inline size_type count(size_type sp, size_type ep) const
-  {
-    size_type res = this->cumulativeOccurrences(ep + 1) - this->cumulativeOccurrences(sp);
-    if(ep > sp) { res -= this->cumulativeRedundant(ep) - this->cumulativeRedundant(sp); }
-    return res;
-  }
-
-private:
-  void copy(const OccurrenceCounter& source);
-  void setVectors();
-
-  inline size_type cumulativeOccurrences(size_type i) const
-  {
-    return (i > 0 ? this->occurrence_select(i) : 0);
-  }
-
-  inline size_type cumulativeRedundant(size_type i) const
-  {
-    return (i > 0 ? this->redundant_select(i) + 1 - i : 0);
-  }
-};
 
 //------------------------------------------------------------------------------
 

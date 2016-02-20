@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -24,6 +24,8 @@
 
 #ifndef _GCSA_PATH_GRAPH_H
 #define _GCSA_PATH_GRAPH_H
+
+#include <sdsl/rmq_succinct_sada.hpp>
 
 #include "dbg.h"
 #include "files.h"
@@ -361,10 +363,10 @@ struct MergedGraph
   size_type path_count, rank_count, from_count;
   size_type order;
 
-  std::vector<size_type> next;      // paths[next[comp]] is the first path starting with comp.
-  std::vector<size_type> next_from; // Where to find the corresponding additional from nodes.
+  std::vector<size_type> next;        // paths[next[comp]] is the first path starting with comp.
+  std::vector<size_type> next_from;   // Where to find the corresponding additional from nodes.
 
-  sdsl::wt_blcd<>        lcp_array; // Faster than proper RMQ for small values.
+  sdsl::rmq_succinct_sada<> lcp_rmq;  // RMQ over the LCP array; used for building OccurrenceCounter.
 
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -112,6 +112,87 @@ characterCounts(const ByteVector& sequence, const sdsl::int_vector<8>& char2comp
 {
   for(size_type c = 0; c < counts.size(); c++) { counts[c] = 0; }
   for(size_type i = 0; i < sequence.size(); i++) { counts[char2comp[sequence[i]]]++; }
+}
+
+//------------------------------------------------------------------------------
+
+/*
+  A generalization of Sadakane's document counting structure. Given BWT range [sp, ep],
+  we get the number of pointers (occurrences) by
+
+    occurrence_select(ep + 1) - occurrence_select(sp)
+
+  and the number of redundant pointers by
+
+    (redundant_select(ep) + 1 - ep) - (redundant_select(sp) + 1 - sp).
+*/
+
+class OccurrenceCounter
+{
+public:
+  typedef gcsa::size_type  size_type;
+  typedef sdsl::bit_vector bit_vector;
+
+  OccurrenceCounter();
+  OccurrenceCounter(const OccurrenceCounter& source);
+  OccurrenceCounter(OccurrenceCounter&& source);
+  ~OccurrenceCounter();
+
+  template<class Container> OccurrenceCounter(const Container& occ, const Container& red);
+
+  void swap(OccurrenceCounter& another);
+  OccurrenceCounter& operator=(const OccurrenceCounter& source);
+  OccurrenceCounter& operator=(OccurrenceCounter&& source);
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+
+  // The last pointer belonging to each path node is marked with an 1-bit.
+  bit_vector                occurrences;
+  bit_vector::select_1_type occurrence_select;
+
+  // The number of redundant pointers k in each internal binary suffix tree node is encoded as 0^k 1.
+  bit_vector                redundant;
+  bit_vector::select_1_type redundant_select;
+
+  inline size_type count(size_type sp, size_type ep) const
+  {
+    size_type res = this->cumulativeOccurrences(ep + 1) - this->cumulativeOccurrences(sp);
+    if(ep > sp) { res -= this->cumulativeRedundant(ep) - this->cumulativeRedundant(sp); }
+    return res;
+  }
+
+private:
+  void copy(const OccurrenceCounter& source);
+  void setVectors();
+
+  inline size_type cumulativeOccurrences(size_type i) const
+  {
+    return (i > 0 ? this->occurrence_select(i) : 0);
+  }
+
+  inline size_type cumulativeRedundant(size_type i) const
+  {
+    return (i > 0 ? this->redundant_select(i) + 1 - i : 0);
+  }
+};
+
+template<class Container>
+OccurrenceCounter::OccurrenceCounter(const Container& occ, const Container& red)
+{
+  assert(occ.size() == red.size() + 1);
+
+  size_type total = 0;
+  for(size_type i = 0; i < occ.size(); i++) { assert(occ[i] > 0); total += occ[i]; }
+  this->occurrences = bit_vector(total, 0); total = 0;
+  for(size_type i = 0; i < occ.size(); i++) { total += occ[i]; this->occurrences[total - 1] = 1; }
+  sdsl::util::init_support(this->occurrence_select, &(this->occurrences));
+
+  total = 0;
+  for(size_type i = 0; i < red.size(); i++) { total += red[i]; }
+  this->redundant = bit_vector(red.size() + total, 0); total = 0;
+  for(size_type i = 0; i < red.size(); i++) { total += red[i] + 1; this->redundant[total - 1] = 1; }
+  sdsl::util::init_support(this->redundant_select, &(this->redundant));
 }
 
 //------------------------------------------------------------------------------

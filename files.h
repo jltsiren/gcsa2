@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -104,7 +104,14 @@ struct InputGraph
 //------------------------------------------------------------------------------
 
 /*
-  Current GCSA file header. This header has been used since version 0.5.
+  GCSA file header.
+
+  Version 2 (GCSA v0.6):
+  - Added OccurrenceCounter to the end of the body.
+
+  Version 1 (GCSA v0.5)
+  - The first use of the header.
+  - GCSA body is identical to version 0.
 */
 
 struct GCSAHeader
@@ -117,7 +124,7 @@ struct GCSAHeader
   uint64_t flags;
 
   const static uint32_t TAG = 0x6C5A6C5A;
-  const static uint32_t VERSION = 1;
+  const static uint32_t VERSION = 2;
 
   const static uint64_t COMPRESSED = 0x1; // Not in use.
 

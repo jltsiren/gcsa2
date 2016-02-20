@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -153,6 +153,7 @@ struct CounterArray
 
   const static byte_type LARGE_VALUE = 255;
 
+  CounterArray();
   explicit CounterArray(size_type n);
 
   inline bool size() const { return this->data.size(); }
@@ -174,7 +175,20 @@ struct CounterArray
     this->total++;
   }
 
+  inline void increment(size_type i, size_type val)
+  {
+    if(this->data[i] == LARGE_VALUE) { this->large_values[i] += val; }
+    else if(this->data[i] + val >= LARGE_VALUE)
+    {
+      this->large_values[i] = this->data[i] + val;
+      this->data[i] = LARGE_VALUE;
+    }
+    else { this->data[i] += val; }
+    this->total += val;
+  }
+
   void clear();
+  void swap(CounterArray& another);
 };
 
 //------------------------------------------------------------------------------

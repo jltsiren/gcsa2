@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -27,11 +27,6 @@
 #include "gcsa.h"
 
 using namespace gcsa;
-
-/*
-  This will eventually become an utility for converting GCSA to the current format.
-  Right now it is used for experimenting with different encodings.
-*/
 
 //------------------------------------------------------------------------------
 

@@ -60,14 +60,14 @@ GCSA::GCSA()
 {
 }
 
-GCSA::GCSA(const GCSA& g)
+GCSA::GCSA(const GCSA& source)
 {
-  this->copy(g);
+  this->copy(source);
 }
 
-GCSA::GCSA(GCSA&& g)
+GCSA::GCSA(GCSA&& source)
 {
-  *this = std::move(g);
+  *this = std::move(source);
 }
 
 GCSA::~GCSA()
@@ -75,63 +75,67 @@ GCSA::~GCSA()
 }
 
 void
-GCSA::swap(GCSA& g)
+GCSA::swap(GCSA& another)
 {
-  if(this != &g)
+  if(this != &another)
   {
-    this->header.swap(g.header);
+    this->header.swap(another.header);
 
-    this->bwt.swap(g.bwt);
-    this->alpha.swap(g.alpha);
+    this->bwt.swap(another.bwt);
+    this->alpha.swap(another.alpha);
 
-    this->path_nodes.swap(g.path_nodes);
-    sdsl::util::swap_support(this->path_rank, g.path_rank, &(this->path_nodes), &(g.path_nodes));
-    sdsl::util::swap_support(this->path_select, g.path_select, &(this->path_nodes), &(g.path_nodes));
+    this->path_nodes.swap(another.path_nodes);
+    sdsl::util::swap_support(this->path_rank, another.path_rank, &(this->path_nodes), &(another.path_nodes));
+    sdsl::util::swap_support(this->path_select, another.path_select, &(this->path_nodes), &(another.path_nodes));
 
-    this->edges.swap(g.edges);
-    sdsl::util::swap_support(this->edge_rank, g.edge_rank, &(this->edges), &(g.edges));
-    sdsl::util::swap_support(this->edge_select, g.edge_select, &(this->edges), &(g.edges));
+    this->edges.swap(another.edges);
+    sdsl::util::swap_support(this->edge_rank, another.edge_rank, &(this->edges), &(another.edges));
+    sdsl::util::swap_support(this->edge_select, another.edge_select, &(this->edges), &(another.edges));
 
-    this->sampled_paths.swap(g.sampled_paths);
-    sdsl::util::swap_support(this->sampled_path_rank, g.sampled_path_rank, &(this->sampled_paths), &(g.sampled_paths));
+    this->sampled_paths.swap(another.sampled_paths);
+    sdsl::util::swap_support(this->sampled_path_rank, another.sampled_path_rank, &(this->sampled_paths), &(another.sampled_paths));
 
-    this->stored_samples.swap(g.stored_samples);
-    this->samples.swap(g.samples);
-    sdsl::util::swap_support(this->sample_select, g.sample_select, &(this->samples), &(g.samples));
+    this->stored_samples.swap(another.stored_samples);
+    this->samples.swap(another.samples);
+    sdsl::util::swap_support(this->sample_select, another.sample_select, &(this->samples), &(another.samples));
+
+    this->counter.swap(another.counter);
   }
 }
 
 GCSA&
-GCSA::operator=(const GCSA& g)
+GCSA::operator=(const GCSA& source)
 {
-  if(this != &g) { this->copy(g); }
+  if(this != &source) { this->copy(source); }
   return *this;
 }
 
 GCSA&
-GCSA::operator=(GCSA&& g)
+GCSA::operator=(GCSA&& source)
 {
-  if(this != &g)
+  if(this != &source)
   {
-    this->header = std::move(g.header);
+    this->header = std::move(source.header);
 
-    this->bwt = std::move(g.bwt);
-    this->alpha = std::move(g.alpha);
+    this->bwt = std::move(source.bwt);
+    this->alpha = std::move(source.alpha);
 
-    this->path_nodes = std::move(g.path_nodes);
-    this->path_rank = std::move(g.path_rank);
-    this->path_select = std::move(g.path_select);
+    this->path_nodes = std::move(source.path_nodes);
+    this->path_rank = std::move(source.path_rank);
+    this->path_select = std::move(source.path_select);
 
-    this->edges = std::move(g.edges);
-    this->edge_rank = std::move(g.edge_rank);
-    this->edge_select = std::move(g.edge_select);
+    this->edges = std::move(source.edges);
+    this->edge_rank = std::move(source.edge_rank);
+    this->edge_select = std::move(source.edge_select);
 
-    this->sampled_paths = std::move(g.sampled_paths);
-    this->sampled_path_rank = std::move(g.sampled_path_rank);
+    this->sampled_paths = std::move(source.sampled_paths);
+    this->sampled_path_rank = std::move(source.sampled_path_rank);
 
-    this->stored_samples = std::move(g.stored_samples);
-    this->samples = std::move(g.samples);
-    this->sample_select = std::move(g.sample_select);
+    this->stored_samples = std::move(source.stored_samples);
+    this->samples = std::move(source.samples);
+    this->sample_select = std::move(source.sample_select);
+
+    this->counter = std::move(source.counter);
 
     this->setVectors();
   }
@@ -164,6 +168,8 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string nam
   written_bytes += this->samples.serialize(out, child, "samples");
   written_bytes += this->sample_select.serialize(out, child, "sample_select");
 
+  written_bytes += this->counter.serialize(out, child, "counter");
+
   sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
 }
@@ -194,6 +200,8 @@ GCSA::load(std::istream& in)
   this->stored_samples.load(in);
   this->samples.load(in);
   this->sample_select.load(in, &(this->samples));
+
+  this->counter.load(in);
 }
 
 //------------------------------------------------------------------------------
@@ -438,6 +446,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   this->sampled_paths = bit_vector(merged_graph.size(), 0);
   std::vector<node_type> sample_buffer; // stored_samples
   this->samples = bit_vector(merged_graph.size() + merged_graph.extra(), 0);
+  CounterArray occurrences(merged_graph.size()), redundant(merged_graph.size() - 1);  // counter
 
   // Read pointers to the MergedGraph files.
   std::vector<MergedGraphReader> reader(mapper.alpha.sigma + 1);
@@ -491,7 +500,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
       - at the beginning of the source node with no real predecessors
       - at the beginning of a node in the original graph (makes the previous case redundant)
     */
-    reader[0].fromNodes(curr_from);
+    reader[0].fromNodes(curr_from); occurrences.increment(i, curr_from.size());
     if(indegree > 1) { sample_this = true; }
     if(reader[0].paths[reader[0].path].hasPredecessor(Alphabet::SINK_COMP)) { sample_this = true; }
     for(size_type k = 0; k < curr_from.size(); k++)
@@ -532,6 +541,11 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   // Initialize alpha.
   this->alpha = Alphabet(counts, mapper.alpha.char2comp, mapper.alpha.comp2char);
   sdsl::util::clear(mapper);
+
+  // Initialize counter.
+  // FIXME implement
+  sdsl::util::clear(occurrences);
+  sdsl::util::clear(redundant);
 
   // Initialize bwt.
   bwt_buffer.resize(total_edges);
@@ -941,110 +955,6 @@ GCSA::locateInternal(size_type path_node, std::vector<node_type>& results) const
   {
     results.push_back(this->sample(i) + steps);
   }
-}
-
-//------------------------------------------------------------------------------
-
-
-OccurrenceCounter::OccurrenceCounter()
-{
-}
-
-OccurrenceCounter::OccurrenceCounter(const OccurrenceCounter& source)
-{
-  this->copy(source);
-}
-
-OccurrenceCounter::OccurrenceCounter(OccurrenceCounter&& source)
-{
-  *this = std::move(source);
-}
-
-OccurrenceCounter::~OccurrenceCounter()
-{
-}
-
-void
-OccurrenceCounter::swap(OccurrenceCounter& another)
-{
-  if(this != &another)
-  {
-    this->occurrences.swap(another.occurrences);
-    sdsl::util::swap_support(this->occurrence_select, another.occurrence_select,
-      &(this->occurrences), &(another.occurrences));
-
-    this->redundant.swap(another.redundant);
-    sdsl::util::swap_support(this->redundant_select, another.redundant_select,
-      &(this->redundant), &(another.redundant));
-  }
-}
-
-OccurrenceCounter&
-OccurrenceCounter::operator=(const OccurrenceCounter& source)
-{
-  if(this != &source) { this->copy(source); }
-  return *this;
-}
-
-OccurrenceCounter&
-OccurrenceCounter::operator=(OccurrenceCounter&& source)
-{
-  if(this != &source)
-  {
-    this->occurrences = std::move(source.occurrences);
-    this->occurrence_select = std::move(source.occurrence_select);
-
-    this->redundant = std::move(source.redundant);
-    this->redundant_select = std::move(source.redundant_select);
-
-    this->setVectors();
-  }
-  return *this;
-}
-
-OccurrenceCounter::size_type
-OccurrenceCounter::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
-{
-  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
-  size_type written_bytes = 0;
-
-  written_bytes += this->occurrences.serialize(out, child, "occurrences");
-  written_bytes += this->occurrence_select.serialize(out, child, "occurrence_select");
-
-  written_bytes += this->redundant.serialize(out, child, "redundant");
-  written_bytes += this->redundant_select.serialize(out, child, "redundant_select");
-
-  sdsl::structure_tree::add_size(child, written_bytes);
-  return written_bytes;
-}
-
-void
-OccurrenceCounter::load(std::istream& in)
-{
-  this->occurrences.load(in);
-  this->occurrence_select.load(in, &(this->occurrences));
-
-  this->redundant.load(in);
-  this->redundant_select.load(in, &(this->redundant));
-}
-
-void
-OccurrenceCounter::copy(const OccurrenceCounter& source)
-{
-  this->occurrences = source.occurrences;
-  this->occurrence_select = source.occurrence_select;
-
-  this->redundant = source.redundant;
-  this->redundant_select = source.redundant_select;
-
-  this->setVectors();
-}
-
-void
-OccurrenceCounter::setVectors()
-{
-  this->occurrence_select.set_vector(&(this->occurrences));
-  this->redundant_select.set_vector(&(this->redundant));
 }
 
 //------------------------------------------------------------------------------
