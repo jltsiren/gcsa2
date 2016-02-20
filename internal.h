@@ -156,7 +156,7 @@ struct CounterArray
   CounterArray();
   explicit CounterArray(size_type n);
 
-  inline bool size() const { return this->data.size(); }
+  inline size_type size() const { return this->data.size(); }
   inline size_type sum() const { return this->total; }
 
   inline size_type operator[] (size_type i) const

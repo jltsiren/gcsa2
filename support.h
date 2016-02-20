@@ -168,7 +168,7 @@ private:
 
   inline size_type cumulativeOccurrences(size_type i) const
   {
-    return (i > 0 ? this->occurrence_select(i) : 0);
+    return (i > 0 ? this->occurrence_select(i) + 1 : 0);
   }
 
   inline size_type cumulativeRedundant(size_type i) const

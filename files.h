@@ -95,7 +95,10 @@ struct InputGraph
   */
   void read(std::vector<KMer>& kmers) const;
   void read(std::vector<KMer>& kmers, size_type file, bool append = false) const;
-  void read(std::vector<key_type>& keys) const;
+  inline void read(std::vector<key_type>& keys) const { return this->readKeys(keys); }
+
+  void readKeys(std::vector<key_type>& keys) const;
+  void readFrom(std::vector<node_type>& from_nodes) const;
 
   InputGraph(const InputGraph&) = delete;
   InputGraph& operator= (const InputGraph&) = delete;

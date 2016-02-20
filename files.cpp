@@ -380,7 +380,7 @@ InputGraph::read(std::vector<KMer>& kmers, size_type file, bool append) const
 }
 
 void
-InputGraph::read(std::vector<key_type>& keys) const
+InputGraph::readKeys(std::vector<key_type>& keys) const
 {
   sdsl::util::clear(keys);
   keys.reserve(this->size());
@@ -407,7 +407,30 @@ InputGraph::read(std::vector<key_type>& keys) const
   keys.resize(i + 1);
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "InputGraph::read(): " << keys.size() << " unique keys" << std::endl;
+  std::cerr << "InputGraph::readKeys(): " << keys.size() << " unique keys" << std::endl;
+#endif
+}
+
+void
+InputGraph::readFrom(std::vector<node_type>& from_nodes) const
+{
+  sdsl::util::clear(from_nodes);
+  from_nodes.reserve(this->size());
+
+  // Read the from nodes.
+  for(size_type file = 0; file < this->files(); file++)
+  {
+    std::vector<KMer> kmers;
+    this->read(kmers, file, false);
+    for(size_type i = 0; i < this->sizes[file]; i++)
+    {
+      from_nodes.push_back(kmers[i].from);
+    }
+  }
+  removeDuplicates(from_nodes, true);
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "InputGraph::readFrom(): " << from_nodes.size() << " unique from nodes" << std::endl;
 #endif
 }
 

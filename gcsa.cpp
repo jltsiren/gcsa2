@@ -402,7 +402,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   // Extract the keys and build the necessary support structures.
   // FIXME Later: Write the structures to disk until needed?
   std::vector<key_type> keys;
-  graph.read(keys);
+  graph.readKeys(keys);
   DeBruijnGraph mapper(keys, graph.k(), _alpha);
   LCP lcp(keys, graph.k());
   sdsl::int_vector<0> last_char;
@@ -411,6 +411,15 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   for(size_type i = 0; i < keys.size(); i++) { builder.set(Key::label(keys[i])); }
   sdsl::sd_vector<> key_exists(builder);
   sdsl::util::clear(keys);
+
+  // Determine the existing from nodes.
+  std::vector<node_type> from_node_buffer;;
+  graph.readFrom(from_node_buffer);
+  sdsl::sd_vector<> from_nodes(from_node_buffer.begin(), from_node_buffer.end());
+  sdsl::sd_vector<>::rank_1_type from_rank;
+  sdsl::util::init_support(from_rank, &(from_nodes));
+  size_type unique_from_nodes = from_node_buffer.size();
+  sdsl::util::clear(from_node_buffer);
 
   // Create the initial PathGraph.
   PathGraph path_graph(graph, key_exists);
@@ -447,6 +456,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   std::vector<node_type> sample_buffer; // stored_samples
   this->samples = bit_vector(merged_graph.size() + merged_graph.extra(), 0);
   CounterArray occurrences(merged_graph.size()), redundant(merged_graph.size() - 1);  // counter
+  std::vector<node_type> prev_occ(unique_from_nodes, 0); // counter
 
   // Read pointers to the MergedGraph files.
   std::vector<MergedGraphReader> reader(mapper.alpha.sigma + 1);
@@ -494,13 +504,25 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     if(total_edges > this->path_nodes.size()) { this->path_nodes.resize(bwt_buffer.size()); }
     this->path_nodes[total_edges - 1] = 1;
 
+    // Get the from nodes and update the occurrences / redundant arrays.
+    reader[0].fromNodes(curr_from);
+    occurrences.increment(i, curr_from.size());
+    for(size_type j = 0; j < curr_from.size(); j++)
+    {
+      size_type temp = from_rank(curr_from[j]);
+      if(prev_occ[temp] > 0)
+      {
+        redundant.increment(merged_graph.lcp_rmq(prev_occ[temp], i) - 1);
+      }
+      prev_occ[temp] = i + 1;
+    }
+
     /*
       Simple cases for sampling the node:
       - multiple predecessors
       - at the beginning of the source node with no real predecessors
       - at the beginning of a node in the original graph (makes the previous case redundant)
     */
-    reader[0].fromNodes(curr_from); occurrences.increment(i, curr_from.size());
     if(indegree > 1) { sample_this = true; }
     if(reader[0].paths[reader[0].path].hasPredecessor(Alphabet::SINK_COMP)) { sample_this = true; }
     for(size_type k = 0; k < curr_from.size(); k++)
@@ -535,7 +557,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     }
   }
   for(size_type i = 0; i < reader.size(); i++) { reader[i].close(); }
-  sdsl::util::clear(last_char);
+  sdsl::util::clear(last_char); sdsl::util::clear(from_nodes); sdsl::util::clear(prev_occ);
   this->header.edges = total_edges;
 
   // Initialize alpha.
@@ -543,9 +565,8 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   sdsl::util::clear(mapper);
 
   // Initialize counter.
-  // FIXME implement
-  sdsl::util::clear(occurrences);
-  sdsl::util::clear(redundant);
+  this->counter = OccurrenceCounter(occurrences, redundant);
+  sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
 
   // Initialize bwt.
   bwt_buffer.resize(total_edges);
@@ -655,9 +676,21 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
       std::vector<node_type> expected;
       for(size_type j = i; j < next; j++) { expected.push_back(kmers[j].from); }
       removeDuplicates(expected, false);
+      size_type unique_count = this->count(range);
+      if(unique_count != expected.size())
+      {
+        #pragma omp critical
+        {
+          std::cerr << "GCSA::verifyIndex(): Expected " << expected.size()
+                    << " occurrences, counted " << unique_count << std::endl;
+          std::cerr << "GCSA::verifyIndex(): count" << range << " failed" << std::endl;
+          fails++;
+        }
+        i = next; continue;
+      }
+
       std::vector<node_type> occs;
       this->locate(range, occs);
-
       if(occs.size() != expected.size())
       {
         #pragma omp critical
