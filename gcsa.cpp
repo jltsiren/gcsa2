@@ -470,9 +470,10 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
 
   // Structures used for building OccurrenceCounter.
   // Invariant: The previous occurrence of from node x was at path prev_occ[from_rank(x)] - 1.
+  // The RMQs used for updating the redundant array are buffered and done in parallel.
   CounterArray occurrences(merged_graph.size()), redundant(merged_graph.size() - 1);
   sdsl::int_vector<0> prev_occ(unique_from_nodes, 0, bit_length(merged_graph.size()));
-  std::vector<range_type> rmq_ranges; // Buffer the RMQ queries and do them in parallel.
+  std::vector<range_type> rmq_ranges; rmq_ranges.reserve(RMQ_BUFFER);
 
   // Read pointers to the MergedGraph files.
   std::vector<MergedGraphReader> reader(mapper.alpha.sigma + 1);
@@ -527,10 +528,13 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     for(size_type j = 0; j < curr_from.size(); j++)
     {
       size_type temp = from_rank(curr_from[j]);
-      if(prev_occ[temp] > 0) { rmq_ranges.push_back(range_type(prev_occ[temp], i)); }
+      if(prev_occ[temp] > 0)
+      {
+        rmq_ranges.push_back(range_type(prev_occ[temp], i));
+        if(rmq_ranges.size() >= RMQ_BUFFER) { updateRedundant(redundant, merged_graph, rmq_ranges); }
+      }
       prev_occ[temp] = i + 1;
     }
-    if(rmq_ranges.size() >= RMQ_BUFFER) { updateRedundant(redundant, merged_graph, rmq_ranges); }
 
     /*
       Simple cases for sampling the node:

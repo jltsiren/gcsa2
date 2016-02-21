@@ -73,11 +73,11 @@ public:
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
 
-  const static std::string EXTENSION;     // .gcsa
+  const static std::string EXTENSION; // .gcsa
 
-  const static size_type SHORT_RANGE = 5;       // Different strategy for LF(range).
-  const static size_type MAX_ERRORS = 100;      // Suppress further error messages during verification.
-  const static size_type RMQ_BUFFER = MEGABYTE; // How many ranges to buffer before computing the RMQs?
+  const static size_type SHORT_RANGE = 5; // Different strategy for LF(range).
+  const static size_type MAX_ERRORS = 100; // Suppress further error messages during verification.
+  const static size_type RMQ_BUFFER = 4 * MEGABYTE; // How many ranges to buffer before computing the RMQs?
 
 //------------------------------------------------------------------------------
 
