@@ -388,6 +388,18 @@ MergedGraphReader::fromNodes(std::vector<node_type>& results)
 
 //------------------------------------------------------------------------------
 
+void
+updateRedundant(CounterArray& redundant, const MergedGraph& merged_graph, std::vector<range_type>& ranges)
+{
+  #pragma omp parallel for schedule(static)
+  for(size_type i = 0; i < ranges.size(); i++)
+  {
+    ranges[i].first = merged_graph.lcp_rmq(ranges[i].first, ranges[i].second);
+  }
+  for(size_type i = 0; i < ranges.size(); i++) { redundant.increment(ranges[i].first - 1); }
+  ranges.clear();
+}
+
 GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, const Alphabet& _alpha)
 {
   if(graph.size() == 0) { return; }
@@ -460,6 +472,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   // Invariant: The previous occurrence of from node x was at path prev_occ[from_rank(x)] - 1.
   CounterArray occurrences(merged_graph.size()), redundant(merged_graph.size() - 1);
   sdsl::int_vector<0> prev_occ(unique_from_nodes, 0, bit_length(merged_graph.size()));
+  std::vector<range_type> rmq_ranges; // Buffer the RMQ queries and do them in parallel.
 
   // Read pointers to the MergedGraph files.
   std::vector<MergedGraphReader> reader(mapper.alpha.sigma + 1);
@@ -507,18 +520,17 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     if(total_edges > this->path_nodes.size()) { this->path_nodes.resize(bwt_buffer.size()); }
     this->path_nodes[total_edges - 1] = 1;
 
-    // Get the from nodes and update the occurrences / redundant arrays.
+    // Get the from nodes and update the occurrences array.
+    // Buffer the RMQ ranges needed for updating the redundant array.
     reader[0].fromNodes(curr_from);
     occurrences.increment(i, curr_from.size());
     for(size_type j = 0; j < curr_from.size(); j++)
     {
       size_type temp = from_rank(curr_from[j]);
-      if(prev_occ[temp] > 0)
-      {
-        redundant.increment(merged_graph.lcp_rmq(prev_occ[temp], i) - 1);
-      }
+      if(prev_occ[temp] > 0) { rmq_ranges.push_back(range_type(prev_occ[temp], i)); }
       prev_occ[temp] = i + 1;
     }
+    if(rmq_ranges.size() >= RMQ_BUFFER) { updateRedundant(redundant, merged_graph, rmq_ranges); }
 
     /*
       Simple cases for sampling the node:
@@ -561,6 +573,8 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   }
   for(size_type i = 0; i < reader.size(); i++) { reader[i].close(); }
   sdsl::util::clear(last_char); sdsl::util::clear(from_nodes); sdsl::util::clear(prev_occ);
+  if(rmq_ranges.size() > 0) { updateRedundant(redundant, merged_graph, rmq_ranges); }
+  sdsl::util::clear(rmq_ranges);
   this->header.edges = total_edges;
 
   // Initialize alpha.

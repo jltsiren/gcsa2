@@ -25,7 +25,7 @@
 #ifndef _GCSA_PATH_GRAPH_H
 #define _GCSA_PATH_GRAPH_H
 
-#include <sdsl/rmq_succinct_sada.hpp>
+#include <sdsl/rmq_support.hpp>
 
 #include "dbg.h"
 #include "files.h"
@@ -263,10 +263,10 @@ struct FromGetter
 
 struct LCP
 {
-  typedef PathNode::rank_type             rank_type;
+  typedef PathNode::rank_type rank_type;
 
-  size_type           kmer_length, total_keys;
-  sdsl::wt_blcd<>     kmer_lcp; // Faster than proper RMQ for small values.
+  size_type       kmer_length, total_keys;
+  sdsl::wt_blcd<> kmer_lcp; // Faster than proper RMQ for small values.
 
   LCP();
   LCP(const std::vector<key_type>& keys, size_type _kmer_length);
@@ -358,15 +358,17 @@ struct PathGraph
 
 struct MergedGraph
 {
+  typedef sdsl::rmq_succinct_sct<> rmq_type;
+
   std::string path_name, rank_name, from_name;
 
   size_type path_count, rank_count, from_count;
   size_type order;
 
-  std::vector<size_type> next;        // paths[next[comp]] is the first path starting with comp.
-  std::vector<size_type> next_from;   // Where to find the corresponding additional from nodes.
+  std::vector<size_type> next;      // paths[next[comp]] is the first path starting with comp.
+  std::vector<size_type> next_from; // Where to find the corresponding additional from nodes.
 
-  sdsl::rmq_succinct_sada<> lcp_rmq;  // RMQ over the LCP array; used for building OccurrenceCounter.
+  rmq_type               lcp_rmq;   // RMQ over the LCP array; used for building OccurrenceCounter.
 
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa

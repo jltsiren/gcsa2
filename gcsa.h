@@ -75,8 +75,9 @@ public:
 
   const static std::string EXTENSION;     // .gcsa
 
-  const static size_type SHORT_RANGE = 5;   // Different strategy for LF(range).
-  const static size_type MAX_ERRORS = 100;  // Suppress further error messages during verification.
+  const static size_type SHORT_RANGE = 5;       // Different strategy for LF(range).
+  const static size_type MAX_ERRORS = 100;      // Suppress further error messages during verification.
+  const static size_type RMQ_BUFFER = MEGABYTE; // How many ranges to buffer before computing the RMQs?
 
 //------------------------------------------------------------------------------
 

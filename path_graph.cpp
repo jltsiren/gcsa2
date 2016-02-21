@@ -1126,7 +1126,7 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
   merger.close();
   path_file.close(); rank_file.close(); from_file.close();
 
-  this->lcp_rmq = sdsl::rmq_succinct_sada<>(&lcp_buffer);
+  this->lcp_rmq = rmq_type(&lcp_buffer);
   sdsl::util::clear(lcp_buffer);
 
 #ifdef VERBOSE_STATUS_INFO
