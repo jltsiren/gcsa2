@@ -40,7 +40,6 @@ using namespace gcsa;
 //#define VERIFY_GRAPH
 //#define VERIFY_MAPPER
 //#define LOAD_INDEX
-#define VERIFY_INDEX
 #endif
 
 //------------------------------------------------------------------------------
@@ -68,15 +67,16 @@ main(int argc, char** argv)
     std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
     std::cerr << "  -t    Read the input in text format" << std::endl;
     std::cerr << "  -T N  Set the number of threads to N (default and max " << omp_get_max_threads() << " on this system)" << std::endl;
+    std::cerr << "  -v    Verify the index by querying it with the kmers" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
 
   int c = 0;
-  bool binary = true;
+  bool binary = true, verify = false;
   std::string output_file;
   ConstructionParameters parameters;
-  while((c = getopt(argc, argv, "bd:D:l:o:tT:")) != -1)
+  while((c = getopt(argc, argv, "bd:D:l:o:tT:v")) != -1)
   {
     switch(c)
     {
@@ -94,6 +94,8 @@ main(int argc, char** argv)
       binary = false; break;
     case 'T':
       omp_set_num_threads(Range::bound(std::stoul(optarg), 1, omp_get_max_threads())); break;
+    case 'v':
+      verify = true; break;
     case '?':
       std::exit(EXIT_FAILURE);
     default:
@@ -165,9 +167,7 @@ main(int argc, char** argv)
   printHeader("Without samples"); std::cout << inMegabytes(index_bytes - sample_bytes) << " MB" << std::endl;
   std::cout << std::endl;
 
-#ifdef VERIFY_INDEX
-  index.verifyIndex(graph);
-#endif
+  if(verify) { index.verifyIndex(graph); }
 
   std::cout << "Final memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;
   std::cout << std::endl;

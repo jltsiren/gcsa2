@@ -75,7 +75,8 @@ public:
 
   const static std::string EXTENSION;     // .gcsa
 
-  const static size_type SHORT_RANGE = 5; // Different strategy for LF(range).
+  const static size_type SHORT_RANGE = 5;   // Different strategy for LF(range).
+  const static size_type MAX_ERRORS = 100;  // Suppress further error messages during verification.
 
 //------------------------------------------------------------------------------
 
@@ -158,7 +159,11 @@ public:
     return this->find(pattern, pattern + length);
   }
 
-  inline size_type count(range_type range) const { return this->counter.count(range.first, range.second); }
+  inline size_type count(range_type range) const
+  {
+    if(Range::empty(range) || range.second >= this->size()) { return 0; }
+    return this->counter.count(range.first, range.second);
+  }
 
   void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;
   void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;

@@ -4,7 +4,7 @@ SDSL_DIR=../sdsl-lite
 # In Linux, the value is in kilobytes, so this line should be commented out.
 #RUSAGE_FLAGS=-DRUSAGE_IN_BYTES
 
-# This enables various verifications in build_gcsa.
+# This enables various debugging options in build_gcsa.
 VERIFY_FLAGS=-DVERIFY_CONSTRUCTION
 
 # Multithreading with OpenMP and libstdc++ Parallel Mode. Requires g++ 4.7
