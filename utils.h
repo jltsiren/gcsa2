@@ -171,7 +171,6 @@ inMicroseconds(double seconds)
 const size_type DEFAULT_INDENT = 18;
 
 void printHeader(const std::string& header, size_type indent = DEFAULT_INDENT);
-void printSize(const std::string& header, size_type bytes, size_type data_size, size_type indent = DEFAULT_INDENT);
 void printTime(const std::string& header, size_type queries, double seconds, size_type indent = DEFAULT_INDENT);
 
 //------------------------------------------------------------------------------
