@@ -28,6 +28,8 @@ using namespace gcsa;
 
 //------------------------------------------------------------------------------
 
+void filter(std::vector<std::string>& patterns);
+
 int
 main(int argc, char** argv)
 {
@@ -53,6 +55,7 @@ main(int argc, char** argv)
 
   std::vector<std::string> patterns;
   size_type pattern_total = readRows(pattern_name, patterns, true);
+  filter(patterns);
   printHeader("Patterns");
   std::cout << patterns.size() << " (total " << inMegabytes(pattern_total) << " MB)" << std::endl;
   std::cout << std::endl;
@@ -115,6 +118,23 @@ main(int argc, char** argv)
   }
 
   return 0;
+}
+
+//------------------------------------------------------------------------------
+
+void
+filter(std::vector<std::string>& patterns)
+{
+  size_type tail = 0;
+  for(size_type i = 0; i < patterns.size(); i++)
+  {
+    const std::string& curr = patterns[i];
+    for(size_type j = 0; j < curr.length(); j++)
+    {
+      if(curr[j] != 'N') { patterns[tail] = curr; tail++; break; }
+    }
+  }
+  patterns.resize(tail);
 }
 
 //------------------------------------------------------------------------------
