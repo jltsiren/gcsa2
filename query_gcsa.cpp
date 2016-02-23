@@ -28,7 +28,7 @@ using namespace gcsa;
 
 //------------------------------------------------------------------------------
 
-void filter(std::vector<std::string>& patterns);
+size_type filter(std::vector<std::string>& patterns);
 
 int
 main(int argc, char** argv)
@@ -55,7 +55,7 @@ main(int argc, char** argv)
 
   std::vector<std::string> patterns;
   size_type pattern_total = readRows(pattern_name, patterns, true);
-  filter(patterns);
+  pattern_total -= filter(patterns);
   printHeader("Patterns");
   std::cout << patterns.size() << " (total " << inMegabytes(pattern_total) << " MB)" << std::endl;
   std::cout << std::endl;
@@ -63,15 +63,17 @@ main(int argc, char** argv)
   std::vector<range_type> ranges; ranges.reserve(patterns.size());
   {
     double start = readTimer();
+    size_type total = 0;
     for(size_type i = 0; i < patterns.size(); i++)
     {
       range_type temp = index.find(patterns[i]);
       if(!Range::empty(temp)) { ranges.push_back(temp); }
+      total += Range::length(temp);
     }
     double seconds = readTimer() - start;
     printTime("find()", patterns.size(), seconds);
     printHeader("find()");
-    std::cout << "Found " << ranges.size() << " patterns ("
+    std::cout << "Found " << ranges.size() << " patterns matching " << total << " paths ("
               << (inMegabytes(pattern_total) / seconds) << " MB/s)" << std::endl;
     std::cout << std::endl;
   }
@@ -79,13 +81,41 @@ main(int argc, char** argv)
   std::vector<size_type> counts(ranges.size());
   {
     double start = readTimer();
+    size_type total = 0;
     for(size_type i = 0; i < ranges.size(); i++)
     {
       counts[i] = index.count(ranges[i]);
+      total += counts[i];
     }
     double seconds = readTimer() - start;
     printTime("count()", ranges.size(), seconds);
+    printHeader("count()");
+    std::cout << total << " occurrences" << std::endl;
     std::cout << std::endl;
+  }
+
+  {
+    std::vector<size_type> alt_counts(ranges.size());
+    double start = readTimer();
+    size_type total = 0;
+    for(size_type i = 0; i < ranges.size(); i++)
+    {
+      alt_counts[i] = index.countAlt(ranges[i]);
+      total += alt_counts[i];
+    }
+    double seconds = readTimer() - start;
+    printTime("countAlt()", ranges.size(), seconds);
+    printHeader("countAlt()");
+    std::cout << total << " occurrences" << std::endl;
+    std::cout << std::endl;
+    for(size_type i = 0; i < alt_counts.size(); i++)
+    {
+      if(counts[i] != alt_counts[i])
+      {
+        std::cout << "Warning: count() and countAlt() returned inconsistent results" << std::endl;
+        break;
+      }
+    }
   }
 
   {
@@ -101,7 +131,7 @@ main(int argc, char** argv)
     double seconds = readTimer() - start;
     printTime("locate()", ranges.size(), seconds);
     printHeader("locate()");
-    std::cout << "Found " << total << " occurrences (" <<
+    std::cout << total << " occurrences (" <<
               (total / seconds) << " / second)" << std::endl;
     std::cout << std::endl;
   }
@@ -122,19 +152,24 @@ main(int argc, char** argv)
 
 //------------------------------------------------------------------------------
 
-void
+size_type
 filter(std::vector<std::string>& patterns)
 {
-  size_type tail = 0;
+  size_type tail = 0, filtered = 0;
   for(size_type i = 0; i < patterns.size(); i++)
   {
     const std::string& curr = patterns[i];
+    bool ok = false;
     for(size_type j = 0; j < curr.length(); j++)
     {
-      if(curr[j] != 'N') { patterns[tail] = curr; tail++; break; }
+      if(curr[j] != 'N') { ok = true; break; }
     }
+    if(ok) { patterns[tail] = curr; tail++; }
+    else { filtered += curr.length(); }
   }
+
   patterns.resize(tail);
+  return filtered;
 }
 
 //------------------------------------------------------------------------------

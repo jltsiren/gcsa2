@@ -166,6 +166,14 @@ public:
     return this->counter.count(range.first, range.second);
   }
 
+  inline size_type countAlt(range_type range) const
+  {
+    if(Range::empty(range) || range.second >= this->size()) { return 0; }
+    size_type res = this->total_pointers.count(range.first, range.second) + Range::length(range);
+    if(range.second > range.first) { res -= this->redundant_pointers.count(range.first, range.second - 1); }
+    return res;
+  }
+
   void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;
   void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;
 
@@ -249,6 +257,8 @@ public:
   bit_vector::select_1_type sample_select;
 
   OccurrenceCounter         counter;
+  SadaSparse                total_pointers;
+  SadaSparse                redundant_pointers;
 
 //------------------------------------------------------------------------------
 

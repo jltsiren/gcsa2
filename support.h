@@ -195,6 +195,71 @@ OccurrenceCounter::OccurrenceCounter(const Container& occ, const Container& red)
   sdsl::util::init_support(this->redundant_select, &(this->redundant));
 }
 
+/*
+  Sadakane's document counting structure compressed using a sparse filter.
+*/
+class SadaSparse
+{
+public:
+  typedef gcsa::size_type   size_type;
+  typedef sdsl::sd_vector<> sd_vector;
+
+  SadaSparse();
+  SadaSparse(const SadaSparse& source);
+  SadaSparse(SadaSparse&& source);
+  ~SadaSparse();
+
+  template<class Container> SadaSparse(const Container& source);
+
+  void swap(SadaSparse& another);
+  SadaSparse& operator=(const SadaSparse& source);
+  SadaSparse& operator=(SadaSparse&& source);
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+
+  // Positions with nonzero values are marked with an 1-bit.
+  sd_vector                filter;
+  sd_vector::rank_1_type   filter_rank;
+
+  // Nonzero values encoded in unary: k becomes 0^{k-1} 1.
+  sd_vector                values;
+  sd_vector::select_1_type value_select;
+
+  inline size_type count(size_type sp, size_type ep) const
+  {
+    sp = this->filter_rank(sp); // Closed lower bound for nonzero values.
+    ep = this->filter_rank(ep + 1); // Open upper bound for nonzero values.
+    if(ep <= sp) { return 0; }
+    return (this->value_select(ep) + 1) - (sp > 0 ? this->value_select(sp) + 1 : 0);
+  }
+
+private:
+  void copy(const SadaSparse& source);
+  void setVectors();
+};
+
+template<class Container>
+SadaSparse::SadaSparse(const Container& source)
+{
+  size_type total = 0, nonzero = 0;
+  sdsl::bit_vector buffer(source.size(), 0);
+  for(size_type i = 0; i < source.size(); i++)
+  {
+    if(source[i] > 0) { buffer[i] = 1; total += source[i]; nonzero++; }
+  }
+  this->filter = sd_vector(buffer); sdsl::util::clear(buffer);
+  sdsl::util::init_support(this->filter_rank, &(this->filter));
+
+  sdsl::sd_vector_builder builder(total, nonzero);
+  for(size_type i = 0, tail = 0; i < source.size(); i++)
+  {
+    if(source[i] > 0) { tail += source[i]; builder.set(tail - 1); }
+  }
+  this->values = sd_vector(builder);
+  sdsl::util::init_support(this->value_select, &(this->values));
+}
+
 //------------------------------------------------------------------------------
 
 /*

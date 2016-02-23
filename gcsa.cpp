@@ -100,6 +100,8 @@ GCSA::swap(GCSA& another)
     sdsl::util::swap_support(this->sample_select, another.sample_select, &(this->samples), &(another.samples));
 
     this->counter.swap(another.counter);
+    this->total_pointers.swap(another.total_pointers);
+    this->redundant_pointers.swap(another.redundant_pointers);
   }
 }
 
@@ -136,6 +138,8 @@ GCSA::operator=(GCSA&& source)
     this->sample_select = std::move(source.sample_select);
 
     this->counter = std::move(source.counter);
+    this->total_pointers = std::move(source.total_pointers);
+    this->redundant_pointers = std::move(source.redundant_pointers);
 
     this->setVectors();
   }
@@ -169,6 +173,8 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string nam
   written_bytes += this->sample_select.serialize(out, child, "sample_select");
 
   written_bytes += this->counter.serialize(out, child, "counter");
+  written_bytes += this->total_pointers.serialize(out, child, "total_pointers");
+  written_bytes += this->redundant_pointers.serialize(out, child, "redundant_pointers");
 
   sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
@@ -202,6 +208,8 @@ GCSA::load(std::istream& in)
   this->sample_select.load(in, &(this->samples));
 
   this->counter.load(in);
+  this->total_pointers.load(in);
+  this->redundant_pointers.load(in);
 }
 
 //------------------------------------------------------------------------------
@@ -590,6 +598,11 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   size_type occ_count = occurrences.sum(), red_count = redundant.sum();
 #endif
   this->counter = OccurrenceCounter(occurrences, redundant);
+std::cout << "OccurrenceCounter: " << inMegabytes(sdsl::size_in_bytes(this->counter)) << " MB" << std::endl;
+  for(size_type i = 0; i < occurrences.size(); i++) { occurrences.decrement(i); }
+  this->total_pointers = SadaSparse(occurrences);
+  this->redundant_pointers = SadaSparse(redundant);
+std::cout << "SadaSparse: " << inMegabytes(sdsl::size_in_bytes(this->total_pointers) + sdsl::size_in_bytes(this->redundant_pointers)) << " MB" << std::endl;
   sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
 
   // Initialize bwt.

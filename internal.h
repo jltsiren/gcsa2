@@ -187,6 +187,19 @@ struct CounterArray
     this->total += val;
   }
 
+  inline void decrement(size_type i)
+  {
+    if(this->data[i] == LARGE_VALUE)
+    {
+      size_type temp = --(this->large_values[i]);
+      if(temp < LARGE_VALUE) { this->data[i] = temp; }
+    }
+    else
+    {
+      this->data[i]--;
+    }
+  }
+
   void clear();
   void swap(CounterArray& another);
 };
