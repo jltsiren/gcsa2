@@ -91,6 +91,9 @@ main(int argc, char** argv)
     std::exit(EXIT_FAILURE);
   }
 
+  std::cout << "Note: This program has not been updated since v0.5. It does not work correctly." << std::endl;
+  std::cout << std::endl;
+
   if(identify) { identifyGCSA(input_name); }
   if(convert)  { convertGCSA(input_name, output_name); }
   if(compress) { compressGCSA(input_name, output_name); }

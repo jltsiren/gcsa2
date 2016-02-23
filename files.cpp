@@ -253,16 +253,29 @@ markSourceSinkNodes(std::vector<KMer>& kmers)
 const std::string InputGraph::BINARY_EXTENSION = ".graph";
 const std::string InputGraph::TEXT_EXTENSION = ".gcsa2";
 
+InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format)
+{
+  this->filenames = files;
+  this->binary = binary_format;
+  this->build();
+}
+
 InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format)
 {
   this->binary = binary_format;
-  this->kmer_count = 0; this->kmer_length = UNKNOWN;
   for(size_type file = 0; file < file_count; file++)
   {
-    std::string filename = std::string(base_names[file]) + (binary ? BINARY_EXTENSION : TEXT_EXTENSION);
+    std::string filename = std::string(base_names[file]) + (this->binary ? BINARY_EXTENSION : TEXT_EXTENSION);
     this->filenames.push_back(filename);
   }
-  this->sizes = std::vector<size_type>(file_count, 0);
+  this->build();
+}
+
+void
+InputGraph::build()
+{
+  this->kmer_count = 0; this->kmer_length = UNKNOWN;
+  this->sizes = std::vector<size_type>(this->files(), 0);
 
   // Read the files and determine kmer_count, kmer_length.
   for(size_type file = 0; file < this->files(); file++)
