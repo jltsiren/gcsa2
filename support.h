@@ -149,6 +149,8 @@ public:
   sd_vector                values;
   sd_vector::select_1_type value_select;
 
+  inline size_type size() const { return this->filter_rank(this->filter.size()); }
+
   inline size_type count(size_type sp, size_type ep) const
   {
     sp = this->filter_rank(sp);     // Closed lower bound for ranks of non-zero values.

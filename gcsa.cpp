@@ -594,9 +594,11 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   size_type occ_count = occurrences.sum() + occurrences.size(), red_count = redundant.sum();
 #endif
   this->extra_pointers = SadaSparse(occurrences);
-std::cout << "SadaSparse / extra: " << inMegabytes(sdsl::size_in_bytes(this->extra_pointers)) << " MB" << std::endl;
+std::cout << "SadaSparse / extra: " << inMegabytes(sdsl::size_in_bytes(this->extra_pointers)) << " MB ("
+          << this->extra_pointers.size() << " values)" << std::endl;
   this->redundant_pointers = SadaSparse(redundant);
-std::cout << "SadaSparse / redundant: " << inMegabytes(sdsl::size_in_bytes(this->redundant_pointers)) << " MB" << std::endl;
+std::cout << "SadaSparse / redundant: " << inMegabytes(sdsl::size_in_bytes(this->redundant_pointers)) << " MB ("
+          << this->redundant_pointers.size() << " values)" << std::endl;
   sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
 
   // Initialize bwt.
