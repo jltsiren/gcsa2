@@ -163,13 +163,7 @@ public:
   inline size_type count(range_type range) const
   {
     if(Range::empty(range) || range.second >= this->size()) { return 0; }
-    return this->counter.count(range.first, range.second);
-  }
-
-  inline size_type countAlt(range_type range) const
-  {
-    if(Range::empty(range) || range.second >= this->size()) { return 0; }
-    size_type res = this->total_pointers.count(range.first, range.second) + Range::length(range);
+    size_type res = this->extra_pointers.count(range.first, range.second) + Range::length(range);
     if(range.second > range.first) { res -= this->redundant_pointers.count(range.first, range.second - 1); }
     return res;
   }
@@ -256,8 +250,8 @@ public:
   bit_vector                samples;
   bit_vector::select_1_type sample_select;
 
-  OccurrenceCounter         counter;
-  SadaSparse                total_pointers;
+  // Structures used for counting queries.
+  SadaSparse                extra_pointers;
   SadaSparse                redundant_pointers;
 
 //------------------------------------------------------------------------------

@@ -99,8 +99,7 @@ GCSA::swap(GCSA& another)
     this->samples.swap(another.samples);
     sdsl::util::swap_support(this->sample_select, another.sample_select, &(this->samples), &(another.samples));
 
-    this->counter.swap(another.counter);
-    this->total_pointers.swap(another.total_pointers);
+    this->extra_pointers.swap(another.extra_pointers);
     this->redundant_pointers.swap(another.redundant_pointers);
   }
 }
@@ -137,8 +136,7 @@ GCSA::operator=(GCSA&& source)
     this->samples = std::move(source.samples);
     this->sample_select = std::move(source.sample_select);
 
-    this->counter = std::move(source.counter);
-    this->total_pointers = std::move(source.total_pointers);
+    this->extra_pointers = std::move(source.extra_pointers);
     this->redundant_pointers = std::move(source.redundant_pointers);
 
     this->setVectors();
@@ -172,8 +170,7 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string nam
   written_bytes += this->samples.serialize(out, child, "samples");
   written_bytes += this->sample_select.serialize(out, child, "sample_select");
 
-  written_bytes += this->counter.serialize(out, child, "counter");
-  written_bytes += this->total_pointers.serialize(out, child, "total_pointers");
+  written_bytes += this->extra_pointers.serialize(out, child, "extra_pointers");
   written_bytes += this->redundant_pointers.serialize(out, child, "redundant_pointers");
 
   sdsl::structure_tree::add_size(child, written_bytes);
@@ -207,8 +204,7 @@ GCSA::load(std::istream& in)
   this->samples.load(in);
   this->sample_select.load(in, &(this->samples));
 
-  this->counter.load(in);
-  this->total_pointers.load(in);
+  this->extra_pointers.load(in);
   this->redundant_pointers.load(in);
 }
 
@@ -476,7 +472,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   std::vector<node_type> sample_buffer; // stored_samples
   this->samples = bit_vector(merged_graph.size() + merged_graph.extra(), 0);
 
-  // Structures used for building OccurrenceCounter.
+  // Structures used for building counting support.
   // Invariant: The previous occurrence of from node x was at path prev_occ[from_rank(x)] - 1.
   // The RMQs used for updating the redundant array are buffered and done in parallel.
   CounterArray occurrences(merged_graph.size()), redundant(merged_graph.size() - 1);
@@ -532,7 +528,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     // Get the from nodes and update the occurrences array.
     // Buffer the RMQ ranges needed for updating the redundant array.
     reader[0].fromNodes(curr_from);
-    occurrences.increment(i, curr_from.size());
+    occurrences.increment(i, curr_from.size() - 1);
     for(size_type j = 0; j < curr_from.size(); j++)
     {
       size_type temp = from_rank(curr_from[j]);
@@ -593,17 +589,12 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   this->alpha = Alphabet(counts, mapper.alpha.char2comp, mapper.alpha.comp2char);
   sdsl::util::clear(mapper);
 
-  // Initialize counter.
+  // Initialize extra_pointers and redundant_pointers.
 #ifdef VERBOSE_STATUS_INFO
-  size_type occ_count = occurrences.sum(), red_count = redundant.sum();
+  size_type occ_count = occurrences.sum() + occurrences.size(), red_count = redundant.sum();
 #endif
-  this->counter = OccurrenceCounter(occurrences, redundant);
-std::cout << "OccurrenceCounter: " << inMegabytes(sdsl::size_in_bytes(this->counter)) << " MB" << std::endl;
-  for(size_type i = 0; i < occurrences.size(); i++) { occurrences.decrement(i); }
-  this->total_pointers = SadaSparse(occurrences);
-std::cout << "SadaSparse / total: " << inMegabytes(sdsl::size_in_bytes(this->total_pointers)) << " MB" << std::endl;
+  this->extra_pointers = SadaSparse(occurrences);
   this->redundant_pointers = SadaSparse(redundant);
-std::cout << "SadaSparse / redundant: " << inMegabytes(sdsl::size_in_bytes(this->redundant_pointers)) << " MB" << std::endl;
   sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
 
   // Initialize bwt.

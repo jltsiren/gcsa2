@@ -95,30 +95,6 @@ main(int argc, char** argv)
   }
 
   {
-    std::vector<size_type> alt_counts(ranges.size());
-    double start = readTimer();
-    size_type total = 0;
-    for(size_type i = 0; i < ranges.size(); i++)
-    {
-      alt_counts[i] = index.countAlt(ranges[i]);
-      total += alt_counts[i];
-    }
-    double seconds = readTimer() - start;
-    printTime("countAlt()", ranges.size(), seconds);
-    printHeader("countAlt()");
-    std::cout << total << " occurrences" << std::endl;
-    std::cout << std::endl;
-    for(size_type i = 0; i < alt_counts.size(); i++)
-    {
-      if(counts[i] != alt_counts[i])
-      {
-        std::cout << "Warning: count() and countAlt() returned inconsistent results" << std::endl;
-        break;
-      }
-    }
-  }
-
-  {
     double start = readTimer();
     std::vector<node_type> results;
     size_type total = 0;
@@ -136,15 +112,14 @@ main(int argc, char** argv)
     std::cout << std::endl;
   }
 
-  bool ok = true;
   for(size_type i = 0; i < counts.size(); i++)
   {
-    if(counts[i] != 0) { ok = false; }
-  }
-  if(!ok)
-  {
-    std::cout << "Warning: count() and locate() returned inconsistent results" << std::endl;
-    std::cout << std::endl;
+    if(counts[i] != 0)
+    {
+      std::cout << "Warning: count() and locate() returned inconsistent results" << std::endl;
+      std::cout << std::endl;
+      break;
+    }
   }
 
   return 0;
