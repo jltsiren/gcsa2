@@ -25,8 +25,6 @@
 #ifndef _GCSA_PATH_GRAPH_H
 #define _GCSA_PATH_GRAPH_H
 
-#include <sdsl/rmq_support.hpp>
-
 #include "dbg.h"
 #include "files.h"
 
@@ -358,8 +356,6 @@ struct PathGraph
 
 struct MergedGraph
 {
-  typedef sdsl::rmq_succinct_sct<> rmq_type;
-
   std::string path_name, rank_name, from_name;
 
   size_type path_count, rank_count, from_count;
@@ -368,7 +364,7 @@ struct MergedGraph
   std::vector<size_type> next;      // paths[next[comp]] is the first path starting with comp.
   std::vector<size_type> next_from; // Where to find the corresponding additional from nodes.
 
-  rmq_type               lcp_rmq;   // RMQ over the LCP array; used for building OccurrenceCounter.
+  sdsl::int_vector<8>    lcp_array;
 
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa

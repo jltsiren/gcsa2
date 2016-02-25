@@ -392,18 +392,6 @@ MergedGraphReader::fromNodes(std::vector<node_type>& results)
 
 //------------------------------------------------------------------------------
 
-void
-updateRedundant(CounterArray& redundant, const MergedGraph& merged_graph, std::vector<range_type>& ranges)
-{
-  #pragma omp parallel for schedule(static)
-  for(size_type i = 0; i < ranges.size(); i++)
-  {
-    ranges[i].first = merged_graph.lcp_rmq(ranges[i].first, ranges[i].second);
-  }
-  for(size_type i = 0; i < ranges.size(); i++) { redundant.increment(ranges[i].first - 1); }
-  ranges.clear();
-}
-
 GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, const Alphabet& _alpha)
 {
   if(graph.size() == 0) { return; }
@@ -474,10 +462,9 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
 
   // Structures used for building counting support.
   // Invariant: The previous occurrence of from node x was at path prev_occ[from_rank(x)] - 1.
-  // The RMQs used for updating the redundant array are buffered and done in parallel.
   CounterArray occurrences(merged_graph.size()), redundant(merged_graph.size() - 1);
   sdsl::int_vector<0> prev_occ(unique_from_nodes, 0, bit_length(merged_graph.size()));
-  std::vector<range_type> rmq_ranges; rmq_ranges.reserve(RMQ_BUFFER);
+  std::vector<size_type> node_lcp, first_time, last_time;
 
   // Read pointers to the MergedGraph files.
   std::vector<MergedGraphReader> reader(mapper.alpha.sigma + 1);
@@ -525,17 +512,32 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     if(total_edges > this->path_nodes.size()) { this->path_nodes.resize(bwt_buffer.size()); }
     this->path_nodes[total_edges - 1] = 1;
 
-    // Get the from nodes and update the occurrences array.
-    // Buffer the RMQ ranges needed for updating the redundant array.
+    /*
+      Get the from nodes and update the occurrences/redundant arrays.
+
+      We traverse the ST in inorder using the LCP array. For each internal node, we
+      record the LCP value and the first and the last times (positions) we have
+      encountered that value within the subtree. If we have encountered the current
+      from node before, the LCA of the previous and current occurrences is the
+      highest ST node we have encountered after the previous occurrence. We then
+      increment the redundant array at the first encounter with that node.
+    */
     reader[0].fromNodes(curr_from);
     occurrences.increment(i, curr_from.size() - 1);
+    size_type curr_lcp = merged_graph.lcp_array[i] + (i > 0 ? 1 : 0); // Handle LCP[0] as -1.
+    while(!(node_lcp.empty()) && node_lcp.back() > curr_lcp)
+    {
+      node_lcp.pop_back(); first_time.pop_back(); last_time.pop_back();
+    }
+    if(!(node_lcp.empty()) && node_lcp.back() == curr_lcp) { last_time.back() = i; }
+    else { node_lcp.push_back(curr_lcp); first_time.push_back(i); last_time.push_back(i); }
     for(size_type j = 0; j < curr_from.size(); j++)
     {
       size_type temp = from_rank(curr_from[j]);
       if(prev_occ[temp] > 0)
       {
-        rmq_ranges.push_back(range_type(prev_occ[temp], i));
-        if(rmq_ranges.size() >= RMQ_BUFFER) { updateRedundant(redundant, merged_graph, rmq_ranges); }
+        size_type pos = std::lower_bound(last_time.begin(), last_time.end(), prev_occ[temp]) - last_time.begin();
+        redundant.increment(first_time[pos] - 1);
       }
       prev_occ[temp] = i + 1;
     }
@@ -581,8 +583,6 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   }
   for(size_type i = 0; i < reader.size(); i++) { reader[i].close(); }
   sdsl::util::clear(last_char); sdsl::util::clear(from_nodes); sdsl::util::clear(prev_occ);
-  if(rmq_ranges.size() > 0) { updateRedundant(redundant, merged_graph, rmq_ranges); }
-  sdsl::util::clear(rmq_ranges);
   this->header.edges = total_edges;
 
   // Initialize alpha.
@@ -594,7 +594,9 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   size_type occ_count = occurrences.sum() + occurrences.size(), red_count = redundant.sum();
 #endif
   this->extra_pointers = SadaSparse(occurrences);
+std::cout << "SadaSparse / extra: " << inMegabytes(sdsl::size_in_bytes(this->extra_pointers)) << " MB" << std::endl;
   this->redundant_pointers = SadaSparse(redundant);
+std::cout << "SadaSparse / redundant: " << inMegabytes(sdsl::size_in_bytes(this->redundant_pointers)) << " MB" << std::endl;
   sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
 
   // Initialize bwt.

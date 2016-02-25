@@ -1066,7 +1066,8 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
   path_name(TempFile::getName(PREFIX)), rank_name(TempFile::getName(PREFIX)), from_name(TempFile::getName(PREFIX)),
   path_count(0), rank_count(0), from_count(0),
   order(source.k()),
-  next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0)
+  next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0),
+  lcp_array(source.ranges())
 {
   std::ofstream path_file(this->path_name.c_str(), std::ios_base::binary);
   if(!path_file)
@@ -1100,13 +1101,12 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
   this->next_from[mapper.alpha.sigma] = ~(size_type)0;
 
   PathGraphMerger merger(source, kmer_lcp, false);
-  sdsl::int_vector<8> lcp_buffer(source.ranges());
   std::vector<range_type> curr_from;
   size_type curr_comp = 0;  // Used to transform next.
   for(range_type range = merger.first(); !(merger.atEnd(range)); range = merger.next())
   {
     range_type path_lcp = merger.ranges.front().left_lcp;
-    lcp_buffer[this->path_count] = path_lcp.first * mapper.order() + path_lcp.second;
+    this->lcp_array[this->path_count] = path_lcp.first * mapper.order() + path_lcp.second;
     merger.mergePathNodes(range, curr_from, this->path_count);
     merger.buffer[range.second].serialize(path_file, rank_file, this->rank_count);
     if(curr_from.size() > 0)
@@ -1125,9 +1125,6 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
   }
   merger.close();
   path_file.close(); rank_file.close(); from_file.close();
-
-  this->lcp_rmq = rmq_type(&lcp_buffer);
-  sdsl::util::clear(lcp_buffer);
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "MergedGraph::MergedGraph(): " << this->size() << " paths with "
