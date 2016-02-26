@@ -120,6 +120,9 @@ characterCounts(const ByteVector& sequence, const sdsl::int_vector<8>& char2comp
   Sadakane's document counting structure compressed using a sparse filter. Stores
   an integer array by marking non-zero values in one bitvector and encoding them
   in unary in another.
+
+  We use an optional 1-filter to mark the positions with 1s. These positions are
+  then skipped in the sparse filter.
 */
 class SadaSparse
 {
@@ -132,7 +135,7 @@ public:
   SadaSparse(SadaSparse&& source);
   ~SadaSparse();
 
-  template<class Container> SadaSparse(const Container& source);
+  template<class Container> SadaSparse(const Container& source, bool use_one_filter);
 
   void swap(SadaSparse& another);
   SadaSparse& operator=(const SadaSparse& source);
@@ -140,6 +143,10 @@ public:
 
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
+
+  // Positions with 1s are marked with an 1-bit.
+  sd_vector                ones;
+  sd_vector::rank_1_type   one_rank;
 
   // Positions with non-zero values are marked with an 1-bit.
   sd_vector                filter;
@@ -149,14 +156,33 @@ public:
   sd_vector                values;
   sd_vector::select_1_type value_select;
 
-  inline size_type size() const { return this->filter_rank(this->filter.size()); }
+  inline size_type size() const { return (this->oneFilter() ? this->ones.size() : this->filter.size()); }
+  inline bool oneFilter() const { return (this->ones.size() > 0); }
+
+  inline size_type items() const
+  {
+    return this->filter_rank(this->filter.size()) +
+          (this->oneFilter() ? this->one_rank(this->ones.size()) : 0);
+  }
 
   inline size_type count(size_type sp, size_type ep) const
   {
-    sp = this->filter_rank(sp);     // Closed lower bound for ranks of non-zero values.
-    ep = this->filter_rank(ep + 1); // Open upper bound for ranks of non-zero values.
-    if(ep <= sp) { return 0; }
-    return (this->value_select(ep) + 1) - (sp > 0 ? this->value_select(sp) + 1 : 0);
+    size_type res = 0;
+
+    if(this->oneFilter())
+    {
+      size_type sp_rank = this->one_rank(sp); sp -= sp_rank;
+      size_type ep_rank = this->one_rank(ep + 1); ep -= ep_rank;
+      res = ep_rank - sp_rank;
+      if(Range::empty(sp, ep)) { return res; }
+    }
+
+    sp = this->filter_rank(sp);     // Closed lower bound for ranks of filtered values.
+    ep = this->filter_rank(ep + 1); // Open upper bound for ranks of filtered values.
+    if(ep <= sp) { return res; }
+    res += (this->value_select(ep) + 1) - (sp > 0 ? this->value_select(sp) + 1 : 0);
+
+    return res;
   }
 
 private:
@@ -165,23 +191,45 @@ private:
 };
 
 template<class Container>
-SadaSparse::SadaSparse(const Container& source)
+SadaSparse::SadaSparse(const Container& source, bool use_one_filter)
 {
-  size_type total = 0, nonzero = 0;
-  sdsl::bit_vector buffer(source.size(), 0);
-  for(size_type i = 0; i < source.size(); i++)
-  {
-    if(source[i] > 0) { buffer[i] = 1; total += source[i]; nonzero++; }
-  }
-  this->filter = sd_vector(buffer); sdsl::util::clear(buffer);
-  sdsl::util::init_support(this->filter_rank, &(this->filter));
+  size_type total = 0, filtered_values = 0, one_values = 0;
+  size_type lb = (use_one_filter ? 1 : 0);
 
-  sdsl::sd_vector_builder builder(total, nonzero);
-  for(size_type i = 0, tail = 0; i < source.size(); i++)
+  // 1-filter.
+  if(use_one_filter)
   {
-    if(source[i] > 0) { tail += source[i]; builder.set(tail - 1); }
+    sdsl::bit_vector buffer(source.size(), 0);
+    for(size_type i = 0; i < source.size(); i++)
+    {
+      if(source[i] == 1) { buffer[i] = 1; one_values++; }
+    }
+    this->ones = sd_vector(buffer);
   }
-  this->values = sd_vector(builder);
+
+  // Sparse filter.
+  {
+    sdsl::bit_vector buffer(source.size() - one_values, 0);
+    for(size_type i = 0, j = 0; i < source.size(); i++)
+    {
+      if(source[i] > lb) { buffer[j] = 1; total += source[i]; filtered_values++; j++; }
+      else if(source[i] == 0) { j++; }
+    }
+    this->filter = sd_vector(buffer);
+  }
+
+  // Filtered values.
+  {
+    sdsl::sd_vector_builder builder(total, filtered_values);
+    for(size_type i = 0, tail = 0; i < source.size(); i++)
+    {
+      if(source[i] > lb) { tail += source[i]; builder.set(tail - 1); }
+    }
+    this->values = sd_vector(builder);
+  }
+
+  sdsl::util::init_support(this->one_rank, &(this->ones));
+  sdsl::util::init_support(this->filter_rank, &(this->filter));
   sdsl::util::init_support(this->value_select, &(this->values));
 }
 

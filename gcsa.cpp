@@ -593,12 +593,12 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
 #ifdef VERBOSE_STATUS_INFO
   size_type occ_count = occurrences.sum() + occurrences.size(), red_count = redundant.sum();
 #endif
-  this->extra_pointers = SadaSparse(occurrences);
+  this->extra_pointers = SadaSparse(occurrences, false);
 std::cout << "SadaSparse / extra: " << inMegabytes(sdsl::size_in_bytes(this->extra_pointers)) << " MB ("
-          << this->extra_pointers.size() << " values)" << std::endl;
-  this->redundant_pointers = SadaSparse(redundant);
+          << this->extra_pointers.items() << " values)" << std::endl;
+  this->redundant_pointers = SadaSparse(redundant, true);
 std::cout << "SadaSparse / redundant: " << inMegabytes(sdsl::size_in_bytes(this->redundant_pointers)) << " MB ("
-          << this->redundant_pointers.size() << " values)" << std::endl;
+          << this->redundant_pointers.items() << " values)" << std::endl;
   sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
 
   // Initialize bwt.
