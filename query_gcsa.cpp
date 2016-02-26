@@ -95,6 +95,30 @@ main(int argc, char** argv)
   }
 
   {
+    std::vector<size_type> rle_counts(ranges.size());
+    double start = readTimer();
+    size_type total = 0;
+    for(size_type i = 0; i < ranges.size(); i++)
+    {
+      rle_counts[i] = index.countRLE(ranges[i]);
+      total += rle_counts[i];
+    }
+    double seconds = readTimer() - start;
+    printTime("countRLE()", ranges.size(), seconds);
+    printHeader("countRLE()");
+    std::cout << total << " occurrences" << std::endl;
+    for(size_type i = 0; i < counts.size(); i++)
+    {
+      if(counts[i] != rle_counts[i])
+      {
+        std::cout << "Warning: The two counting methods produced inconsistent results" << std::endl;
+        break;
+      }
+    }
+    std::cout << std::endl;
+  }
+
+  {
     double start = readTimer();
     std::vector<node_type> results;
     size_type total = 0;

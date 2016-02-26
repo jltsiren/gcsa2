@@ -101,6 +101,7 @@ GCSA::swap(GCSA& another)
 
     this->extra_pointers.swap(another.extra_pointers);
     this->redundant_pointers.swap(another.redundant_pointers);
+this->rle_redundant.swap(another.rle_redundant);
   }
 }
 
@@ -138,6 +139,7 @@ GCSA::operator=(GCSA&& source)
 
     this->extra_pointers = std::move(source.extra_pointers);
     this->redundant_pointers = std::move(source.redundant_pointers);
+this->rle_redundant = std::move(source.rle_redundant);
 
     this->setVectors();
   }
@@ -172,6 +174,7 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string nam
 
   written_bytes += this->extra_pointers.serialize(out, child, "extra_pointers");
   written_bytes += this->redundant_pointers.serialize(out, child, "redundant_pointers");
+written_bytes += this->rle_redundant.serialize(out, child, "rle_redundant");
 
   sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
@@ -206,6 +209,51 @@ GCSA::load(std::istream& in)
 
   this->extra_pointers.load(in);
   this->redundant_pointers.load(in);
+this->rle_redundant.load(in);
+}
+
+void
+GCSA::copy(const GCSA& source)
+{
+  this->header = source.header;
+
+  this->bwt = source.bwt;
+  this->alpha = source.alpha;
+
+  this->path_nodes = source.path_nodes;
+  this->path_rank = source.path_rank;
+  this->path_select = source.path_select;
+
+  this->edges = source.edges;
+  this->edge_rank = source.edge_rank;
+  this->edge_select = source.edge_select;
+
+  this->sampled_paths = source.sampled_paths;
+  this->sampled_path_rank = source.sampled_path_rank;
+
+  this->stored_samples = source.stored_samples;
+  this->samples = source.samples;
+  this->sample_select = source.sample_select;
+
+  this->extra_pointers = source.extra_pointers;
+  this->redundant_pointers = source.redundant_pointers;
+this->rle_redundant = source.rle_redundant;
+
+  this->setVectors();
+}
+
+void
+GCSA::setVectors()
+{
+  this->path_rank.set_vector(&(this->path_nodes));
+  this->path_select.set_vector(&(this->path_nodes));
+
+  this->edge_rank.set_vector(&(this->edges));
+  this->edge_select.set_vector(&(this->edges));
+
+  this->sampled_path_rank.set_vector(&(this->sampled_paths));
+
+  this->sample_select.set_vector(&(this->samples));
 }
 
 //------------------------------------------------------------------------------
@@ -599,6 +647,9 @@ std::cout << "SadaSparse / extra: " << inMegabytes(sdsl::size_in_bytes(this->ext
   this->redundant_pointers = SadaSparse(redundant, true);
 std::cout << "SadaSparse / redundant: " << inMegabytes(sdsl::size_in_bytes(this->redundant_pointers)) << " MB ("
           << this->redundant_pointers.items() << " values)" << std::endl;
+this->rle_redundant = SadaRLE(redundant);
+std::cout << "SadaRLE / redundant: " << inMegabytes(sdsl::size_in_bytes(this->rle_redundant)) << " MB ("
+          << this->redundant_pointers.items() << " values)" << std::endl;
   sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
 
   // Initialize bwt.
@@ -905,46 +956,6 @@ GCSA::countKMers(size_type k, bool force) const
 }
 
 //------------------------------------------------------------------------------
-
-void
-GCSA::copy(const GCSA& g)
-{
-  this->header = g.header;
-
-  this->bwt = g.bwt;
-  this->alpha = g.alpha;
-
-  this->path_nodes = g.path_nodes;
-  this->path_rank = g.path_rank;
-  this->path_select = g.path_select;
-
-  this->edges = g.edges;
-  this->edge_rank = g.edge_rank;
-  this->edge_select = g.edge_select;
-
-  this->sampled_paths = g.sampled_paths;
-  this->sampled_path_rank = g.sampled_path_rank;
-
-  this->stored_samples = g.stored_samples;
-  this->samples = g.samples;
-  this->sample_select = g.sample_select;
-
-  this->setVectors();
-}
-
-void
-GCSA::setVectors()
-{
-  this->path_rank.set_vector(&(this->path_nodes));
-  this->path_select.set_vector(&(this->path_nodes));
-
-  this->edge_rank.set_vector(&(this->edges));
-  this->edge_select.set_vector(&(this->edges));
-
-  this->sampled_path_rank.set_vector(&(this->sampled_paths));
-
-  this->sample_select.set_vector(&(this->samples));
-}
 
 void
 GCSA::initSupport()
