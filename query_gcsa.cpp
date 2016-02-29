@@ -95,21 +95,21 @@ main(int argc, char** argv)
   }
 
   {
-    std::vector<size_type> rle_counts(ranges.size());
+    std::vector<size_type> plain_counts(ranges.size());
     double start = readTimer();
     size_type total = 0;
     for(size_type i = 0; i < ranges.size(); i++)
     {
-      rle_counts[i] = index.countRLE(ranges[i]);
-      total += rle_counts[i];
+      plain_counts[i] = index.countPlain(ranges[i]);
+      total += plain_counts[i];
     }
     double seconds = readTimer() - start;
-    printTime("countRLE()", ranges.size(), seconds);
-    printHeader("countRLE()");
+    printTime("countPlain()", ranges.size(), seconds);
+    printHeader("countPlain()");
     std::cout << total << " occurrences" << std::endl;
     for(size_type i = 0; i < counts.size(); i++)
     {
-      if(counts[i] != rle_counts[i])
+      if(counts[i] != plain_counts[i])
       {
         std::cout << "Warning: The two counting methods produced inconsistent results" << std::endl;
         break;

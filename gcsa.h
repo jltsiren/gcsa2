@@ -168,11 +168,11 @@ public:
     return res;
   }
 
-inline size_type countRLE(range_type range) const
+inline size_type countPlain(range_type range) const
 {
   if(Range::empty(range) || range.second >= this->size()) { return 0; }
   size_type res = this->extra_pointers.count(range.first, range.second) + Range::length(range);
-  if(range.second > range.first) { res -= this->rle_redundant.count(range.first, range.second - 1); }
+  if(range.second > range.first) { res -= this->plain_redundant.count(range.first, range.second - 1); }
   return res;
 }
 
@@ -261,7 +261,7 @@ inline size_type countRLE(range_type range) const
   // Structures used for counting queries.
   SadaSparse                extra_pointers;
   SadaSparse                redundant_pointers;
-SadaRLE                   rle_redundant;
+SadaCount                   plain_redundant;
 
 //------------------------------------------------------------------------------
 

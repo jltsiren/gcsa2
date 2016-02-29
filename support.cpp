@@ -156,6 +156,89 @@ Alphabet::load(std::istream& in)
 
 //------------------------------------------------------------------------------
 
+SadaCount::SadaCount()
+{
+}
+
+SadaCount::SadaCount(const SadaCount& source)
+{
+  this->copy(source);
+}
+
+SadaCount::SadaCount(SadaCount&& source)
+{
+  *this = std::move(source);
+}
+
+SadaCount::~SadaCount()
+{
+}
+
+void
+SadaCount::swap(SadaCount& another)
+{
+  if(this != &another)
+  {
+    this->data.swap(another.data);
+    sdsl::util::swap_support(this->select, another.select, &(this->data), &(another.data));
+  }
+}
+
+SadaCount&
+SadaCount::operator=(const SadaCount& source)
+{
+  if(this != &source) { this->copy(source); }
+  return *this;
+}
+
+SadaCount&
+SadaCount::operator=(SadaCount&& source)
+{
+  if(this != &source)
+  {
+    this->data = std::move(source.data);
+    this->select = std::move(source.select);
+    this->setVectors();
+  }
+  return *this;
+}
+
+SadaCount::size_type
+SadaCount::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+{
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+  size_type written_bytes = 0;
+
+  written_bytes += this->data.serialize(out, child, "data");
+  written_bytes += this->select.serialize(out, child, "select");
+
+  sdsl::structure_tree::add_size(child, written_bytes);
+  return written_bytes;
+}
+
+void
+SadaCount::load(std::istream& in)
+{
+  this->data.load(in);
+  this->select.load(in, &(this->data));
+}
+
+void
+SadaCount::copy(const SadaCount& source)
+{
+  this->data = source.data;
+  this->select = source.select;
+  this->setVectors();
+}
+
+void
+SadaCount::setVectors()
+{
+  this->select.set_vector(&(this->data));
+}
+
+//------------------------------------------------------------------------------
+
 SadaSparse::SadaSparse()
 {
 }
@@ -272,133 +355,6 @@ SadaSparse::setVectors()
   this->one_rank.set_vector(&(this->ones));
   this->filter_rank.set_vector(&(this->filter));
   this->value_select.set_vector(&(this->values));
-}
-
-//------------------------------------------------------------------------------
-
-SadaRLE::SadaRLE()
-{
-}
-
-SadaRLE::SadaRLE(const SadaRLE& source)
-{
-  this->copy(source);
-}
-
-SadaRLE::SadaRLE(SadaRLE&& source)
-{
-  *this = std::move(source);
-}
-
-SadaRLE::~SadaRLE()
-{
-}
-
-void
-SadaRLE::swap(SadaRLE& another)
-{
-  if(this != &another)
-  {
-    this->ones.swap(another.ones);
-    sdsl::util::swap_support(this->one_rank, another.one_rank,
-      &(this->ones), &(another.ones));
-
-    this->heads.swap(another.heads);
-    sdsl::util::swap_support(this->head_select, another.head_select,
-      &(this->heads), &(another.heads));
-
-    this->lengths.swap(another.lengths);
-    sdsl::util::swap_support(this->length_rank, another.length_rank,
-      &(this->lengths), &(another.lengths));
-    sdsl::util::swap_support(this->length_select, another.length_select,
-      &(this->lengths), &(another.lengths));
-  }
-}
-
-SadaRLE&
-SadaRLE::operator=(const SadaRLE& source)
-{
-  if(this != &source) { this->copy(source); }
-  return *this;
-}
-
-SadaRLE&
-SadaRLE::operator=(SadaRLE&& source)
-{
-  if(this != &source)
-  {
-    this->ones = std::move(source.ones);
-    this->one_rank = std::move(source.one_rank);
-
-    this->heads = std::move(source.heads);
-    this->head_select = std::move(source.head_select);
-
-    this->lengths = std::move(source.lengths);
-    this->length_rank = std::move(source.length_rank);
-    this->length_select = std::move(source.length_select);
-
-    this->setVectors();
-  }
-  return *this;
-}
-
-SadaRLE::size_type
-SadaRLE::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
-{
-  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
-  size_type written_bytes = 0;
-
-  written_bytes += this->ones.serialize(out, child, "ones");
-  written_bytes += this->one_rank.serialize(out, child, "one_rank");
-
-  written_bytes += this->heads.serialize(out, child, "heads");
-  written_bytes += this->head_select.serialize(out, child, "head_select");
-
-  written_bytes += this->lengths.serialize(out, child, "lengths");
-  written_bytes += this->length_rank.serialize(out, child, "length_rank");
-  written_bytes += this->length_select.serialize(out, child, "length_select");
-
-  sdsl::structure_tree::add_size(child, written_bytes);
-  return written_bytes;
-}
-
-void
-SadaRLE::load(std::istream& in)
-{
-  this->ones.load(in);
-  this->one_rank.load(in, &(this->ones));
-
-  this->heads.load(in);
-  this->head_select.load(in, &(this->heads));
-
-  this->lengths.load(in);
-  this->length_rank.load(in, &(this->lengths));
-  this->length_select.load(in, &(this->lengths));
-}
-
-void
-SadaRLE::copy(const SadaRLE& source)
-{
-  this->ones = source.ones;
-  this->one_rank = source.one_rank;
-
-  this->heads = source.heads;
-  this->head_select = source.head_select;
-
-  this->lengths = source.lengths;
-  this->length_rank = source.length_rank;
-  this->length_select = source.length_select;
-
-  this->setVectors();
-}
-
-void
-SadaRLE::setVectors()
-{
-  this->one_rank.set_vector(&(this->ones));
-  this->head_select.set_vector(&(this->heads));
-  this->length_rank.set_vector(&(this->lengths));
-  this->length_select.set_vector(&(this->lengths));
 }
 
 //------------------------------------------------------------------------------

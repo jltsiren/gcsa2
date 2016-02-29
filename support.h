@@ -117,13 +117,71 @@ characterCounts(const ByteVector& sequence, const sdsl::int_vector<8>& char2comp
 //------------------------------------------------------------------------------
 
 /*
-  Sadakane's document counting structure compressed using a sparse filter. Stores
-  an integer array by marking non-zero values in one bitvector and encoding them
-  in unary in another.
-
-  We use an optional 1-filter to mark the positions with 1s. These positions are
-  then skipped in the sparse filter.
+  The core part of Sadakane's document counting structure. Essentially just unary encoding
+  of array A of non-negative integers. Query count(sp, ep) returns A[sp] + ... + A[ep].
 */
+
+class SadaCount
+{
+public:
+  typedef gcsa::size_type  size_type;
+  typedef sdsl::bit_vector bit_vector;
+
+  SadaCount();
+  SadaCount(const SadaCount& source);
+  SadaCount(SadaCount&& source);
+  ~SadaCount();
+
+  template<class Container> explicit SadaCount(const Container& source);
+
+  void swap(SadaCount& another);
+  SadaCount& operator=(const SadaCount& source);
+  SadaCount& operator=(SadaCount&& source);
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+
+  // Value k is encoded as 0^k 1.
+  bit_vector                data;
+  bit_vector::select_1_type select;
+
+  inline size_type count(size_type sp, size_type ep) const
+  {
+    return (this->select(ep + 1) - ep) - (sp > 0 ? this->select(sp) + 1 - sp : 0);
+  }
+
+private:
+  void copy(const SadaCount& source);
+  void setVectors();
+};
+
+template<class Container>
+SadaCount::SadaCount(const Container& source)
+{
+  size_type total = 0;
+  for(size_type i = 0; i < source.size(); i++) { total += source[i]; }
+
+  this->data = bit_vector(source.size() + total, 0);
+  for(size_type i = 0, tail = 0; i < source.size(); i++)
+  {
+    tail += source[i] + 1;
+    this->data[tail - 1] = 1;
+  }
+
+  sdsl::util::init_support(this->select, &(this->data));
+}
+
+//------------------------------------------------------------------------------
+
+/*
+  This version of Sadakane's document counting structure uses a sparse filter and an
+  optional 1-filter. In the terminology of
+
+    Gagie et al: Document Counting in Compressed Space. DCC 2015.
+
+  this means either Sada-S or Sada-S-S.
+*/
+
 class SadaSparse
 {
 public:
@@ -156,9 +214,9 @@ public:
   sd_vector                values;
   sd_vector::select_1_type value_select;
 
-  inline size_type size() const { return (this->oneFilter() ? this->ones.size() : this->filter.size()); }
   inline bool oneFilter() const { return (this->ones.size() > 0); }
 
+  // The number of nonzero values.
   inline size_type items() const
   {
     return this->filter_rank(this->filter.size()) +
@@ -231,122 +289,6 @@ SadaSparse::SadaSparse(const Container& source, bool use_one_filter)
   sdsl::util::init_support(this->one_rank, &(this->ones));
   sdsl::util::init_support(this->filter_rank, &(this->filter));
   sdsl::util::init_support(this->value_select, &(this->values));
-}
-
-//------------------------------------------------------------------------------
-
-/*
-  Run-length encoded Sadakane's document counting structure. We use one sparse
-  bitvector for marking run heads and another for encoding run lengths. The
-  run-length encoded bitvector itself encodes value k as 0^k 1.
-
-  We use an 1-filter for marking the positions with 1s. These positions are
-  then skipped in the counting structure.
-*/
-class SadaRLE
-{
-public:
-  typedef gcsa::size_type   size_type;
-  typedef sdsl::sd_vector<> sd_vector;
-
-  SadaRLE();
-  SadaRLE(const SadaRLE& source);
-  SadaRLE(SadaRLE&& source);
-  ~SadaRLE();
-
-  template<class Container> explicit SadaRLE(const Container& source);
-
-  void swap(SadaRLE& another);
-  SadaRLE& operator=(const SadaRLE& source);
-  SadaRLE& operator=(SadaRLE&& source);
-
-  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
-  void load(std::istream& in);
-
-  // Positions with 1s are marked with an 1-bit.
-  sd_vector                ones;
-  sd_vector::rank_1_type   one_rank;
-
-  // Run heads are marked with 1-bits.
-  sd_vector                heads;
-  sd_vector::select_1_type head_select;
-
-  // The last 1-bit in each run is marked with an 1-bit.
-  sd_vector                lengths;
-  sd_vector::rank_1_type   length_rank;
-  sd_vector::select_1_type length_select;
-
-  inline size_type size() const { return this->ones.size(); }
-  inline size_type items() const { return this->one_rank(this->ones.size()) + this->lengths.size(); }
-
-  // Returns the sum of the first n values.
-  inline size_type sum(size_type n) const
-  {
-    if(n == 0) { return 0; }
-    size_type run = this->length_rank(n - 1);
-    size_type offset = n - (run > 0 ? this->length_select(run) + 1 : 0);
-    return this->head_select(run + 1) + offset + 1 - n;
-  }
-
-  inline size_type count(size_type sp, size_type ep) const
-  {
-    // Use the 1-filter.
-    size_type sp_rank = this->one_rank(sp); sp -= sp_rank;
-    size_type ep_rank = this->one_rank(ep + 1); ep -= ep_rank;
-    size_type res = ep_rank - sp_rank;
-    if(Range::empty(sp, ep)) { return res; }
-
-    return res + this->sum(ep + 1) - this->sum(sp);
-  }
-
-private:
-  void copy(const SadaRLE& source);
-  void setVectors();
-};
-
-template<class Container>
-SadaRLE::SadaRLE(const Container& source)
-{
-  size_type total = 0, one_values = 0;
-
-  // 1-filter.
-  sdsl::bit_vector one_buffer(source.size(), 0);
-  for(size_type i = 0; i < source.size(); i++)
-  {
-    if(source[i] == 1) { one_buffer[i] = 1; one_values++; }
-    else { total += source[i]; }
-  }
-  this->ones = sd_vector(one_buffer); sdsl::util::clear(one_buffer);
-
-  // Sadakane's bitvector.
-  sdsl::bit_vector head_buffer(source.size() + total - one_values, 0);
-  for(size_type i = 0, tail = 0; i < source.size(); i++)
-  {
-    if(source[i] != 1)
-    {
-      tail += source[i] + 1;
-      head_buffer[tail - 1] = 1;
-    }
-  }
-
-  // Run-length encoding.
-  sdsl::bit_vector length_buffer(source.size() - one_values, 0);
-  for(size_type i = 0, rank = 0; i < head_buffer.size(); i++)
-  {
-    if(head_buffer[i] == 1)
-    {
-      rank++;
-      while(i + 1 < head_buffer.size() && head_buffer[i + 1] == 1) { head_buffer[i + 1] = 0; i++; rank++; }
-      length_buffer[rank - 1] = 1;
-    }
-  }
-  this->heads = sd_vector(head_buffer); sdsl::util::clear(head_buffer);
-  this->lengths = sd_vector(length_buffer); sdsl::util::clear(length_buffer);
-
-  sdsl::util::init_support(this->one_rank, &(this->ones));
-  sdsl::util::init_support(this->head_select, &(this->heads));
-  sdsl::util::init_support(this->length_rank, &(this->lengths));
-  sdsl::util::init_support(this->length_select, &(this->lengths));
 }
 
 //------------------------------------------------------------------------------
