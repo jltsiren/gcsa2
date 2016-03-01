@@ -95,30 +95,6 @@ main(int argc, char** argv)
   }
 
   {
-    std::vector<size_type> plain_counts(ranges.size());
-    double start = readTimer();
-    size_type total = 0;
-    for(size_type i = 0; i < ranges.size(); i++)
-    {
-      plain_counts[i] = index.countPlain(ranges[i]);
-      total += plain_counts[i];
-    }
-    double seconds = readTimer() - start;
-    printTime("countPlain()", ranges.size(), seconds);
-    printHeader("countPlain()");
-    std::cout << total << " occurrences" << std::endl;
-    for(size_type i = 0; i < counts.size(); i++)
-    {
-      if(counts[i] != plain_counts[i])
-      {
-        std::cout << "Warning: The two counting methods produced inconsistent results" << std::endl;
-        break;
-      }
-    }
-    std::cout << std::endl;
-  }
-
-  {
     double start = readTimer();
     std::vector<node_type> results;
     size_type total = 0;

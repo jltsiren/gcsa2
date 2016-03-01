@@ -168,14 +168,6 @@ public:
     return res;
   }
 
-inline size_type countPlain(range_type range) const
-{
-  if(Range::empty(range) || range.second >= this->size()) { return 0; }
-  size_type res = this->extra_pointers.count(range.first, range.second) + Range::length(range);
-  if(range.second > range.first) { res -= this->plain_redundant.count(range.first, range.second - 1); }
-  return res;
-}
-
   void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;
   void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;
 
@@ -260,8 +252,7 @@ inline size_type countPlain(range_type range) const
 
   // Structures used for counting queries.
   SadaSparse                extra_pointers;
-  SadaSparse                redundant_pointers;
-SadaCount                   plain_redundant;
+  SadaCount                 redundant_pointers;
 
 //------------------------------------------------------------------------------
 

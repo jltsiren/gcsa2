@@ -101,7 +101,6 @@ GCSA::swap(GCSA& another)
 
     this->extra_pointers.swap(another.extra_pointers);
     this->redundant_pointers.swap(another.redundant_pointers);
-this->plain_redundant.swap(another.plain_redundant);
   }
 }
 
@@ -139,7 +138,6 @@ GCSA::operator=(GCSA&& source)
 
     this->extra_pointers = std::move(source.extra_pointers);
     this->redundant_pointers = std::move(source.redundant_pointers);
-this->plain_redundant = std::move(source.plain_redundant);
 
     this->setVectors();
   }
@@ -174,7 +172,6 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string nam
 
   written_bytes += this->extra_pointers.serialize(out, child, "extra_pointers");
   written_bytes += this->redundant_pointers.serialize(out, child, "redundant_pointers");
-written_bytes += this->plain_redundant.serialize(out, child, "plain_redundant");
 
   sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
@@ -209,7 +206,6 @@ GCSA::load(std::istream& in)
 
   this->extra_pointers.load(in);
   this->redundant_pointers.load(in);
-this->plain_redundant.load(in);
 }
 
 void
@@ -237,7 +233,6 @@ GCSA::copy(const GCSA& source)
 
   this->extra_pointers = source.extra_pointers;
   this->redundant_pointers = source.redundant_pointers;
-this->plain_redundant = source.plain_redundant;
 
   this->setVectors();
 }
@@ -641,15 +636,8 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
 #ifdef VERBOSE_STATUS_INFO
   size_type occ_count = occurrences.sum() + occurrences.size(), red_count = redundant.sum();
 #endif
-  this->extra_pointers = SadaSparse(occurrences, false);
-std::cout << "SadaSparse / extra: " << inMegabytes(sdsl::size_in_bytes(this->extra_pointers)) << " MB ("
-          << this->extra_pointers.items() << " values)" << std::endl;
-  this->redundant_pointers = SadaSparse(redundant, true);
-std::cout << "SadaSparse / redundant: " << inMegabytes(sdsl::size_in_bytes(this->redundant_pointers)) << " MB ("
-          << this->redundant_pointers.items() << " values)" << std::endl;
-this->plain_redundant = SadaCount(redundant);
-std::cout << "SadaPlain / redundant: " << inMegabytes(sdsl::size_in_bytes(this->plain_redundant)) << " MB ("
-          << this->redundant_pointers.items() << " values)" << std::endl;
+  this->extra_pointers = SadaSparse(occurrences);
+  this->redundant_pointers = SadaCount(redundant);
   sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
 
   // Initialize bwt.

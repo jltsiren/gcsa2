@@ -262,10 +262,6 @@ SadaSparse::swap(SadaSparse& another)
 {
   if(this != &another)
   {
-    this->ones.swap(another.ones);
-    sdsl::util::swap_support(this->one_rank, another.one_rank,
-      &(this->ones), &(another.ones));
-
     this->filter.swap(another.filter);
     sdsl::util::swap_support(this->filter_rank, another.filter_rank,
       &(this->filter), &(another.filter));
@@ -288,9 +284,6 @@ SadaSparse::operator=(SadaSparse&& source)
 {
   if(this != &source)
   {
-    this->ones = std::move(source.ones);
-    this->one_rank = std::move(source.one_rank);
-
     this->filter = std::move(source.filter);
     this->filter_rank = std::move(source.filter_rank);
 
@@ -308,9 +301,6 @@ SadaSparse::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::stri
   sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
 
-  written_bytes += this->ones.serialize(out, child, "ones");
-  written_bytes += this->one_rank.serialize(out, child, "one_rank");
-
   written_bytes += this->filter.serialize(out, child, "filter");
   written_bytes += this->filter_rank.serialize(out, child, "filter_rank");
 
@@ -324,9 +314,6 @@ SadaSparse::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::stri
 void
 SadaSparse::load(std::istream& in)
 {
-  this->ones.load(in);
-  this->one_rank.load(in, &(this->ones));
-
   this->filter.load(in);
   this->filter_rank.load(in, &(this->filter));
 
@@ -337,9 +324,6 @@ SadaSparse::load(std::istream& in)
 void
 SadaSparse::copy(const SadaSparse& source)
 {
-  this->ones = source.ones;
-  this->one_rank = source.one_rank;
-
   this->filter = source.filter;
   this->filter_rank = source.filter_rank;
 
@@ -352,7 +336,6 @@ SadaSparse::copy(const SadaSparse& source)
 void
 SadaSparse::setVectors()
 {
-  this->one_rank.set_vector(&(this->ones));
   this->filter_rank.set_vector(&(this->filter));
   this->value_select.set_vector(&(this->values));
 }
