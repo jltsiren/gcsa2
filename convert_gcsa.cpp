@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -27,11 +27,6 @@
 #include "gcsa.h"
 
 using namespace gcsa;
-
-/*
-  This will eventually become an utility for converting GCSA to the current format.
-  Right now it is used for experimenting with different encodings.
-*/
 
 //------------------------------------------------------------------------------
 
@@ -95,6 +90,9 @@ main(int argc, char** argv)
     std::cerr << "convert_gcsa: Input and output files must be different" << std::endl;
     std::exit(EXIT_FAILURE);
   }
+
+  std::cout << "Note: This program has not been updated since v0.5. It does not work correctly." << std::endl;
+  std::cout << std::endl;
 
   if(identify) { identifyGCSA(input_name); }
   if(convert)  { convertGCSA(input_name, output_name); }

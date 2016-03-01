@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -152,6 +152,192 @@ Alphabet::load(std::istream& in)
   this->comp2char.load(in);
   this->C.load(in);
   sdsl::read_member(this->sigma, in);
+}
+
+//------------------------------------------------------------------------------
+
+SadaCount::SadaCount()
+{
+}
+
+SadaCount::SadaCount(const SadaCount& source)
+{
+  this->copy(source);
+}
+
+SadaCount::SadaCount(SadaCount&& source)
+{
+  *this = std::move(source);
+}
+
+SadaCount::~SadaCount()
+{
+}
+
+void
+SadaCount::swap(SadaCount& another)
+{
+  if(this != &another)
+  {
+    this->data.swap(another.data);
+    sdsl::util::swap_support(this->select, another.select, &(this->data), &(another.data));
+  }
+}
+
+SadaCount&
+SadaCount::operator=(const SadaCount& source)
+{
+  if(this != &source) { this->copy(source); }
+  return *this;
+}
+
+SadaCount&
+SadaCount::operator=(SadaCount&& source)
+{
+  if(this != &source)
+  {
+    this->data = std::move(source.data);
+    this->select = std::move(source.select);
+    this->setVectors();
+  }
+  return *this;
+}
+
+SadaCount::size_type
+SadaCount::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+{
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+  size_type written_bytes = 0;
+
+  written_bytes += this->data.serialize(out, child, "data");
+  written_bytes += this->select.serialize(out, child, "select");
+
+  sdsl::structure_tree::add_size(child, written_bytes);
+  return written_bytes;
+}
+
+void
+SadaCount::load(std::istream& in)
+{
+  this->data.load(in);
+  this->select.load(in, &(this->data));
+}
+
+void
+SadaCount::copy(const SadaCount& source)
+{
+  this->data = source.data;
+  this->select = source.select;
+  this->setVectors();
+}
+
+void
+SadaCount::setVectors()
+{
+  this->select.set_vector(&(this->data));
+}
+
+//------------------------------------------------------------------------------
+
+SadaSparse::SadaSparse()
+{
+}
+
+SadaSparse::SadaSparse(const SadaSparse& source)
+{
+  this->copy(source);
+}
+
+SadaSparse::SadaSparse(SadaSparse&& source)
+{
+  *this = std::move(source);
+}
+
+SadaSparse::~SadaSparse()
+{
+}
+
+void
+SadaSparse::swap(SadaSparse& another)
+{
+  if(this != &another)
+  {
+    this->filter.swap(another.filter);
+    sdsl::util::swap_support(this->filter_rank, another.filter_rank,
+      &(this->filter), &(another.filter));
+
+    this->values.swap(another.values);
+    sdsl::util::swap_support(this->value_select, another.value_select,
+      &(this->values), &(another.values));
+  }
+}
+
+SadaSparse&
+SadaSparse::operator=(const SadaSparse& source)
+{
+  if(this != &source) { this->copy(source); }
+  return *this;
+}
+
+SadaSparse&
+SadaSparse::operator=(SadaSparse&& source)
+{
+  if(this != &source)
+  {
+    this->filter = std::move(source.filter);
+    this->filter_rank = std::move(source.filter_rank);
+
+    this->values = std::move(source.values);
+    this->value_select = std::move(source.value_select);
+
+    this->setVectors();
+  }
+  return *this;
+}
+
+SadaSparse::size_type
+SadaSparse::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+{
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+  size_type written_bytes = 0;
+
+  written_bytes += this->filter.serialize(out, child, "filter");
+  written_bytes += this->filter_rank.serialize(out, child, "filter_rank");
+
+  written_bytes += this->values.serialize(out, child, "values");
+  written_bytes += this->value_select.serialize(out, child, "value_select");
+
+  sdsl::structure_tree::add_size(child, written_bytes);
+  return written_bytes;
+}
+
+void
+SadaSparse::load(std::istream& in)
+{
+  this->filter.load(in);
+  this->filter_rank.load(in, &(this->filter));
+
+  this->values.load(in);
+  this->value_select.load(in, &(this->values));
+}
+
+void
+SadaSparse::copy(const SadaSparse& source)
+{
+  this->filter = source.filter;
+  this->filter_rank = source.filter_rank;
+
+  this->values = source.values;
+  this->value_select = source.value_select;
+
+  this->setVectors();
+}
+
+void
+SadaSparse::setVectors()
+{
+  this->filter_rank.set_vector(&(this->filter));
+  this->value_select.set_vector(&(this->values));
 }
 
 //------------------------------------------------------------------------------

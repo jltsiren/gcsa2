@@ -253,16 +253,29 @@ markSourceSinkNodes(std::vector<KMer>& kmers)
 const std::string InputGraph::BINARY_EXTENSION = ".graph";
 const std::string InputGraph::TEXT_EXTENSION = ".gcsa2";
 
+InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format)
+{
+  this->filenames = files;
+  this->binary = binary_format;
+  this->build();
+}
+
 InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format)
 {
   this->binary = binary_format;
-  this->kmer_count = 0; this->kmer_length = UNKNOWN;
   for(size_type file = 0; file < file_count; file++)
   {
-    std::string filename = std::string(base_names[file]) + (binary ? BINARY_EXTENSION : TEXT_EXTENSION);
+    std::string filename = std::string(base_names[file]) + (this->binary ? BINARY_EXTENSION : TEXT_EXTENSION);
     this->filenames.push_back(filename);
   }
-  this->sizes = std::vector<size_type>(file_count, 0);
+  this->build();
+}
+
+void
+InputGraph::build()
+{
+  this->kmer_count = 0; this->kmer_length = UNKNOWN;
+  this->sizes = std::vector<size_type>(this->files(), 0);
 
   // Read the files and determine kmer_count, kmer_length.
   for(size_type file = 0; file < this->files(); file++)
@@ -380,7 +393,7 @@ InputGraph::read(std::vector<KMer>& kmers, size_type file, bool append) const
 }
 
 void
-InputGraph::read(std::vector<key_type>& keys) const
+InputGraph::readKeys(std::vector<key_type>& keys) const
 {
   sdsl::util::clear(keys);
   keys.reserve(this->size());
@@ -407,7 +420,30 @@ InputGraph::read(std::vector<key_type>& keys) const
   keys.resize(i + 1);
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "InputGraph::read(): " << keys.size() << " unique keys" << std::endl;
+  std::cerr << "InputGraph::readKeys(): " << keys.size() << " unique keys" << std::endl;
+#endif
+}
+
+void
+InputGraph::readFrom(std::vector<node_type>& from_nodes) const
+{
+  sdsl::util::clear(from_nodes);
+  from_nodes.reserve(this->size());
+
+  // Read the from nodes.
+  for(size_type file = 0; file < this->files(); file++)
+  {
+    std::vector<KMer> kmers;
+    this->read(kmers, file, false);
+    for(size_type i = 0; i < this->sizes[file]; i++)
+    {
+      from_nodes.push_back(kmers[i].from);
+    }
+  }
+  removeDuplicates(from_nodes, true);
+
+#ifdef VERBOSE_STATUS_INFO
+  std::cerr << "InputGraph::readFrom(): " << from_nodes.size() << " unique from nodes" << std::endl;
 #endif
 }
 

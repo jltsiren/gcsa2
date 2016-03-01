@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -580,23 +580,22 @@ struct PathRange
 struct PathGraphMerger
 {
   const PathGraph&                             graph;
-  const LCP*                                   lcp;
+  const LCP&                                   lcp;
   ReadBuffer<PriorityNode, PriorityNodeReader> buffer;
   std::deque<PathRange>                        ranges;
+  bool                                         need_range_lcp;
 
-  explicit PathGraphMerger(const PathGraph& path_graph, const LCP* _lcp);
+  PathGraphMerger(const PathGraph& path_graph, const LCP& _lcp, bool set_range_lcp);
   void close();
 
   inline size_type size() const { return this->graph.size(); }
 
   /*
     Iterates through ranges of paths with the same label. The ranges are buffered in
-    a deque. If LCP values and buffering are not needed, use firstRange() / next(range).
+    a deque.
   */
   range_type first();
   range_type next();
-  range_type firstRange();
-  range_type next(range_type range);
   inline bool atEnd(range_type range) const { return (range.first >= this->size()); }
 
   inline size_type rangeEnd(size_type start)
@@ -621,33 +620,39 @@ struct PathGraphMerger
 
   inline range_type range_lcp(size_type i, size_type j) // i < j
   {
-    return this->lcp->min_lcp(this->buffer[i].node, this->buffer[j].node,
+    return this->lcp.min_lcp(this->buffer[i].node, this->buffer[j].node,
       this->buffer[i].label, this->buffer[j].label);
   }
 
   inline range_type border_lcp(size_type i, size_type j) // i < j
   {
-    return this->lcp->max_lcp(this->buffer[i].node, this->buffer[j].node,
+    return this->lcp.max_lcp(this->buffer[i].node, this->buffer[j].node,
       this->buffer[i].label, this->buffer[j].label);
   }
 
   /*
     Extends the front range forward into a maximal range of paths starting from the same node
-    and sharing a common prefix that no other path has.
+    and sharing a common prefix that no other path has. Only works if set_range_lcp was true
+    in the constructor.
   */
   range_type extendRange();
 
   /*
-    Merges the path nodes into paths[range.second]. The first version uses the buffered
-    (front) range. The second version also produces the list of all unique from nodes
-    different from the one at paths[range.second] as (path_id, from_node).
+    Merges the path nodes into paths[range.second] of the front range.
+
+    The first version is intended for prune() and requires that set_range_lcp was true in
+    the constructor. It uses the buffered front() range.
+
+    The second version is for MergedGraph and produces the list of all unique from nodes
+    different from the one at paths[range.second] as (path_id, from_node). It also returns
+    the LCP array value corresponding to the merged path.
   */
   void mergePathNodes();
   void mergePathNodes(range_type range, std::vector<range_type>& from_nodes, size_type path_id);
 };
 
-PathGraphMerger::PathGraphMerger(const PathGraph& path_graph, const LCP* _lcp) :
-  graph(path_graph), lcp(_lcp)
+PathGraphMerger::PathGraphMerger(const PathGraph& path_graph, const LCP& _lcp, bool set_range_lcp) :
+  graph(path_graph), lcp(_lcp), need_range_lcp(set_range_lcp)
 {
   this->buffer.init(std::ref(this->graph));
 }
@@ -674,25 +679,13 @@ PathGraphMerger::first()
 }
 
 range_type
-PathGraphMerger::firstRange()
-{
-  return range_type(0, this->rangeEnd(0));
-}
-
-range_type
-PathGraphMerger::next(range_type range)
-{
-  this->buffer.seek(range.second + 1);
-  return range_type(range.second + 1, this->rangeEnd(range.second + 1));
-}
-
-range_type
 PathGraphMerger::next()
 {
   PathRange temp = this->ranges.front(); this->ranges.pop_front();
   if(this->ranges.empty())
   {
-    this->ranges.push_back(PathRange(temp.to + 1, this->rangeEnd(temp.to + 1), temp.right_lcp, *this));
+    this->ranges.push_back(
+      PathRange(temp.to + 1, this->rangeEnd(temp.to + 1), temp.right_lcp, *this));
   }
   this->buffer.seek(this->ranges.front().from);
   return this->ranges.front().range();
@@ -795,7 +788,7 @@ PathRange::PathRange(size_type start, size_type stop, range_type _left_lcp, Path
   range_lcp(0, 0),
   right_lcp(0, 0)
 {
-  if(stop < merger.size()) { this->range_lcp = merger.range_lcp(start, stop); }
+  if(merger.need_range_lcp && stop < merger.size()) { this->range_lcp = merger.range_lcp(start, stop); }
   if(stop + 1 < merger.size()) { this->right_lcp = merger.border_lcp(stop, stop + 1); }
 }
 
@@ -805,7 +798,7 @@ const std::string PathGraph::PREFIX = ".gcsa";
 
 PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 {
-  this->path_count = 0; this->rank_count = 0;
+  this->path_count = 0; this->rank_count = 0; this->range_count = 0;
   this->order = source.k(); this->doubling_steps = 0;
   this->unique = UNKNOWN; this->unsorted = UNKNOWN; this->nondeterministic = UNKNOWN;
 
@@ -855,7 +848,7 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 
 PathGraph::PathGraph(size_type file_count, size_type path_order, size_type steps) :
   filenames(file_count), sizes(file_count, 0), rank_counts(file_count, 0),
-  path_count(0), rank_count(0), order(path_order), doubling_steps(steps),
+  path_count(0), rank_count(0), range_count(0), order(path_order), doubling_steps(steps),
   unique(0), unsorted(0), nondeterministic(0)
 {
   for(size_type file = 0; file < this->files(); file++)
@@ -894,6 +887,7 @@ PathGraph::swap(PathGraph& another)
 
   std::swap(this->path_count, another.path_count);
   std::swap(this->rank_count, another.rank_count);
+  std::swap(this->range_count, another.range_count);
   std::swap(this->order, another.order);
   std::swap(this->doubling_steps, another.doubling_steps);
 
@@ -928,7 +922,7 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
   size_type old_path_count = this->size();
 #endif
 
-  PathGraphMerger merger(*this, &lcp);
+  PathGraphMerger merger(*this, lcp, true);
   PathGraphBuilder builder(this->files(), this->k(), this->step(), size_limit);
   for(range_type range = merger.first(); !(merger.atEnd(range)); range = merger.next())
   {
@@ -948,12 +942,14 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
         builder.write(merger.buffer[i]);
       }
     }
+    builder.graph.range_count++;
   }
   merger.close(); builder.close();
   this->clear(); this->swap(builder.graph);
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "PathGraph::prune(): " << old_path_count << " -> " << this->size() << " paths" << std::endl;
+  std::cerr << "PathGraph::prune(): " << old_path_count << " -> " << this->size() << " paths ("
+            << this->ranges() << " ranges)" << std::endl;
   std::cerr << "PathGraph::prune(): " << this->unique << " unique, " << this->unsorted << " unsorted, "
             << this->nondeterministic << " nondeterministic paths" << std::endl;
   std::cerr << "PathGraph::prune(): " << inGigabytes(this->bytes()) << " GB in "
@@ -1066,11 +1062,12 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 
 const std::string MergedGraph::PREFIX = ".gcsa";
 
-MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
+MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, const LCP& kmer_lcp) :
   path_name(TempFile::getName(PREFIX)), rank_name(TempFile::getName(PREFIX)), from_name(TempFile::getName(PREFIX)),
   path_count(0), rank_count(0), from_count(0),
   order(source.k()),
-  next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0)
+  next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0),
+  lcp_array(source.ranges())
 {
   std::ofstream path_file(this->path_name.c_str(), std::ios_base::binary);
   if(!path_file)
@@ -1103,11 +1100,13 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper) :
   this->next[mapper.alpha.sigma] = ~(size_type)0;
   this->next_from[mapper.alpha.sigma] = ~(size_type)0;
 
-  PathGraphMerger merger(source, 0);
+  PathGraphMerger merger(source, kmer_lcp, false);
   std::vector<range_type> curr_from;
   size_type curr_comp = 0;  // Used to transform next.
-  for(range_type range = merger.firstRange(); !(merger.atEnd(range)); range = merger.next(range))
+  for(range_type range = merger.first(); !(merger.atEnd(range)); range = merger.next())
   {
+    range_type path_lcp = merger.ranges.front().left_lcp;
+    this->lcp_array[this->path_count] = path_lcp.first * mapper.order() + path_lcp.second;
     merger.mergePathNodes(range, curr_from, this->path_count);
     merger.buffer[range.second].serialize(path_file, rank_file, this->rank_count);
     if(curr_from.size() > 0)

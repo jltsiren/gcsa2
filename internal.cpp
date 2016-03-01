@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -34,16 +34,30 @@ std::atomic<size_type> DiskIO::write_volume(0);
 
 //------------------------------------------------------------------------------
 
-SLArray::SLArray(size_type n) :
-  data(n, 0)
+CounterArray::CounterArray() :
+  total(0)
+{
+}
+
+CounterArray::CounterArray(size_type n) :
+  data(n, 0), total(0)
 {
 }
 
 void
-SLArray::clear()
+CounterArray::clear()
 {
   sdsl::util::clear(this->data);
   sdsl::util::clear(this->large_values);
+  this->total = 0;
+}
+
+void
+CounterArray::swap(CounterArray& another)
+{
+  this->data.swap(another.data);
+  this->large_values.swap(another.large_values);
+  std::swap(this->total, another.total);
 }
 
 //------------------------------------------------------------------------------

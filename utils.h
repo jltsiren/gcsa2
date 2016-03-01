@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -26,6 +26,7 @@
 #define _GCSA_UTILS_H
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -67,7 +68,7 @@ const double GIGABYTE_DOUBLE = KILOBYTE_DOUBLE * MEGABYTE_DOUBLE;
 
 /*
   range_type stores a closed range [first, second]. Empty ranges are indicated by
-  first > second. The emptiness check uses +1 to handle a common special case
+  first > second. The emptiness check uses +1 to handle the common special case
   [0, -1].
 */
 
@@ -83,6 +84,11 @@ struct Range
   inline static bool empty(range_type range)
   {
     return (range.first + 1 > range.second + 1);
+  }
+
+  inline static bool empty(size_type sp, size_type ep)
+  {
+    return (sp + 1 > ep + 1);
   }
 
   inline static size_type bound(size_type value, range_type bounds)
@@ -170,7 +176,6 @@ inMicroseconds(double seconds)
 const size_type DEFAULT_INDENT = 18;
 
 void printHeader(const std::string& header, size_type indent = DEFAULT_INDENT);
-void printSize(const std::string& header, size_type bytes, size_type data_size, size_type indent = DEFAULT_INDENT);
 void printTime(const std::string& header, size_type queries, double seconds, size_type indent = DEFAULT_INDENT);
 
 //------------------------------------------------------------------------------

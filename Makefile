@@ -4,11 +4,10 @@ SDSL_DIR=../sdsl-lite
 # In Linux, the value is in kilobytes, so this line should be commented out.
 #RUSAGE_FLAGS=-DRUSAGE_IN_BYTES
 
-# This enables various verifications in build_gcsa.
+# This enables various debugging options in build_gcsa.
 VERIFY_FLAGS=-DVERIFY_CONSTRUCTION
 
-# Multithreading with OpenMP and libstdc++ Parallel Mode. Requires g++ 4.7
-# or newer.
+# Multithreading with OpenMP and libstdc++ Parallel Mode.
 PARALLEL_FLAGS=-fopenmp -pthread -D_GLIBCXX_PARALLEL
 
 # Verbose output during index construction etc.
@@ -24,7 +23,7 @@ HEADERS=$(wildcard *.h)
 OBJS=$(SOURCES:.cpp=.o)
 LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
 LIBRARY=libgcsa2.a
-PROGRAMS=build_gcsa convert_gcsa convert_graph count_kmers
+PROGRAMS=build_gcsa convert_gcsa convert_graph count_kmers query_gcsa
 
 all: $(LIBRARY) $(PROGRAMS)
 
@@ -44,6 +43,9 @@ convert_graph:convert_graph.o $(LIBRARY)
 	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
 count_kmers:count_kmers.o $(LIBRARY)
+	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
+
+query_gcsa:query_gcsa.o $(LIBRARY)
 	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
 clean:

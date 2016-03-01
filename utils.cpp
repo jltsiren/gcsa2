@@ -43,13 +43,6 @@ printHeader(const std::string& header, size_type indent)
 }
 
 void
-printSize(const std::string& header, size_type bytes, size_type data_size, size_type indent)
-{
-  printHeader(header, indent);
-  std::cout << inMegabytes(bytes) << " MB (" << inBPC(bytes, data_size) << " bpc)" << std::endl;
-}
-
-void
 printTime(const std::string& header, size_type queries, double seconds, size_type indent)
 {
   printHeader(header, indent);

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -261,11 +261,10 @@ struct FromGetter
 
 struct LCP
 {
-  typedef PathNode::rank_type             rank_type;
-  typedef std::pair<rank_type, rank_type> rank_range;
+  typedef PathNode::rank_type rank_type;
 
-  size_type           kmer_length, total_keys;
-  sdsl::wt_blcd<>     kmer_lcp; // Faster than proper RMQ for small values.
+  size_type       kmer_length, total_keys;
+  sdsl::wt_blcd<> kmer_lcp; // Faster than proper RMQ for small values.
 
   LCP();
   LCP(const std::vector<key_type>& keys, size_type _kmer_length);
@@ -309,7 +308,7 @@ struct PathGraph
   std::vector<std::string> filenames;
   std::vector<size_type>   sizes, rank_counts;
 
-  size_type path_count, rank_count;
+  size_type path_count, rank_count, range_count;
   size_type order, doubling_steps;
 
   size_type unique, unsorted, nondeterministic;
@@ -327,6 +326,7 @@ struct PathGraph
 
   inline size_type size() const { return this->path_count; }
   inline size_type ranks() const { return this->rank_count; }
+  inline size_type ranges() const { return this->range_count; } // Only works after prune().
   inline size_type k() const { return this->order; }
   inline size_type step() const { return this->doubling_steps; }
   inline size_type files() const { return this->filenames.size(); }
@@ -361,13 +361,15 @@ struct MergedGraph
   size_type path_count, rank_count, from_count;
   size_type order;
 
-  std::vector<size_type> next;  // paths[next[comp]] is the first path starting with comp.
+  std::vector<size_type> next;      // paths[next[comp]] is the first path starting with comp.
   std::vector<size_type> next_from; // Where to find the corresponding additional from nodes.
+
+  sdsl::int_vector<8>    lcp_array;
 
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa
 
-  MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper);
+  MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, const LCP& kmer_lcp);
   ~MergedGraph();
 
   void clear();

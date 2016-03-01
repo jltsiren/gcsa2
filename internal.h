@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -142,19 +142,22 @@ struct ValueIndex
 //------------------------------------------------------------------------------
 
 /*
-  A simple byte array that stores large values in an std::map. Values start as 0s.
-  Supports access and increment().
+  A simple counter array that uses a byte array for most counters and stores large values
+  in an std::map.
 */
-struct SLArray
+struct CounterArray
 {
   std::vector<byte_type> data;
   std::map<size_type, size_type> large_values;
+  size_type total;
 
   const static byte_type LARGE_VALUE = 255;
 
-  explicit SLArray(size_type n);
+  CounterArray();
+  explicit CounterArray(size_type n);
 
-  inline bool size() const { return data.size(); }
+  inline size_type size() const { return this->data.size(); }
+  inline size_type sum() const { return this->total; }
 
   inline size_type operator[] (size_type i) const
   {
@@ -169,9 +172,36 @@ struct SLArray
       this->data[i]++;
       if(this->data[i] == LARGE_VALUE) { this->large_values[i] = LARGE_VALUE; }
     }
+    this->total++;
+  }
+
+  inline void increment(size_type i, size_type val)
+  {
+    if(this->data[i] == LARGE_VALUE) { this->large_values[i] += val; }
+    else if(this->data[i] + val >= LARGE_VALUE)
+    {
+      this->large_values[i] = this->data[i] + val;
+      this->data[i] = LARGE_VALUE;
+    }
+    else { this->data[i] += val; }
+    this->total += val;
+  }
+
+  inline void decrement(size_type i)
+  {
+    if(this->data[i] == LARGE_VALUE)
+    {
+      size_type temp = --(this->large_values[i]);
+      if(temp < LARGE_VALUE) { this->data[i] = temp; }
+    }
+    else
+    {
+      this->data[i]--;
+    }
   }
 
   void clear();
+  void swap(CounterArray& another);
 };
 
 //------------------------------------------------------------------------------

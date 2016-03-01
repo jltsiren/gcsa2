@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -79,6 +79,7 @@ struct InputGraph
   const static std::string BINARY_EXTENSION;  // .graph
   const static std::string TEXT_EXTENSION;    // .gcsa2
 
+  InputGraph(const std::vector<std::string>& files, bool binary_format);
   InputGraph(size_type file_count, char** base_names, bool binary_format);
 
   void open(std::ifstream& input, size_type file) const;
@@ -95,16 +96,28 @@ struct InputGraph
   */
   void read(std::vector<KMer>& kmers) const;
   void read(std::vector<KMer>& kmers, size_type file, bool append = false) const;
-  void read(std::vector<key_type>& keys) const;
+
+  void readKeys(std::vector<key_type>& keys) const;
+  void readFrom(std::vector<node_type>& from_nodes) const;
 
   InputGraph(const InputGraph&) = delete;
   InputGraph& operator= (const InputGraph&) = delete;
+
+private:
+  void build();
 };
 
 //------------------------------------------------------------------------------
 
 /*
-  Current GCSA file header. This header has been used since version 0.5.
+  GCSA file header.
+
+  Version 2 (GCSA v0.6):
+  - Added OccurrenceCounter to the end of the body.
+
+  Version 1 (GCSA v0.5)
+  - The first use of the header.
+  - GCSA body is identical to version 0.
 */
 
 struct GCSAHeader
@@ -117,7 +130,7 @@ struct GCSAHeader
   uint64_t flags;
 
   const static uint32_t TAG = 0x6C5A6C5A;
-  const static uint32_t VERSION = 1;
+  const static uint32_t VERSION = 2;
 
   const static uint64_t COMPRESSED = 0x1; // Not in use.
 

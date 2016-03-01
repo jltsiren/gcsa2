@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -112,6 +112,149 @@ characterCounts(const ByteVector& sequence, const sdsl::int_vector<8>& char2comp
 {
   for(size_type c = 0; c < counts.size(); c++) { counts[c] = 0; }
   for(size_type i = 0; i < sequence.size(); i++) { counts[char2comp[sequence[i]]]++; }
+}
+
+//------------------------------------------------------------------------------
+
+/*
+  The core part of Sadakane's document counting structure. Essentially just unary encoding
+  of array A of non-negative integers. Query count(sp, ep) returns A[sp] + ... + A[ep].
+*/
+
+class SadaCount
+{
+public:
+  typedef gcsa::size_type  size_type;
+  typedef sdsl::bit_vector bit_vector;
+
+  SadaCount();
+  SadaCount(const SadaCount& source);
+  SadaCount(SadaCount&& source);
+  ~SadaCount();
+
+  template<class Container> explicit SadaCount(const Container& source);
+
+  void swap(SadaCount& another);
+  SadaCount& operator=(const SadaCount& source);
+  SadaCount& operator=(SadaCount&& source);
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+
+  // Value k is encoded as 0^k 1.
+  bit_vector                data;
+  bit_vector::select_1_type select;
+
+  inline size_type count(size_type sp, size_type ep) const
+  {
+    return (this->select(ep + 1) - ep) - (sp > 0 ? this->select(sp) + 1 - sp : 0);
+  }
+
+private:
+  void copy(const SadaCount& source);
+  void setVectors();
+};
+
+template<class Container>
+SadaCount::SadaCount(const Container& source)
+{
+  size_type total = 0;
+  for(size_type i = 0; i < source.size(); i++) { total += source[i]; }
+
+  this->data = bit_vector(source.size() + total, 0);
+  for(size_type i = 0, tail = 0; i < source.size(); i++)
+  {
+    tail += source[i] + 1;
+    this->data[tail - 1] = 1;
+  }
+
+  sdsl::util::init_support(this->select, &(this->data));
+}
+
+//------------------------------------------------------------------------------
+
+/*
+  This version of Sadakane's document counting structure uses a sparse filter. In
+  the terminology of (Gagie et al: Document Counting in Compressed Space. DCC 2015)
+  this means Sada-S.
+
+  The "best" approach is to use SadaSparse for extra_pointers and SadaCount for
+  redundant_pointers. If we use other encodings for redundant_pointers, we get
+  roughly the following time/space trade-offs with whole-genome graphs:
+
+                    Time vs. Sada       Space vs. Sada
+      Sada-S        1.25x               1x
+      Sada-S-S      1.5x                0.75-0.8x
+      Sada-RS-S     1.5-2.5x            0.8-0.85x
+*/
+
+class SadaSparse
+{
+public:
+  typedef gcsa::size_type   size_type;
+  typedef sdsl::sd_vector<> sd_vector;
+
+  SadaSparse();
+  SadaSparse(const SadaSparse& source);
+  SadaSparse(SadaSparse&& source);
+  ~SadaSparse();
+
+  template<class Container> explicit SadaSparse(const Container& source);
+
+  void swap(SadaSparse& another);
+  SadaSparse& operator=(const SadaSparse& source);
+  SadaSparse& operator=(SadaSparse&& source);
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+
+  // Positions with non-zero values are marked with an 1-bit.
+  sd_vector                filter;
+  sd_vector::rank_1_type   filter_rank;
+
+  // Non-zero values encoded in unary: k becomes 0^{k-1} 1.
+  sd_vector                values;
+  sd_vector::select_1_type value_select;
+
+  // The number of nonzero values.
+  inline size_type items() const { return this->filter_rank(this->filter.size()); }
+
+  inline size_type count(size_type sp, size_type ep) const
+  {
+    sp = this->filter_rank(sp);     // Closed lower bound for ranks of filtered values.
+    ep = this->filter_rank(ep + 1); // Open upper bound for ranks of filtered values.
+    if(ep <= sp) { return 0; }
+    return (this->value_select(ep) + 1) - (sp > 0 ? this->value_select(sp) + 1 : 0);
+  }
+
+private:
+  void copy(const SadaSparse& source);
+  void setVectors();
+};
+
+template<class Container>
+SadaSparse::SadaSparse(const Container& source)
+{
+
+  // Sparse filter.
+  size_type total = 0, filtered_values = 0;
+  sdsl::bit_vector buffer(source.size(), 0);
+  for(size_type i = 0; i < source.size(); i++)
+  {
+    if(source[i] > 0) { buffer[i] = 1; total += source[i]; filtered_values++; }
+  }
+  this->filter = sd_vector(buffer); sdsl::util::clear(buffer);
+
+  // Filtered values.
+  sdsl::sd_vector_builder builder(total, filtered_values);
+  for(size_type i = 0, tail = 0; i < source.size(); i++)
+  {
+    if(source[i] > 0) { tail += source[i]; builder.set(tail - 1); }
+  }
+  this->values = sd_vector(builder);
+
+  sdsl::util::init_support(this->filter_rank, &(this->filter));
+  sdsl::util::init_support(this->value_select, &(this->values));
 }
 
 //------------------------------------------------------------------------------

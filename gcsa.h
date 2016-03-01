@@ -62,20 +62,22 @@ public:
 //------------------------------------------------------------------------------
 
   GCSA();
-  GCSA(const GCSA& g);
-  GCSA(GCSA&& g);
+  GCSA(const GCSA& source);
+  GCSA(GCSA&& source);
   ~GCSA();
 
-  void swap(GCSA& g);
-  GCSA& operator=(const GCSA& g);
-  GCSA& operator=(GCSA&& g);
+  void swap(GCSA& another);
+  GCSA& operator=(const GCSA& source);
+  GCSA& operator=(GCSA&& source);
 
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
 
-  const static std::string EXTENSION;     // .gcsa
+  const static std::string EXTENSION; // .gcsa
 
   const static size_type SHORT_RANGE = 5; // Different strategy for LF(range).
+  const static size_type MAX_ERRORS = 100; // Suppress further error messages during verification.
+  const static size_type RMQ_BUFFER = 4 * MEGABYTE; // How many ranges to buffer before computing the RMQs?
 
 //------------------------------------------------------------------------------
 
@@ -156,6 +158,14 @@ public:
   range_type find(const Element* pattern, size_type length) const
   {
     return this->find(pattern, pattern + length);
+  }
+
+  inline size_type count(range_type range) const
+  {
+    if(Range::empty(range) || range.second >= this->size()) { return 0; }
+    size_type res = this->extra_pointers.count(range.first, range.second) + Range::length(range);
+    if(range.second > range.first) { res -= this->redundant_pointers.count(range.first, range.second - 1); }
+    return res;
   }
 
   void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;
@@ -240,10 +250,14 @@ public:
   bit_vector                samples;
   bit_vector::select_1_type sample_select;
 
+  // Structures used for counting queries.
+  SadaSparse                extra_pointers;
+  SadaCount                 redundant_pointers;
+
 //------------------------------------------------------------------------------
 
 private:
-  void copy(const GCSA& g);
+  void copy(const GCSA& source);
   void setVectors();
   void initSupport();
 

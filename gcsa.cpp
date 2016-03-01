@@ -60,14 +60,14 @@ GCSA::GCSA()
 {
 }
 
-GCSA::GCSA(const GCSA& g)
+GCSA::GCSA(const GCSA& source)
 {
-  this->copy(g);
+  this->copy(source);
 }
 
-GCSA::GCSA(GCSA&& g)
+GCSA::GCSA(GCSA&& source)
 {
-  *this = std::move(g);
+  *this = std::move(source);
 }
 
 GCSA::~GCSA()
@@ -75,89 +75,69 @@ GCSA::~GCSA()
 }
 
 void
-GCSA::copy(const GCSA& g)
+GCSA::swap(GCSA& another)
 {
-  this->header = g.header;
-
-  this->bwt = g.bwt;
-  this->alpha = g.alpha;
-
-  this->path_nodes = g.path_nodes;
-  this->path_rank = g.path_rank;
-  this->path_select = g.path_select;
-
-  this->edges = g.edges;
-  this->edge_rank = g.edge_rank;
-  this->edge_select = g.edge_select;
-
-  this->sampled_paths = g.sampled_paths;
-  this->sampled_path_rank = g.sampled_path_rank;
-
-  this->stored_samples = g.stored_samples;
-  this->samples = g.samples;
-  this->sample_select = g.sample_select;
-
-  this->setVectors();
-}
-
-void
-GCSA::swap(GCSA& g)
-{
-  if(this != &g)
+  if(this != &another)
   {
-    this->header.swap(g.header);
+    this->header.swap(another.header);
 
-    this->bwt.swap(g.bwt);
-    this->alpha.swap(g.alpha);
+    this->bwt.swap(another.bwt);
+    this->alpha.swap(another.alpha);
 
-    this->path_nodes.swap(g.path_nodes);
-    sdsl::util::swap_support(this->path_rank, g.path_rank, &(this->path_nodes), &(g.path_nodes));
-    sdsl::util::swap_support(this->path_select, g.path_select, &(this->path_nodes), &(g.path_nodes));
+    this->path_nodes.swap(another.path_nodes);
+    sdsl::util::swap_support(this->path_rank, another.path_rank, &(this->path_nodes), &(another.path_nodes));
+    sdsl::util::swap_support(this->path_select, another.path_select, &(this->path_nodes), &(another.path_nodes));
 
-    this->edges.swap(g.edges);
-    sdsl::util::swap_support(this->edge_rank, g.edge_rank, &(this->edges), &(g.edges));
-    sdsl::util::swap_support(this->edge_select, g.edge_select, &(this->edges), &(g.edges));
+    this->edges.swap(another.edges);
+    sdsl::util::swap_support(this->edge_rank, another.edge_rank, &(this->edges), &(another.edges));
+    sdsl::util::swap_support(this->edge_select, another.edge_select, &(this->edges), &(another.edges));
 
-    this->sampled_paths.swap(g.sampled_paths);
-    sdsl::util::swap_support(this->sampled_path_rank, g.sampled_path_rank, &(this->sampled_paths), &(g.sampled_paths));
+    this->sampled_paths.swap(another.sampled_paths);
+    sdsl::util::swap_support(this->sampled_path_rank, another.sampled_path_rank, &(this->sampled_paths), &(another.sampled_paths));
 
-    this->stored_samples.swap(g.stored_samples);
-    this->samples.swap(g.samples);
-    sdsl::util::swap_support(this->sample_select, g.sample_select, &(this->samples), &(g.samples));
+    this->stored_samples.swap(another.stored_samples);
+    this->samples.swap(another.samples);
+    sdsl::util::swap_support(this->sample_select, another.sample_select, &(this->samples), &(another.samples));
+
+    this->extra_pointers.swap(another.extra_pointers);
+    this->redundant_pointers.swap(another.redundant_pointers);
   }
 }
 
 GCSA&
-GCSA::operator=(const GCSA& g)
+GCSA::operator=(const GCSA& source)
 {
-  if(this != &g) { this->copy(g); }
+  if(this != &source) { this->copy(source); }
   return *this;
 }
 
 GCSA&
-GCSA::operator=(GCSA&& g)
+GCSA::operator=(GCSA&& source)
 {
-  if(this != &g)
+  if(this != &source)
   {
-    this->header = std::move(g.header);
+    this->header = std::move(source.header);
 
-    this->bwt = std::move(g.bwt);
-    this->alpha = std::move(g.alpha);
+    this->bwt = std::move(source.bwt);
+    this->alpha = std::move(source.alpha);
 
-    this->path_nodes = std::move(g.path_nodes);
-    this->path_rank = std::move(g.path_rank);
-    this->path_select = std::move(g.path_select);
+    this->path_nodes = std::move(source.path_nodes);
+    this->path_rank = std::move(source.path_rank);
+    this->path_select = std::move(source.path_select);
 
-    this->edges = std::move(g.edges);
-    this->edge_rank = std::move(g.edge_rank);
-    this->edge_select = std::move(g.edge_select);
+    this->edges = std::move(source.edges);
+    this->edge_rank = std::move(source.edge_rank);
+    this->edge_select = std::move(source.edge_select);
 
-    this->sampled_paths = std::move(g.sampled_paths);
-    this->sampled_path_rank = std::move(g.sampled_path_rank);
+    this->sampled_paths = std::move(source.sampled_paths);
+    this->sampled_path_rank = std::move(source.sampled_path_rank);
 
-    this->stored_samples = std::move(g.stored_samples);
-    this->samples = std::move(g.samples);
-    this->sample_select = std::move(g.sample_select);
+    this->stored_samples = std::move(source.stored_samples);
+    this->samples = std::move(source.samples);
+    this->sample_select = std::move(source.sample_select);
+
+    this->extra_pointers = std::move(source.extra_pointers);
+    this->redundant_pointers = std::move(source.redundant_pointers);
 
     this->setVectors();
   }
@@ -190,6 +170,9 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string nam
   written_bytes += this->samples.serialize(out, child, "samples");
   written_bytes += this->sample_select.serialize(out, child, "sample_select");
 
+  written_bytes += this->extra_pointers.serialize(out, child, "extra_pointers");
+  written_bytes += this->redundant_pointers.serialize(out, child, "redundant_pointers");
+
   sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
 }
@@ -220,6 +203,52 @@ GCSA::load(std::istream& in)
   this->stored_samples.load(in);
   this->samples.load(in);
   this->sample_select.load(in, &(this->samples));
+
+  this->extra_pointers.load(in);
+  this->redundant_pointers.load(in);
+}
+
+void
+GCSA::copy(const GCSA& source)
+{
+  this->header = source.header;
+
+  this->bwt = source.bwt;
+  this->alpha = source.alpha;
+
+  this->path_nodes = source.path_nodes;
+  this->path_rank = source.path_rank;
+  this->path_select = source.path_select;
+
+  this->edges = source.edges;
+  this->edge_rank = source.edge_rank;
+  this->edge_select = source.edge_select;
+
+  this->sampled_paths = source.sampled_paths;
+  this->sampled_path_rank = source.sampled_path_rank;
+
+  this->stored_samples = source.stored_samples;
+  this->samples = source.samples;
+  this->sample_select = source.sample_select;
+
+  this->extra_pointers = source.extra_pointers;
+  this->redundant_pointers = source.redundant_pointers;
+
+  this->setVectors();
+}
+
+void
+GCSA::setVectors()
+{
+  this->path_rank.set_vector(&(this->path_nodes));
+  this->path_select.set_vector(&(this->path_nodes));
+
+  this->edge_rank.set_vector(&(this->edges));
+  this->edge_select.set_vector(&(this->edges));
+
+  this->sampled_path_rank.set_vector(&(this->sampled_paths));
+
+  this->sample_select.set_vector(&(this->samples));
 }
 
 //------------------------------------------------------------------------------
@@ -420,7 +449,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   // Extract the keys and build the necessary support structures.
   // FIXME Later: Write the structures to disk until needed?
   std::vector<key_type> keys;
-  graph.read(keys);
+  graph.readKeys(keys);
   DeBruijnGraph mapper(keys, graph.k(), _alpha);
   LCP lcp(keys, graph.k());
   sdsl::int_vector<0> last_char;
@@ -429,6 +458,15 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   for(size_type i = 0; i < keys.size(); i++) { builder.set(Key::label(keys[i])); }
   sdsl::sd_vector<> key_exists(builder);
   sdsl::util::clear(keys);
+
+  // Determine the existing from nodes.
+  std::vector<node_type> from_node_buffer;;
+  graph.readFrom(from_node_buffer);
+  sdsl::sd_vector<> from_nodes(from_node_buffer.begin(), from_node_buffer.end());
+  sdsl::sd_vector<>::rank_1_type from_rank;
+  sdsl::util::init_support(from_rank, &(from_nodes));
+  size_type unique_from_nodes = from_node_buffer.size();
+  sdsl::util::clear(from_node_buffer);
 
   // Create the initial PathGraph.
   PathGraph path_graph(graph, key_exists);
@@ -449,21 +487,27 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     path_graph.prune(lcp, parameters.size_limit);
   }
   this->header.order = (path_graph.unsorted == 0 ? ~(size_type)0 : path_graph.k());
-  sdsl::util::clear(lcp);
 
   // Merge the paths into the nodes of a pruned de Bruijn graph.
-  MergedGraph merged_graph(path_graph, mapper);
+  MergedGraph merged_graph(path_graph, mapper, lcp);
   this->header.path_nodes = merged_graph.size();
   path_graph.clear();
+  sdsl::util::clear(lcp);
 
-  // Structures used to build GCSA.
+  // Structures used for building GCSA.
   sdsl::int_vector<64> counts(mapper.alpha.sigma, 0); // alpha
   sdsl::int_vector<8> bwt_buffer(merged_graph.size() + merged_graph.size() / 2, 0); // bwt
   this->path_nodes = bit_vector(bwt_buffer.size(), 0);
-  SLArray outdegrees(merged_graph.size());  // edges
+  CounterArray outdegrees(merged_graph.size()); // edges
   this->sampled_paths = bit_vector(merged_graph.size(), 0);
   std::vector<node_type> sample_buffer; // stored_samples
   this->samples = bit_vector(merged_graph.size() + merged_graph.extra(), 0);
+
+  // Structures used for building counting support.
+  // Invariant: The previous occurrence of from node x was at path prev_occ[from_rank(x)] - 1.
+  CounterArray occurrences(merged_graph.size()), redundant(merged_graph.size() - 1);
+  sdsl::int_vector<0> prev_occ(unique_from_nodes, 0, bit_length(merged_graph.size()));
+  std::vector<size_type> node_lcp, first_time, last_time;
 
   // Read pointers to the MergedGraph files.
   std::vector<MergedGraphReader> reader(mapper.alpha.sigma + 1);
@@ -512,12 +556,41 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     this->path_nodes[total_edges - 1] = 1;
 
     /*
+      Get the from nodes and update the occurrences/redundant arrays.
+
+      We traverse the ST in inorder using the LCP array. For each internal node, we
+      record the LCP value and the first and the last times (positions) we have
+      encountered that value within the subtree. If we have encountered the current
+      from node before, the LCA of the previous and current occurrences is the
+      highest ST node we have encountered after the previous occurrence. We then
+      increment the redundant array at the first encounter with that node.
+    */
+    reader[0].fromNodes(curr_from);
+    occurrences.increment(i, curr_from.size() - 1);
+    size_type curr_lcp = merged_graph.lcp_array[i] + (i > 0 ? 1 : 0); // Handle LCP[0] as -1.
+    while(!(node_lcp.empty()) && node_lcp.back() > curr_lcp)
+    {
+      node_lcp.pop_back(); first_time.pop_back(); last_time.pop_back();
+    }
+    if(!(node_lcp.empty()) && node_lcp.back() == curr_lcp) { last_time.back() = i; }
+    else { node_lcp.push_back(curr_lcp); first_time.push_back(i); last_time.push_back(i); }
+    for(size_type j = 0; j < curr_from.size(); j++)
+    {
+      size_type temp = from_rank(curr_from[j]);
+      if(prev_occ[temp] > 0)
+      {
+        size_type pos = std::lower_bound(last_time.begin(), last_time.end(), prev_occ[temp]) - last_time.begin();
+        redundant.increment(first_time[pos] - 1);
+      }
+      prev_occ[temp] = i + 1;
+    }
+
+    /*
       Simple cases for sampling the node:
       - multiple predecessors
       - at the beginning of the source node with no real predecessors
       - at the beginning of a node in the original graph (makes the previous case redundant)
     */
-    reader[0].fromNodes(curr_from);
     if(indegree > 1) { sample_this = true; }
     if(reader[0].paths[reader[0].path].hasPredecessor(Alphabet::SINK_COMP)) { sample_this = true; }
     for(size_type k = 0; k < curr_from.size(); k++)
@@ -552,12 +625,20 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     }
   }
   for(size_type i = 0; i < reader.size(); i++) { reader[i].close(); }
-  sdsl::util::clear(last_char);
+  sdsl::util::clear(last_char); sdsl::util::clear(from_nodes); sdsl::util::clear(prev_occ);
   this->header.edges = total_edges;
 
   // Initialize alpha.
   this->alpha = Alphabet(counts, mapper.alpha.char2comp, mapper.alpha.comp2char);
   sdsl::util::clear(mapper);
+
+  // Initialize extra_pointers and redundant_pointers.
+#ifdef VERBOSE_STATUS_INFO
+  size_type occ_count = occurrences.sum() + occurrences.size(), red_count = redundant.sum();
+#endif
+  this->extra_pointers = SadaSparse(occurrences);
+  this->redundant_pointers = SadaCount(redundant);
+  sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
 
   // Initialize bwt.
   bwt_buffer.resize(total_edges);
@@ -582,7 +663,8 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   sdsl::util::clear(sample_buffer);
 
 #ifdef VERBOSE_STATUS_INFO
-  std::cerr << "GCSA::GCSA(): " << total_edges << " edges" << std::endl;
+  std::cerr << "GCSA::GCSA(): " << this->size() << " paths, " << this->edgeCount() << " edges" << std::endl;
+  std::cerr << "GCSA::GCSA(): " << occ_count << " pointers (" << red_count << " redundant)" << std::endl;
   std::cerr << "GCSA::GCSA(): " << this->sampleCount() << " samples at "
             << this->sampledPositions() << " positions" << std::endl;
 #endif
@@ -603,14 +685,23 @@ printOccs(const std::vector<node_type>& occs, std::ostream& out)
 }
 
 void
-printFailure(const std::string& kmer,
-             const std::vector<node_type>& expected, const std::vector<node_type>& occs)
+locateFailure(const std::vector<node_type>& expected, const std::vector<node_type>& occs)
 {
-  std::cerr << "GCSA::verifyIndex(): locate(" << kmer << ") failed" << std::endl;
   std::cerr << "GCSA::verifyIndex(): Expected ";
   printOccs(expected, std::cerr) << std::endl;
   std::cerr << "GCSA::verifyIndex(): Got ";
   printOccs(occs, std::cerr) << std::endl;
+}
+
+bool
+printFailure(size_type& failure_count)
+{
+  if(failure_count == GCSA::MAX_ERRORS)
+  {
+    std::cerr << "GCSA::verifyIndex(): There were further errors" << std::endl;
+  }
+  failure_count++;
+  return (failure_count <= GCSA::MAX_ERRORS);
 }
 
 struct KMerSplitComparator
@@ -631,14 +722,16 @@ GCSA::verifyIndex(const InputGraph& graph) const
 bool
 GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
 {
+  double start = readTimer();
+
   size_type threads = omp_get_max_threads();
   parallelQuickSort(kmers.begin(), kmers.end());
   KMerSplitComparator k_comp;
   std::vector<range_type> bounds = getBounds(kmers, threads, k_comp);
   assert(bounds.size() == threads);
 
-  size_type fails = 0;
-#pragma omp parallel for schedule(static)
+  size_type fails = 0, unique = 0;
+  #pragma omp parallel for schedule(static)
   for(size_type thread = 0; thread < threads; thread++)
   {
     size_type i = bounds[thread].first;
@@ -648,6 +741,8 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
       while(next <= bounds[thread].second && Key::label(kmers[next].key) == Key::label(kmers[i].key)) {
           next++;
       }
+      #pragma omp atomic
+      unique++;
 
       std::string kmer = Key::decode(kmers[i].key, kmer_length, alpha);
       size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
@@ -658,8 +753,10 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
       {
         #pragma omp critical
         {
-          std::cerr << "GCSA::verifyIndex(): find(" << kmer << ") returned empty range" << std::endl;
-          fails++;
+          if(printFailure(fails))
+          {
+            std::cerr << "GCSA::verifyIndex(): find(" << kmer << ") returned empty range" << std::endl;
+          }
         }
         i = next; continue;
       }
@@ -667,16 +764,32 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
       std::vector<node_type> expected;
       for(size_type j = i; j < next; j++) { expected.push_back(kmers[j].from); }
       removeDuplicates(expected, false);
+      size_type unique_count = this->count(range);
+      if(unique_count != expected.size())
+      {
+        #pragma omp critical
+        {
+          if(printFailure(fails))
+          {
+            std::cerr << "GCSA::verifyIndex(): count" << range << " failed: Expected "
+                      << expected.size() << " occurrences, got " << unique_count << std::endl;
+          }
+        }
+        i = next; continue;
+      }
+
       std::vector<node_type> occs;
       this->locate(range, occs);
-
       if(occs.size() != expected.size())
       {
         #pragma omp critical
         {
-          std::cerr << "GCSA::verifyIndex(): Expected " << expected.size()
-                    << " occurrences, got " << occs.size() << std::endl;
-          printFailure(kmer, expected, occs); fails++;
+          if(printFailure(fails))
+          {
+            std::cerr << "GCSA::verifyIndex(): locate(" << kmer << ") failed: Expected "
+                      << expected.size() << " occurrences, got " << occs.size() << std::endl;
+            locateFailure(expected, occs);
+          }
         }
       }
       else
@@ -687,10 +800,12 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
           {
             #pragma omp critical
             {
-              std::cerr << "GCSA::verifyIndex(): Failure at " << j << ": "
-                        << "expected " << Node::decode(expected[j])
-                        << ", got " << Node::decode(occs[j]) << std::endl;
-              printFailure(kmer, expected, occs); fails++;
+              if(printFailure(fails))
+              {
+                std::cerr << "GCSA::verifyIndex(): locate(" << kmer << ") failed: Expected "
+                          << Node::decode(expected[j]) << ", got " << Node::decode(occs[j]) << std::endl;
+                locateFailure(expected, occs);
+              }
             }
             break;
           }
@@ -701,6 +816,9 @@ GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
     }
   }
 
+  double seconds = readTimer() - start;
+  std::cout << "Queried the index with " << unique << " patterns in " << seconds << " seconds ("
+            << (unique / seconds) << " patterns / second)" << std::endl;
   if(fails == 0)
   {
     std::cout << "Index verification complete" << std::endl;
@@ -826,20 +944,6 @@ GCSA::countKMers(size_type k, bool force) const
 }
 
 //------------------------------------------------------------------------------
-
-void
-GCSA::setVectors()
-{
-  this->path_rank.set_vector(&(this->path_nodes));
-  this->path_select.set_vector(&(this->path_nodes));
-
-  this->edge_rank.set_vector(&(this->edges));
-  this->edge_select.set_vector(&(this->edges));
-
-  this->sampled_path_rank.set_vector(&(this->sampled_paths));
-
-  this->sample_select.set_vector(&(this->samples));
-}
 
 void
 GCSA::initSupport()
