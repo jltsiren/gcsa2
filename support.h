@@ -235,7 +235,6 @@ private:
 template<class Container>
 SadaSparse::SadaSparse(const Container& source)
 {
-
   // Sparse filter.
   size_type total = 0, filtered_values = 0;
   sdsl::bit_vector buffer(source.size(), 0);

@@ -356,15 +356,13 @@ struct PathGraph
 
 struct MergedGraph
 {
-  std::string path_name, rank_name, from_name;
+  std::string path_name, rank_name, from_name, lcp_name;
 
   size_type path_count, rank_count, from_count;
   size_type order;
 
   std::vector<size_type> next;      // paths[next[comp]] is the first path starting with comp.
   std::vector<size_type> next_from; // Where to find the corresponding additional from nodes.
-
-  sdsl::int_vector<8>    lcp_array;
 
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa

@@ -1063,11 +1063,11 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 const std::string MergedGraph::PREFIX = ".gcsa";
 
 MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, const LCP& kmer_lcp) :
-  path_name(TempFile::getName(PREFIX)), rank_name(TempFile::getName(PREFIX)), from_name(TempFile::getName(PREFIX)),
+  path_name(TempFile::getName(PREFIX)), rank_name(TempFile::getName(PREFIX)),
+  from_name(TempFile::getName(PREFIX)), lcp_name(TempFile::getName(PREFIX)),
   path_count(0), rank_count(0), from_count(0),
   order(source.k()),
-  next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0),
-  lcp_array(source.ranges())
+  next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0)
 {
   std::ofstream path_file(this->path_name.c_str(), std::ios_base::binary);
   if(!path_file)
@@ -1087,6 +1087,7 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
     std::cerr << "MergedGraph::MergedGraph(): Cannot open output file " << this->from_name << std::endl;
     std::exit(EXIT_FAILURE);
   }
+  WriteBuffer<uint8_t> lcp_array(this->lcp_name);
 
   /*
      Initialize next[comp] to be the the rank of the first kmer starting with
@@ -1102,11 +1103,12 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
 
   PathGraphMerger merger(source, kmer_lcp, false);
   std::vector<range_type> curr_from;
+  std::vector<uint8_t> lcp_buffer; lcp_buffer.reserve(MEGABYTE);
   size_type curr_comp = 0;  // Used to transform next.
   for(range_type range = merger.first(); !(merger.atEnd(range)); range = merger.next())
   {
     range_type path_lcp = merger.ranges.front().left_lcp;
-    this->lcp_array[this->path_count] = path_lcp.first * mapper.order() + path_lcp.second;
+    lcp_array.push_back(path_lcp.first * mapper.order() + path_lcp.second);
     merger.mergePathNodes(range, curr_from, this->path_count);
     merger.buffer[range.second].serialize(path_file, rank_file, this->rank_count);
     if(curr_from.size() > 0)
@@ -1124,7 +1126,7 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
     this->from_count += curr_from.size();
   }
   merger.close();
-  path_file.close(); rank_file.close(); from_file.close();
+  path_file.close(); rank_file.close(); from_file.close(); lcp_array.close();
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "MergedGraph::MergedGraph(): " << this->size() << " paths with "
@@ -1144,6 +1146,7 @@ MergedGraph::clear()
   remove(this->path_name.c_str()); this->path_name = "";
   remove(this->rank_name.c_str()); this->rank_name = "";
   remove(this->from_name.c_str()); this->from_name = "";
+  remove(this->lcp_name.c_str()); this->lcp_name = "";
 
   this->path_count = 0; this->rank_count = 0; this->from_count = 0;
   this->order = 0;

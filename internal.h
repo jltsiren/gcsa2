@@ -343,7 +343,11 @@ ElementReader<Element>::seek(size_type i)
 
 /*
   A buffer for reading a file of Elements sequentially. The buffer contains Elements
-  offset to offset + buffer.size() - 1. A separate thread is spawned for reading.
+  offset to offset + buffer.size() - 1. The offset is moved by calling seek() or when
+  accessing an element before the current offset.
+
+  A separate thread is spawned for reading in the background.
+
   The Reader must implement the following interface:
 
   Reader()                        Default constructor.
@@ -521,6 +525,67 @@ ReadBuffer<Element, Reader>::addBlock()
     this->buffer.insert(this->buffer.end(), this->read_buffer.begin(), this->read_buffer.end());
     this->read_buffer.clear();
   }
+}
+
+//------------------------------------------------------------------------------
+
+/*
+  A simple wrapper for buffered writing of elementary types.
+*/
+
+template<class Element>
+struct WriteBuffer
+{
+  explicit WriteBuffer(const std::string& filename, size_type _buffer_size = MEGABYTE);
+  ~WriteBuffer();
+  void close();
+
+  inline void push_back(Element value)
+  {
+    this->buffer.push_back(value);
+    if(buffer.size() >= this->buffer_size)
+    {
+      DiskIO::write(this->file, this->buffer.data(), this->buffer.size());
+      this->buffer.clear();
+    }
+  }
+
+  std::ofstream        file;
+  std::vector<Element> buffer;
+  size_type            buffer_size;
+
+  WriteBuffer(const WriteBuffer&) = delete;
+  WriteBuffer& operator= (const WriteBuffer&) = delete;
+};
+
+template<class Element>
+WriteBuffer<Element>::WriteBuffer(const std::string& filename, size_type _buffer_size) :
+  file(filename.c_str(), std::ios_base::binary), buffer(), buffer_size(_buffer_size)
+{
+  if(!(this->file))
+  {
+    std::cerr << "WriteBuffer::WriteBuffer(): Cannot open output file " << filename << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  this->buffer.reserve(this->buffer_size);
+}
+
+template<class Element>
+WriteBuffer<Element>::~WriteBuffer()
+{
+  this->close();
+}
+
+template<class Element>
+void
+WriteBuffer<Element>::close()
+{
+  if(this->buffer.size() > 0)
+  {
+    DiskIO::write(this->file, this->buffer.data(), this->buffer.size());
+  }
+  this->file.close();
+  sdsl::util::clear(this->buffer);
 }
 
 //------------------------------------------------------------------------------

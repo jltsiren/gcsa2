@@ -516,6 +516,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   {
     reader[comp + 1].init(merged_graph, comp);
   }
+  ReadBuffer<uint8_t> lcp_array; lcp_array.init(merged_graph.lcp_name);
 
   // The actual construction.
   PathLabel first, last;
@@ -567,7 +568,8 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     */
     reader[0].fromNodes(curr_from);
     occurrences.increment(i, curr_from.size() - 1);
-    size_type curr_lcp = merged_graph.lcp_array[i] + (i > 0 ? 1 : 0); // Handle LCP[0] as -1.
+    lcp_array.seek(i);
+    size_type curr_lcp = lcp_array[i] + (i > 0 ? 1 : 0); // Handle LCP[0] as -1.
     while(!(node_lcp.empty()) && node_lcp.back() > curr_lcp)
     {
       node_lcp.pop_back(); first_time.pop_back(); last_time.pop_back();
@@ -625,6 +627,7 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
     }
   }
   for(size_type i = 0; i < reader.size(); i++) { reader[i].close(); }
+  lcp_array.close();
   sdsl::util::clear(last_char); sdsl::util::clear(from_nodes); sdsl::util::clear(prev_occ);
   this->header.edges = total_edges;
 

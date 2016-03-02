@@ -5,7 +5,7 @@ SDSL_DIR=../sdsl-lite
 #RUSAGE_FLAGS=-DRUSAGE_IN_BYTES
 
 # This enables various debugging options in build_gcsa.
-VERIFY_FLAGS=-DVERIFY_CONSTRUCTION
+#VERIFY_FLAGS=-DVERIFY_CONSTRUCTION
 
 # Multithreading with OpenMP and libstdc++ Parallel Mode.
 PARALLEL_FLAGS=-fopenmp -pthread -D_GLIBCXX_PARALLEL
