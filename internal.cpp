@@ -35,12 +35,15 @@ std::atomic<size_type> DiskIO::write_volume(0);
 //------------------------------------------------------------------------------
 
 CounterArray::CounterArray() :
+  width(8), large_value(sdsl::bits::lo_set[width]),
   total(0)
 {
 }
 
-CounterArray::CounterArray(size_type n) :
-  data(n, 0), total(0)
+CounterArray::CounterArray(size_type n, size_type data_width) :
+  data(n, 0, data_width),
+  width(data_width), large_value(sdsl::bits::lo_set[width]),
+  total(0)
 {
 }
 
@@ -57,6 +60,8 @@ CounterArray::swap(CounterArray& another)
 {
   this->data.swap(another.data);
   this->large_values.swap(another.large_values);
+  std::swap(this->width, another.width);
+  std::swap(this->large_value, another.large_value);
   std::swap(this->total, another.total);
 }
 

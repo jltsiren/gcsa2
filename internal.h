@@ -142,62 +142,48 @@ struct ValueIndex
 //------------------------------------------------------------------------------
 
 /*
-  A simple counter array that uses a byte array for most counters and stores large values
+  A simple counter array that uses an int_vector<0> for most counters and stores large values
   in an std::map.
 */
 struct CounterArray
 {
-  std::vector<byte_type> data;
+  sdsl::int_vector<0>            data;
   std::map<size_type, size_type> large_values;
-  size_type total;
-
-  const static byte_type LARGE_VALUE = 255;
+  size_type                      width, large_value;
+  size_type                      total;
 
   CounterArray();
-  explicit CounterArray(size_type n);
+  CounterArray(size_type n, size_type data_width);
 
   inline size_type size() const { return this->data.size(); }
   inline size_type sum() const { return this->total; }
 
   inline size_type operator[] (size_type i) const
   {
-    return (this->data[i] == LARGE_VALUE ? this->large_values.at(i) : this->data[i]);
+    return (this->data[i] == this->large_value ? this->large_values.at(i) : this->data[i]);
   }
 
   inline void increment(size_type i)
   {
-    if(this->data[i] == LARGE_VALUE) { this->large_values[i]++; }
+    if(this->data[i] == this->large_value) { this->large_values[i]++; }
     else
     {
       this->data[i]++;
-      if(this->data[i] == LARGE_VALUE) { this->large_values[i] = LARGE_VALUE; }
+      if(this->data[i] == this->large_value) { this->large_values[i] = this->large_value; }
     }
     this->total++;
   }
 
   inline void increment(size_type i, size_type val)
   {
-    if(this->data[i] == LARGE_VALUE) { this->large_values[i] += val; }
-    else if(this->data[i] + val >= LARGE_VALUE)
+    if(this->data[i] == this->large_value) { this->large_values[i] += val; }
+    else if(this->data[i] + val >= this->large_value)
     {
       this->large_values[i] = this->data[i] + val;
-      this->data[i] = LARGE_VALUE;
+      this->data[i] = this->large_value;
     }
     else { this->data[i] += val; }
     this->total += val;
-  }
-
-  inline void decrement(size_type i)
-  {
-    if(this->data[i] == LARGE_VALUE)
-    {
-      size_type temp = --(this->large_values[i]);
-      if(temp < LARGE_VALUE) { this->data[i] = temp; }
-    }
-    else
-    {
-      this->data[i]--;
-    }
   }
 
   void clear();

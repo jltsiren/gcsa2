@@ -498,14 +498,14 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   sdsl::int_vector<64> counts(mapper.alpha.sigma, 0); // alpha
   sdsl::int_vector<8> bwt_buffer(merged_graph.size() + merged_graph.size() / 2, 0); // bwt
   this->path_nodes = bit_vector(bwt_buffer.size(), 0);
-  CounterArray outdegrees(merged_graph.size()); // edges
+  CounterArray outdegrees(merged_graph.size(), 4); // edges
   this->sampled_paths = bit_vector(merged_graph.size(), 0);
   std::vector<node_type> sample_buffer; // stored_samples
   this->samples = bit_vector(merged_graph.size() + merged_graph.extra(), 0);
 
   // Structures used for building counting support.
   // Invariant: The previous occurrence of from node x was at path prev_occ[from_rank(x)] - 1.
-  CounterArray occurrences(merged_graph.size()), redundant(merged_graph.size() - 1);
+  CounterArray occurrences(merged_graph.size(), 4), redundant(merged_graph.size() - 1, 4);
   sdsl::int_vector<0> prev_occ(unique_from_nodes, 0, bit_length(merged_graph.size()));
   std::vector<size_type> node_lcp, first_time, last_time;
 
