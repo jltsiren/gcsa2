@@ -131,6 +131,7 @@ struct GCSAHeader
 
   const static uint32_t TAG = 0x6C5A6C5A;
   const static uint32_t VERSION = 2;
+  const static uint32_t MIN_VERSION = 1;
 
   const static uint64_t COMPRESSED = 0x1; // Not in use.
 
@@ -138,7 +139,7 @@ struct GCSAHeader
 
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
   void load(std::istream& in);
-  bool check() const;
+  bool check(uint32_t expected_version = VERSION) const;
   bool checkNew() const;
 
   void swap(GCSAHeader& another);
