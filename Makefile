@@ -5,7 +5,7 @@ SDSL_DIR=../sdsl-lite
 #RUSAGE_FLAGS=-DRUSAGE_IN_BYTES
 
 # This enables various debugging options in build_gcsa.
-VERIFY_FLAGS=-DVERIFY_CONSTRUCTION
+#VERIFY_FLAGS=-DVERIFY_CONSTRUCTION
 
 # Multithreading with OpenMP and libstdc++ Parallel Mode.
 PARALLEL_FLAGS=-fopenmp -pthread -D_GLIBCXX_PARALLEL
@@ -23,7 +23,8 @@ HEADERS=$(wildcard *.h)
 OBJS=$(SOURCES:.cpp=.o)
 LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
 LIBRARY=libgcsa2.a
-PROGRAMS=build_gcsa convert_gcsa convert_graph count_kmers query_gcsa
+PROGRAMS=build_gcsa convert_graph count_kmers gcsa_format query_gcsa
+OBSOLETE=convert_gcsa
 
 all: $(LIBRARY) $(PROGRAMS)
 
@@ -36,7 +37,7 @@ $(LIBRARY):$(LIBOBJS)
 build_gcsa:build_gcsa.o $(LIBRARY)
 	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
-convert_gcsa:convert_gcsa.o $(LIBRARY)
+gcsa_format:gcsa_format.o $(LIBRARY)
 	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
 convert_graph:convert_graph.o $(LIBRARY)
@@ -49,4 +50,4 @@ query_gcsa:query_gcsa.o $(LIBRARY)
 	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
 clean:
-	rm -f $(PROGRAMS) $(OBJS) $(LIBRARY)
+	rm -f $(PROGRAMS) $(OBJS) $(LIBRARY) $(OBSOLETE)

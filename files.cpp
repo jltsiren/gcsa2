@@ -483,9 +483,9 @@ GCSAHeader::load(std::istream& in)
 }
 
 bool
-GCSAHeader::check() const
+GCSAHeader::check(uint32_t expected_version) const
 {
-  return (this->tag == TAG && this->version == VERSION && this->flags == 0);
+  return (this->tag == TAG && this->version == expected_version && this->flags == 0);
 }
 
 bool

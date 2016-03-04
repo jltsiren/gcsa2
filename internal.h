@@ -142,62 +142,48 @@ struct ValueIndex
 //------------------------------------------------------------------------------
 
 /*
-  A simple counter array that uses a byte array for most counters and stores large values
+  A simple counter array that uses an int_vector<0> for most counters and stores large values
   in an std::map.
 */
 struct CounterArray
 {
-  std::vector<byte_type> data;
+  sdsl::int_vector<0>            data;
   std::map<size_type, size_type> large_values;
-  size_type total;
-
-  const static byte_type LARGE_VALUE = 255;
+  size_type                      width, large_value;
+  size_type                      total;
 
   CounterArray();
-  explicit CounterArray(size_type n);
+  CounterArray(size_type n, size_type data_width);
 
   inline size_type size() const { return this->data.size(); }
   inline size_type sum() const { return this->total; }
 
   inline size_type operator[] (size_type i) const
   {
-    return (this->data[i] == LARGE_VALUE ? this->large_values.at(i) : this->data[i]);
+    return (this->data[i] == this->large_value ? this->large_values.at(i) : this->data[i]);
   }
 
   inline void increment(size_type i)
   {
-    if(this->data[i] == LARGE_VALUE) { this->large_values[i]++; }
+    if(this->data[i] == this->large_value) { this->large_values[i]++; }
     else
     {
       this->data[i]++;
-      if(this->data[i] == LARGE_VALUE) { this->large_values[i] = LARGE_VALUE; }
+      if(this->data[i] == this->large_value) { this->large_values[i] = this->large_value; }
     }
     this->total++;
   }
 
   inline void increment(size_type i, size_type val)
   {
-    if(this->data[i] == LARGE_VALUE) { this->large_values[i] += val; }
-    else if(this->data[i] + val >= LARGE_VALUE)
+    if(this->data[i] == this->large_value) { this->large_values[i] += val; }
+    else if(this->data[i] + val >= this->large_value)
     {
       this->large_values[i] = this->data[i] + val;
-      this->data[i] = LARGE_VALUE;
+      this->data[i] = this->large_value;
     }
     else { this->data[i] += val; }
     this->total += val;
-  }
-
-  inline void decrement(size_type i)
-  {
-    if(this->data[i] == LARGE_VALUE)
-    {
-      size_type temp = --(this->large_values[i]);
-      if(temp < LARGE_VALUE) { this->data[i] = temp; }
-    }
-    else
-    {
-      this->data[i]--;
-    }
   }
 
   void clear();
@@ -343,7 +329,11 @@ ElementReader<Element>::seek(size_type i)
 
 /*
   A buffer for reading a file of Elements sequentially. The buffer contains Elements
-  offset to offset + buffer.size() - 1. A separate thread is spawned for reading.
+  offset to offset + buffer.size() - 1. The offset is moved by calling seek() or when
+  accessing an element before the current offset.
+
+  A separate thread is spawned for reading in the background.
+
   The Reader must implement the following interface:
 
   Reader()                        Default constructor.
@@ -521,6 +511,67 @@ ReadBuffer<Element, Reader>::addBlock()
     this->buffer.insert(this->buffer.end(), this->read_buffer.begin(), this->read_buffer.end());
     this->read_buffer.clear();
   }
+}
+
+//------------------------------------------------------------------------------
+
+/*
+  A simple wrapper for buffered writing of elementary types.
+*/
+
+template<class Element>
+struct WriteBuffer
+{
+  explicit WriteBuffer(const std::string& filename, size_type _buffer_size = MEGABYTE);
+  ~WriteBuffer();
+  void close();
+
+  inline void push_back(Element value)
+  {
+    this->buffer.push_back(value);
+    if(buffer.size() >= this->buffer_size)
+    {
+      DiskIO::write(this->file, this->buffer.data(), this->buffer.size());
+      this->buffer.clear();
+    }
+  }
+
+  std::ofstream        file;
+  std::vector<Element> buffer;
+  size_type            buffer_size;
+
+  WriteBuffer(const WriteBuffer&) = delete;
+  WriteBuffer& operator= (const WriteBuffer&) = delete;
+};
+
+template<class Element>
+WriteBuffer<Element>::WriteBuffer(const std::string& filename, size_type _buffer_size) :
+  file(filename.c_str(), std::ios_base::binary), buffer(), buffer_size(_buffer_size)
+{
+  if(!(this->file))
+  {
+    std::cerr << "WriteBuffer::WriteBuffer(): Cannot open output file " << filename << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  this->buffer.reserve(this->buffer_size);
+}
+
+template<class Element>
+WriteBuffer<Element>::~WriteBuffer()
+{
+  this->close();
+}
+
+template<class Element>
+void
+WriteBuffer<Element>::close()
+{
+  if(this->buffer.size() > 0)
+  {
+    DiskIO::write(this->file, this->buffer.data(), this->buffer.size());
+  }
+  this->file.close();
+  sdsl::util::clear(this->buffer);
 }
 
 //------------------------------------------------------------------------------

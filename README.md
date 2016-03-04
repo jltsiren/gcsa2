@@ -14,7 +14,7 @@ See [the wiki](https://github.com/jltsiren/gcsa2/wiki) for further documentation
 
 The maximum resident size reported by `getrusage()` is in kilobytes in Linux and in bytes in OS X. By default, the implementation assumes Linux-like behavior. To get the correct memory usage reports in OS X, uncomment the line `RUSAGE_FLAGS=-DRUSAGE_IN_BYTES` in the makefile.
 
-There are some verification/debugging options in `build_gcsa`. To disable them, comment out the line `VERIFY_FLAGS=-DVERIFY_CONSTRUCTION` in the makefile. This may reduce the memory usage of index construction significantly (see [the wiki](https://github.com/jltsiren/gcsa2/wiki/Construction-Benchmarks)).
+There are some verification/debugging options in `build_gcsa`. To enable them, uncomment the line `VERIFY_FLAGS=-DVERIFY_CONSTRUCTION` in the makefile and select the debugging options in `build_gcsa.cpp`.
 
 Index construction can be set to output some status information to `stderr` by uncommenting the line `OUTPUT_FLAGS=-DVERBOSE_STATUS_INFO` in the makefile.
 

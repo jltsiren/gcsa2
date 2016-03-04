@@ -32,7 +32,6 @@ using namespace gcsa;
 
 void identifyGCSA(const std::string& input_name);
 void compressGCSA(const std::string& input_name, const std::string& output_name);
-void convertGCSA(const std::string& input_name, const std::string& output_name);
 
 //------------------------------------------------------------------------------
 
@@ -41,26 +40,23 @@ main(int argc, char** argv)
 {
   if(argc < 2)
   {
-    std::cerr << "Usage: convert_gcsa [options] input [output]" << std::endl;
-    std::cerr << "  -c    Convert the GCSA to the current file format (default)" << std::endl;
-    std::cerr << "  -C    Compress the GCSA in an experimental file format" << std::endl;
-    std::cerr << "  -i    Identify the file format version without converting" << std::endl;
+    std::cerr << "Usage: gcsa_format [options] input [output]" << std::endl;
+    std::cerr << "  -c    Compress the GCSA in an experimental file format" << std::endl;
+    std::cerr << "  -i    Identify the file format version (default)" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
 
   int c = 0;
-  bool convert = false, compress = false, identify = false;
+  bool compress = false, identify = false;
   bool output_needed = false;
   std::string input_name, output_name;
-  while((c = getopt(argc, argv, "cCi")) != -1)
+  while((c = getopt(argc, argv, "ci")) != -1)
   {
     switch(c)
     {
     case 'c':
-      convert = true; compress = false; output_needed = true; break;
-    case 'C':
-      compress = true; convert = false; output_needed = true; break;
+      compress = true; output_needed = true; break;
     case 'i':
       identify = true; break;
     case '?':
@@ -69,11 +65,11 @@ main(int argc, char** argv)
       std::exit(EXIT_FAILURE);
     }
   }
-  if(!(compress | identify)) { convert = output_needed = true; }
+  if(!compress) { identify = true; }
   if(optind < argc) { input_name = argv[optind]; optind++; }
   else
   {
-    std::cerr << "convert_gcsa: Input file not specified" << std::endl;
+    std::cerr << "gcsa_format: Input file not specified" << std::endl;
     std::exit(EXIT_FAILURE);
   }
   if(output_needed)
@@ -81,21 +77,17 @@ main(int argc, char** argv)
     if(optind < argc) { output_name = argv[optind]; optind++; }
     else
     {
-      std::cerr << "convert_gcsa: Output file not specified" << std::endl;
+      std::cerr << "gcsa_format: Output file not specified" << std::endl;
       std::exit(EXIT_FAILURE);
     }
   }
   if(input_name == output_name)
   {
-    std::cerr << "convert_gcsa: Input and output files must be different" << std::endl;
+    std::cerr << "gcsa_format: Input and output files must be different" << std::endl;
     std::exit(EXIT_FAILURE);
   }
 
-  std::cout << "Note: This program has not been updated since v0.5. It does not work correctly." << std::endl;
-  std::cout << std::endl;
-
   if(identify) { identifyGCSA(input_name); }
-  if(convert)  { convertGCSA(input_name, output_name); }
   if(compress) { compressGCSA(input_name, output_name); }
 
   return 0;
@@ -160,7 +152,7 @@ std::ostream& operator<<(std::ostream& stream, const GCSAHeader_0& header)
 
 /*
   This is a generic encoder for the GCSA body. With the default template parameters, it is
-  identical to file format versions 0 and 1.
+  identical to file format version 0 to 1.
 
   serialize() does not create a new structure tree node. Calling it is equivalent to
   serializing each of the fields separately.
@@ -169,11 +161,9 @@ std::ostream& operator<<(std::ostream& stream, const GCSAHeader_0& header)
 template<class BWTType = GCSA::bwt_type, class BitVector = GCSA::bit_vector>
 struct GCSABody
 {
-  GCSABody();
   explicit GCSABody(const GCSA& source);
 
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
-  void load(std::istream& in);
 
   BWTType                           bwt;
   Alphabet                          alpha;
@@ -201,15 +191,10 @@ struct GCSABody
 };
 
 template<class BWTType, class BitVector>
-GCSABody<BWTType, BitVector>::GCSABody()
-{
-}
-
-template<class BWTType, class BitVector>
 GCSABody<BWTType, BitVector>::GCSABody(const GCSA& source)
 {
   // Extract plain BWT.
-  std::string filename = TempFile::getName(".convert_gcsa");
+  std::string filename = TempFile::getName(".gcsa_format");
   sdsl::int_vector_buffer<8> bwt_buffer(filename, std::ios::out);
   for(size_type i = 0; i < source.bwt.size(); i++) { bwt_buffer[i] = source.bwt[i]; }
   bwt_buffer.close();
@@ -248,7 +233,6 @@ template<class BWTType, class BitVector>
 size_type
 GCSABody<BWTType, BitVector>::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string) const
 {
-//  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
   sdsl::structure_tree_node* child = v; // We do not consider the body a real object.
   size_type written_bytes = 0;
 
@@ -270,31 +254,90 @@ GCSABody<BWTType, BitVector>::serialize(std::ostream& out, sdsl::structure_tree_
   written_bytes += this->samples.serialize(out, child, "samples");
   written_bytes += this->sample_select.serialize(out, child, "sample_select");
 
-//  sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
 }
 
-template<class BWTType, class BitVector>
-void
-GCSABody<BWTType, BitVector>::load(std::istream& in)
+//------------------------------------------------------------------------------
+
+struct SadaSparseSparse
 {
-  this->bwt.load(in);
-  this->alpha.load(in);
+  typedef sdsl::sd_vector<> sd_vector;
 
-  this->path_nodes.load(in);
-  this->path_rank.load(in, &(this->path_nodes));
-  this->path_select.load(in, &(this->path_nodes));
+  explicit SadaSparseSparse(const SadaCount& source);
 
-  this->edges.load(in);
-  this->edge_rank.load(in, &(this->edges));
-  this->edge_select.load(in, &(this->edges));
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
 
-  this->sampled_paths.load(in);
-  this->sampled_path_rank.load(in, &(this->sampled_paths));
+  // Values equal to 1 are marked with an 1-bit.
+  sd_vector                ones;
+  sd_vector::rank_1_type   one_rank;
 
-  this->stored_samples.load(in);
-  this->samples.load(in);
-  this->sample_select.load(in, &(this->samples));
+  // Values greater than 1 are marked with an 1-bit.
+  sd_vector                filter;
+  sd_vector::rank_1_type   filter_rank;
+
+  // Non-zero values encoded in unary: k becomes 0^{k-1} 1.
+  sd_vector                values;
+  sd_vector::select_1_type value_select;
+};
+
+SadaSparseSparse::SadaSparseSparse(const SadaCount& source)
+{
+  size_type values = 0, ones = 0, large = 0, large_total = 0;
+  for(size_type i = 0, curr_val = 0; i < source.data.size(); i++)
+  {
+    if(source.data[i] == 1)
+    {
+      values++;
+      if(curr_val == 1) { ones++; }
+      else if(curr_val > 1) { large++; large_total += curr_val; }
+      curr_val = 0;
+    }
+    else { curr_val++; }
+  }
+
+  sdsl::sd_vector_builder one_builder(values, ones);
+  sdsl::sd_vector_builder filter_builder(values - ones, large);
+  sdsl::sd_vector_builder value_builder(large_total, large);
+  for(size_type i = 0, curr_pos = 0, curr_val = 0, curr_ones = 0, tail = 0; i < source.data.size(); i++)
+  {
+    if(source.data[i] == 1)
+    {
+      if(curr_val == 1) { one_builder.set(curr_pos); curr_ones++; }
+      else if(curr_val > 1)
+      {
+        filter_builder.set(curr_pos - curr_ones);
+        tail += curr_val; value_builder.set(tail - 1);
+      }
+      curr_pos++; curr_val = 0;
+    }
+    else { curr_val++; }
+  }
+  this->ones = sd_vector(one_builder);
+  this->filter = sd_vector(filter_builder);
+  this->values = sd_vector(value_builder);
+
+  sdsl::util::init_support(this->one_rank, &(this->ones));
+  sdsl::util::init_support(this->filter_rank, &(this->filter));
+  sdsl::util::init_support(this->value_select, &(this->values));
+}
+
+size_type
+SadaSparseSparse::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+{
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+  size_type written_bytes = 0;
+
+  written_bytes += this->ones.serialize(out, child, "ones");
+  written_bytes += this->one_rank.serialize(out, child, "one_rank");
+
+  written_bytes += this->filter.serialize(out, child, "filter");
+  written_bytes += this->filter_rank.serialize(out, child, "filter_rank");
+
+  written_bytes += this->values.serialize(out, child, "values");
+  written_bytes += this->value_select.serialize(out, child, "value_select");
+
+  sdsl::structure_tree::add_size(child, written_bytes);
+  return written_bytes;
 }
 
 //------------------------------------------------------------------------------
@@ -314,15 +357,21 @@ struct ExperimentalGCSA
   explicit ExperimentalGCSA(const GCSA& source);
   size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
 
-  GCSAHeader                     header;
-  GCSABody<bwt_type, bit_vector> body;
+  GCSAHeader                        header;
+  GCSABody<bwt_type, bit_vector>    body;
 
+  // Structures used for compressing the samples.
   sd_vector                      sample_values;
   sd_vector::select_1_type       sample_value_select;
+
+  // Structures used for counting queries.
+  SadaSparse                        extra_pointers;
+  SadaSparseSparse                  redundant_pointers;
 };
 
 ExperimentalGCSA::ExperimentalGCSA(const GCSA& source) :
-  body(source)
+  body(source),
+  extra_pointers(source.extra_pointers), redundant_pointers(source.redundant_pointers)
 {
   this->header.path_nodes = source.size();
   this->header.edges = source.edgeCount();
@@ -364,6 +413,9 @@ ExperimentalGCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std
 
   written_bytes += this->sample_values.serialize(out, child, "sample_values");
   written_bytes += this->sample_value_select.serialize(out, child, "sample_value_select");
+
+  written_bytes += this->extra_pointers.serialize(out, child, "extra_pointers");
+  written_bytes += this->redundant_pointers.serialize(out, child, "redundant_pointers");
 
   sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
@@ -442,12 +494,11 @@ compressGCSA(const std::string& input_name, const std::string& output_name)
 
 //------------------------------------------------------------------------------
 
-template<class Header>
 bool
-tryVersion(std::ifstream& input)
+tryVersion0(std::ifstream& input)
 {
   std::streampos pos = input.tellg();
-  Header header;
+  GCSAHeader_0 header;
   header.load(input);
   input.seekg(pos);
 
@@ -459,26 +510,29 @@ tryVersion(std::ifstream& input)
   return false;
 }
 
-template<>
 bool
-tryVersion<GCSAHeader>(std::ifstream& input)
+tryCurrentVersion(std::ifstream& input)
 {
   std::streampos pos = input.tellg();
   GCSAHeader header;
   header.load(input);
   input.seekg(pos);
 
-  if(header.check())
+  for(uint32_t version = GCSAHeader::VERSION; version >= GCSAHeader::MIN_VERSION; version--)
+  {
+    if(header.check(version))
+    {
+      std::cout << header << std::endl;
+      return true;
+    }
+  }
+  if(header.checkNew())
   {
     std::cout << header << std::endl;
+    std::cout << "Note: The file is newer than this version of GCSA" << std::endl;
     return true;
   }
-  else if(header.checkNew())
-  {
-    std::cout << header << std::endl;
-    std::cout << "Note: This version of GCSA only supports version " << GCSAHeader::VERSION << std::endl;
-    return true;
-  }
+
   return false;
 }
 
@@ -498,105 +552,12 @@ identifyGCSA(const std::string& input_name)
     std::exit(EXIT_FAILURE);
   }
 
-  if(!tryVersion<GCSAHeader>(input))
+  if(!tryCurrentVersion(input))
   {
     std::cout << "File format cannot be identified, trying version 0" << std::endl;
-    tryVersion<GCSAHeader_0>(input);
+    tryVersion0(input);
   }
   input.close();
-
-  std::cout << std::endl;
-  std::cout << std::endl;
-}
-
-//------------------------------------------------------------------------------
-
-/*
-  A simple GCSA encoding consisting of a header and a body. File format versions 0 and 1
-  are of that form.
-*/
-
-template<class Header, class Body>
-struct GenericGCSA
-{
-  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
-  void load(std::istream& in);
-
-  Header header;
-  Body   body;
-};
-
-template<class Header, class Body>
-size_type
-GenericGCSA<Header, Body>::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
-{
-  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
-  size_type written_bytes = 0;
-
-  written_bytes += this->header.serialize(out, child, "header");
-  written_bytes += this->body.serialize(out, child, "body");
-
-  sdsl::structure_tree::add_size(child, written_bytes);
-  return written_bytes;
-}
-
-template<class Header, class Body>
-void
-GenericGCSA<Header, Body>::load(std::istream& in)
-{
-  this->header.load(in);
-  this->body.load(in);
-}
-
-//------------------------------------------------------------------------------
-
-void
-convertGCSA(const std::string& input_name, const std::string& output_name)
-{
-  std::cout << "GCSA converter" << std::endl;
-  std::cout << std::endl;
-
-  std::cout << "Input: " << input_name << std::endl;
-  std::cout << "Output: " << output_name << std::endl;
-  std::cout << std::endl;
-
-  std::ifstream input(input_name.c_str(), std::ios_base::binary);
-  if(!input)
-  {
-    std::cerr << "convertGCSA(): Cannot open input file " << input_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  std::ofstream output(output_name.c_str(), std::ios_base::binary);
-  if(!output)
-  {
-    std::cerr << "convertGCSA(): Cannot open output file " << output_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-
-  if(tryVersion<GCSAHeader>(input))
-  {
-    GenericGCSA<GCSAHeader, GCSABody<>> source;
-    source.load(input);
-    source.serialize(output);
-  }
-  else
-  {
-    std::cout << "File format cannot be identified, trying version 0" << std::endl;
-    tryVersion<GCSAHeader_0>(input);
-
-    // Load GCSA version 0.
-    GenericGCSA<GCSAHeader_0, GCSABody<sdsl::wt_huff<>, sdsl::bit_vector>> source;
-    source.load(input);
-
-    // Build the current version of GCSA. At the moment the body is identical.
-    GCSAHeader header;
-    header.path_nodes = source.header.path_nodes;
-    header.edges = source.body.bwt.size();
-    header.order = source.header.order;
-    header.serialize(output);
-    source.body.serialize(output);
-  }
-  input.close(); output.close();
 
   std::cout << std::endl;
   std::cout << std::endl;
