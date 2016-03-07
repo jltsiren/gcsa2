@@ -24,9 +24,8 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <stack>
 
-#include "gcsa.h"
+#include "algorithms.h"
 #include "internal.h"
 #include "path_graph.h"
 
@@ -673,281 +672,6 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
 #endif
 }
 
-//------------------------------------------------------------------------------
-
-std::ostream&
-printOccs(const std::vector<node_type>& occs, std::ostream& out)
-{
-  out << "{";
-  for(size_type i = 0; i < occs.size(); i++)
-  {
-    out << (i == 0 ? " " : ", ") << Node::decode(occs[i]);
-  }
-  out << " }";
-  return out;
-}
-
-void
-locateFailure(const std::vector<node_type>& expected, const std::vector<node_type>& occs)
-{
-  std::cerr << "GCSA::verifyIndex(): Expected ";
-  printOccs(expected, std::cerr) << std::endl;
-  std::cerr << "GCSA::verifyIndex(): Got ";
-  printOccs(occs, std::cerr) << std::endl;
-}
-
-bool
-printFailure(size_type& failure_count)
-{
-  if(failure_count == GCSA::MAX_ERRORS)
-  {
-    std::cerr << "GCSA::verifyIndex(): There were further errors" << std::endl;
-  }
-  failure_count++;
-  return (failure_count <= GCSA::MAX_ERRORS);
-}
-
-struct KMerSplitComparator
-{
-  inline bool operator() (const KMer& left, const KMer& right) const
-    {
-      return (Key::label(left.key) != Key::label(right.key));
-    }
-};
-
-bool
-GCSA::verifyIndex(const InputGraph& graph) const
-{
-  std::vector<KMer> kmers; graph.read(kmers);
-  return this->verifyIndex(kmers, graph.k());
-}
-
-bool
-GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
-{
-  double start = readTimer();
-
-  size_type threads = omp_get_max_threads();
-  parallelQuickSort(kmers.begin(), kmers.end());
-  KMerSplitComparator k_comp;
-  std::vector<range_type> bounds = getBounds(kmers, threads, k_comp);
-  assert(bounds.size() == threads);
-
-  size_type fails = 0, unique = 0;
-  #pragma omp parallel for schedule(static)
-  for(size_type thread = 0; thread < threads; thread++)
-  {
-    size_type i = bounds[thread].first;
-    while(i <= bounds[thread].second)
-    {
-      size_type next = i + 1;
-      while(next <= bounds[thread].second && Key::label(kmers[next].key) == Key::label(kmers[i].key)) {
-          next++;
-      }
-      #pragma omp atomic
-      unique++;
-
-      std::string kmer = Key::decode(kmers[i].key, kmer_length, alpha);
-      size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
-      if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
-
-      range_type range = this->find(kmer);
-      if(Range::empty(range))
-      {
-        #pragma omp critical
-        {
-          if(printFailure(fails))
-          {
-            std::cerr << "GCSA::verifyIndex(): find(" << kmer << ") returned empty range" << std::endl;
-          }
-        }
-        i = next; continue;
-      }
-
-      std::vector<node_type> expected;
-      for(size_type j = i; j < next; j++) { expected.push_back(kmers[j].from); }
-      removeDuplicates(expected, false);
-      size_type unique_count = this->count(range);
-      if(unique_count != expected.size())
-      {
-        #pragma omp critical
-        {
-          if(printFailure(fails))
-          {
-            std::cerr << "GCSA::verifyIndex(): count" << range << " failed: Expected "
-                      << expected.size() << " occurrences, got " << unique_count << std::endl;
-          }
-        }
-        i = next; continue;
-      }
-
-      std::vector<node_type> occs;
-      this->locate(range, occs);
-      if(occs.size() != expected.size())
-      {
-        #pragma omp critical
-        {
-          if(printFailure(fails))
-          {
-            std::cerr << "GCSA::verifyIndex(): locate(" << kmer << ") failed: Expected "
-                      << expected.size() << " occurrences, got " << occs.size() << std::endl;
-            locateFailure(expected, occs);
-          }
-        }
-      }
-      else
-      {
-        for(size_type j = 0; j < occs.size(); j++)
-        {
-          if(occs[j] != expected[j])
-          {
-            #pragma omp critical
-            {
-              if(printFailure(fails))
-              {
-                std::cerr << "GCSA::verifyIndex(): locate(" << kmer << ") failed: Expected "
-                          << Node::decode(expected[j]) << ", got " << Node::decode(occs[j]) << std::endl;
-                locateFailure(expected, occs);
-              }
-            }
-            break;
-          }
-        }
-      }
-
-      i = next;
-    }
-  }
-
-  double seconds = readTimer() - start;
-  std::cout << "Queried the index with " << unique << " patterns in " << seconds << " seconds ("
-            << (unique / seconds) << " patterns / second)" << std::endl;
-  if(fails == 0)
-  {
-    std::cout << "Index verification complete" << std::endl;
-  }
-  else
-  {
-    std::cout << "Index verification failed for " << fails << " patterns" << std::endl;
-  }
-  std::cout << std::endl;
-
-  return fails == 0;
-}
-
-//------------------------------------------------------------------------------
-
-struct ReverseTrieNode
-{
-  range_type range;
-  size_type  depth;
-  bool       ends_at_sink;
-
-  const static size_type SEED_LENGTH = 5; // Create all patterns of that length before parallelizing.
-
-  ReverseTrieNode() : range(0, 0), depth(0), ends_at_sink(false) {}
-  ReverseTrieNode(range_type rng, size_type d, bool sink) : range(rng), depth(d), ends_at_sink(sink) {}
-};
-
-struct KMerCounter
-{
-  size_type count, limit;
-
-  KMerCounter(size_type _limit) : count(0), limit(_limit) {}
-
-  inline void add(const ReverseTrieNode& node)
-  {
-    if(node.ends_at_sink || node.depth >= this->limit) { this->count++; }
-  }
-};
-
-struct SeedCollector
-{
-  size_type count, limit;
-  std::vector<ReverseTrieNode> seeds;
-
-  SeedCollector(size_type _limit) : count(0), limit(_limit), seeds() {}
-
-  inline void add(const ReverseTrieNode& node)
-  {
-    if(node.depth >= this->limit) { this->seeds.push_back(node); }
-    else if(node.ends_at_sink) { this->count++; } // Seeds ending at the sink are counted later.
-  }
-};
-
-template<class Handler>
-void
-processSubtree(const GCSA& index, std::stack<ReverseTrieNode>& node_stack, Handler& handler)
-{
-  std::vector<range_type> predecessors(index.alpha.sigma);
-  while(!(node_stack.empty()))
-  {
-    ReverseTrieNode curr = node_stack.top(); node_stack.pop();
-    if(Range::empty(curr.range)) { continue; }
-    handler.add(curr);
-    if(curr.depth < handler.limit)
-    {
-      index.LF(curr.range, predecessors);
-      for(size_type comp = 1; comp + 1 < index.alpha.sigma; comp++)
-      {
-        node_stack.push(ReverseTrieNode(predecessors[comp], curr.depth + 1, curr.ends_at_sink));
-      }
-    }
-  }
-}
-
-size_type
-GCSA::countKMers(size_type k, bool force) const
-{
-  if(k == 0) { return 1; }
-  if(k > this->order())
-  {
-    if(force)
-    {
-      std::cerr << "GCSA::countKMers(): Warning: The value of k (" << k
-                << ") is greater than the order of the graph (" << this->order() << ")" << std::endl;
-    }
-    else
-    {
-      std::cerr << "GCSA::countKMers(): The value of k (" << k
-                << ") is greater than the order of the graph (" << this->order() << ")" << std::endl;
-      return 0;
-    }
-  }
-
-  // Create an array of seed kmers of length ReverseTrieNode::SEED_LENGTH.
-  size_type result = 0;
-  std::vector<ReverseTrieNode> seeds;
-  {
-    std::stack<ReverseTrieNode> node_stack;
-    node_stack.push(ReverseTrieNode(this->charRange(0), 1, true));
-    for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
-    {
-      node_stack.push(ReverseTrieNode(this->charRange(comp), 1, false));
-    }
-    SeedCollector collector(std::min(k, ReverseTrieNode::SEED_LENGTH));
-    processSubtree(*this, node_stack, collector);
-    result = collector.count;
-    seeds = collector.seeds;
-  }
-
-  // Extend the seeds in parallel.
-  #pragma omp parallel for schedule (dynamic, 1)
-  for(size_type i = 0; i < seeds.size(); i++)
-  {
-    std::stack<ReverseTrieNode> node_stack;
-    node_stack.push(seeds[i]);
-    KMerCounter counter(k);
-    processSubtree(*this, node_stack, counter);
-    #pragma omp atomic
-    result += counter.count;
-  }
-
-  return result;
-}
-
-//------------------------------------------------------------------------------
-
 void
 GCSA::initSupport()
 {
@@ -957,6 +681,26 @@ GCSA::initSupport()
   sdsl::util::init_support(this->edge_select, &(this->edges));
   sdsl::util::init_support(this->sampled_path_rank, &(this->sampled_paths));
   sdsl::util::init_support(this->sample_select, &(this->samples));
+}
+
+//------------------------------------------------------------------------------
+
+bool
+GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
+{
+  return gcsa::verifyIndex(*this, kmers, kmer_length);
+}
+
+bool
+GCSA::verifyIndex(const InputGraph& graph) const
+{
+  return gcsa::verifyIndex(*this, graph);
+}
+
+size_type
+GCSA::countKMers(size_type k, bool force) const
+{
+  return gcsa::countKMers(*this, k, force);
 }
 
 //------------------------------------------------------------------------------

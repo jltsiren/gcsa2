@@ -91,30 +91,15 @@ public:
   GCSA(const InputGraph& graph, const ConstructionParameters& parameters = ConstructionParameters(),
     const Alphabet& _alpha = Alphabet());
 
+//------------------------------------------------------------------------------
+
   /*
-    Index verification. The index is queried with all unique kmer labels in the input, and
-    the list of occurrences is expected to be the same as the set of start nodes of the
-    kmers with that label. To guarantee this, the input should be the same as for the
-    constructor, or a subset where all kmers with a given label are either present or
-    absent.
-
-    Note: Verification uses multiple threads and sorts the kmer array.
-
-    Returns false if index verification fails, and true otherwise.
+    Algorithms using GCSA. See algorithms.h for more information.
   */
+
   bool verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const;
   bool verifyIndex(const InputGraph& graph) const;
 
-  /*
-    Kmer counting. Returns the number of kmers of the given length. If k > order(),
-    prints a warning and returns immediately unless force == true.
-
-    A kmer is a path of length k containing comp values 0 <= comp < sigma - 1. Alternatively
-    the path contains either k values 0 < comp < sigma - 1, or k - 1 such values followed
-    by a 0.
-
-    Note: Counting uses multiple threads.
-  */
   size_type countKMers(size_type k, bool force = false) const;
 
 //------------------------------------------------------------------------------
