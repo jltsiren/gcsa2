@@ -24,7 +24,7 @@
 
 #include <string>
 
-#include "gcsa.h"
+#include "algorithms.h"
 
 using namespace gcsa;
 
@@ -54,7 +54,7 @@ main(int argc, char** argv)
   std::cout << "GCSA:       " << index.size() << " paths, order " << index.order() << std::endl;
 
   double start = readTimer();
-  size_type kmer_count = index.countKMers(k);
+  size_type kmer_count = countKMers(index, k);
   double seconds = readTimer() - start;
   std::cout << "Kmers:      " << kmer_count << std::endl;
   std::cout << std::endl;

@@ -26,7 +26,7 @@
 #include <string>
 #include <unistd.h>
 
-#include "gcsa.h"
+#include "algorithms.h"
 
 using namespace gcsa;
 
@@ -167,7 +167,7 @@ main(int argc, char** argv)
   printHeader("Without samples"); std::cout << inMegabytes(index_bytes - sample_bytes) << " MB" << std::endl;
   std::cout << std::endl;
 
-  if(verify) { index.verifyIndex(graph); }
+  if(verify) { verifyIndex(index, graph); }
 
   std::cout << "Final memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;
   std::cout << std::endl;
