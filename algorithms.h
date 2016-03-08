@@ -26,6 +26,7 @@
 #define _GCSA_ALGORITHMS_H
 
 #include "gcsa.h"
+#include "lcp.h"
 
 namespace gcsa
 {

@@ -36,6 +36,25 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+struct ConstructionParameters
+{
+  const static size_type DOUBLING_STEPS = 3;
+  const static size_type SIZE_LIMIT     = 500;    // Gigabytes.
+  const static size_type ABSOLUTE_LIMIT = 16384;  // Gigabytes.
+  const static size_type LCP_BRANCHING  = 32;
+
+  ConstructionParameters();
+  void setSteps(size_type steps);
+  void setLimit(size_type gigabytes);
+  void setLCPBranching(size_type factor);
+
+  size_type doubling_steps;
+  size_type size_limit;
+  size_type lcp_branching;
+};
+
+//------------------------------------------------------------------------------
+
 template<class ByteVector>
 void characterCounts(const ByteVector& sequence, const sdsl::int_vector<8>& char2comp, sdsl::int_vector<64>& counts);
 
