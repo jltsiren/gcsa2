@@ -70,10 +70,12 @@ void writeKMers(const std::string& base_name, std::vector<KMer>& kmers, size_typ
 struct InputGraph
 {
   std::vector<std::string> filenames;
+  std::string              lcp_name; // Used to pass the LCP array from GCSA construction.
   std::vector<size_type>   sizes;
 
   bool binary;
   size_type kmer_count, kmer_length;
+
 
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string BINARY_EXTENSION;  // .graph
@@ -81,6 +83,7 @@ struct InputGraph
 
   InputGraph(const std::vector<std::string>& files, bool binary_format);
   InputGraph(size_type file_count, char** base_names, bool binary_format);
+  ~InputGraph();
 
   void open(std::ifstream& input, size_type file) const;
   void setK(size_type new_k, size_type file);

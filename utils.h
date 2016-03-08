@@ -195,6 +195,7 @@ struct TempFile
 
   static void setDirectory(const std::string& directory);
   static std::string getName(const std::string& name_part);
+  static void remove(std::string& filename);
 };
 
 // Returns the total length of the rows, excluding line ends.

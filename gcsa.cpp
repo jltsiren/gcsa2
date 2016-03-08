@@ -22,9 +22,6 @@
   SOFTWARE.
 */
 
-#include <cstdio>
-#include <cstdlib>
-
 #include "algorithms.h"
 #include "internal.h"
 #include "path_graph.h"
@@ -434,7 +431,7 @@ MergedGraphReader::fromNodes(std::vector<node_type>& results)
 
 //------------------------------------------------------------------------------
 
-GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, const Alphabet& _alpha)
+GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Alphabet& _alpha)
 {
   if(graph.size() == 0) { return; }
   size_type bytes_required = graph.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
@@ -663,6 +660,11 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   this->stored_samples = sdsl::int_vector<0>(sample_buffer.size(), 0, sample_bits);
   for(size_type i = 0; i < sample_buffer.size(); i++) { this->stored_samples[i] = sample_buffer[i]; }
   sdsl::util::clear(sample_buffer);
+
+  // Transfer the LCP array from MergedGraph to InputGraph.
+  TempFile::remove(graph.lcp_name);
+  graph.lcp_name = merged_graph.lcp_name;
+  merged_graph.lcp_name.clear();
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "GCSA::GCSA(): " << this->size() << " paths, " << this->edgeCount() << " edges" << std::endl;

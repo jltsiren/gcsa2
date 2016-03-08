@@ -22,9 +22,6 @@
   SOFTWARE.
 */
 
-#include <cstdio>
-#include <cstdlib>
-
 #include "dbg.h"
 
 namespace gcsa

@@ -88,7 +88,7 @@ public:
     size limit. If the graph was encoded using non-default Alphabet, an alphabet object
     must also be supplied.
   */
-  GCSA(const InputGraph& graph, const ConstructionParameters& parameters = ConstructionParameters(),
+  GCSA(InputGraph& graph, const ConstructionParameters& parameters = ConstructionParameters(),
     const Alphabet& _alpha = Alphabet());
 
 //------------------------------------------------------------------------------

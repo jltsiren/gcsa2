@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -22,6 +22,7 @@
   SOFTWARE.
 */
 
+#include <cstdio>
 #include <cstdlib>
 
 #include <sys/resource.h>
@@ -105,6 +106,16 @@ TempFile::getName(const std::string& name_part)
     + std::string(hostname) + '_'
     + sdsl::util::to_string(sdsl::util::pid()) + '_'
     + sdsl::util::to_string(sdsl::util::id());
+}
+
+void
+TempFile::remove(std::string& filename)
+{
+  if(!(filename.empty()))
+  {
+    std::remove(filename.c_str());
+    filename.clear();
+  }
 }
 
 size_type
