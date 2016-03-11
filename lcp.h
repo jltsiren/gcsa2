@@ -156,7 +156,7 @@ public:
     in the array. Level 0 is the leaves (the LCP array).
   */
 
-  sdsl::int_vector<8>  data;
+  sdsl::int_vector<0>  data;
   sdsl::int_vector<64> offsets;
   size_type            lcp_size, branching_factor;
 
@@ -173,7 +173,7 @@ private:
 public:
   inline size_type rmtRoot() const
   {
-    return this->data.size() - 1;
+    return this->values() - 1;
   }
 
   inline size_type rmtParent(size_type node, size_type level) const

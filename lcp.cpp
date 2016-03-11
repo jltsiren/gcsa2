@@ -167,7 +167,7 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
   }
 
   // Initialize data.
-  this->data = sdsl::int_vector<8>(total_size, ~(uint8_t)0);
+  this->data = sdsl::int_vector<0>(total_size, ~(uint8_t)0, 8);
   DiskIO::read(in, (const uint8_t*)(this->data.data()), this->lcp_size);
   in.close();
   for(size_type level = 0; level < this->levels(); level++)
@@ -178,6 +178,7 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
       if(this->data[i] < this->data[par]) { this->data[par] = this->data[i]; }
     }
   }
+  sdsl::util::bit_compress(this->data);
 
 #ifdef VERBOSE_STATUS_INFO
   std::cerr << "LCPArray::LCPArray(): " << this->values() << " values at " << this->levels()
