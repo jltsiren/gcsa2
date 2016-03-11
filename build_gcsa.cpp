@@ -182,7 +182,7 @@ main(int argc, char** argv)
   printHeader("LCP size"); std::cout << inMegabytes(lcp_bytes) << " MB" << std::endl;
   std::cout << std::endl;
 
-  if(verify) { verifyIndex(index, graph); }
+  if(verify) { verifyIndex(index, &lcp, graph); }
 
   std::cout << "Final memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;
   std::cout << std::endl;

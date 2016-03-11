@@ -671,13 +671,13 @@ GCSA::initSupport()
 bool
 GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
 {
-  return gcsa::verifyIndex(*this, kmers, kmer_length);
+  return gcsa::verifyIndex(*this, 0, kmers, kmer_length);
 }
 
 bool
 GCSA::verifyIndex(const InputGraph& graph) const
 {
-  return gcsa::verifyIndex(*this, graph);
+  return gcsa::verifyIndex(*this, 0, graph);
 }
 
 size_type

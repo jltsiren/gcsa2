@@ -36,10 +36,50 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+struct STNode
+{
+  size_type sp, ep;
+  size_type left_lcp, right_lcp; // lcp[sp], lcp[ep + 1]
+
+  STNode() : sp(0), ep(0), left_lcp(0), right_lcp(0) {}
+
+  STNode(size_type start, size_type end, size_type left, size_type right) :
+    sp(start), ep(end),
+    left_lcp(left), right_lcp(right)
+  {
+  }
+
+  inline range_type range() const { return range_type(this->sp, this->ep); }
+  inline size_type lcp() const { return std::max(this->left_lcp, this->right_lcp); }
+
+  inline bool operator== (const STNode& node) const
+  {
+    return (this->sp == node.sp && this->ep == node.ep);
+  }
+
+  inline bool operator== (range_type range) const
+  {
+    return (this->sp == range.first && this->ep == range.second);
+  }
+
+  inline bool operator!= (const STNode& node) const
+  {
+    return (this->sp != node.sp || this->ep != node.ep);
+  }
+
+  inline bool operator!= (range_type range) const
+  {
+    return (this->sp != range.first || this->ep != range.second);
+  }
+};
+
+std::ostream& operator<< (std::ostream& out, const STNode& node);
+
+//------------------------------------------------------------------------------
+
 /*
-  This is a specialization of GCSA for de Bruijn graphs. Because the graph is
-  reverse deterministic, we can use indicator bitvectors for encoding the BWT.
-  This simplifies LF() to two rank() operations.
+  LCP array with support for some suffix tree operations using nsv/psv/rmq queries via
+  a range minimum tree.
 */
 
 class LCPArray
@@ -76,9 +116,37 @@ public:
 //------------------------------------------------------------------------------
 
   inline size_type size() const { return this->lcp_size; }
+  inline size_type values() const { return this->data.size(); }
   inline size_type levels() const { return this->offsets.size() - 1; }
+  inline size_type branching() const { return this->branching_factor; }
 
-  // FIXME queries
+  inline size_type operator[] (size_type i) const { return this->data[i]; }
+
+  // High-level interface.
+  inline STNode root() const { return STNode(0, this->size() - 1, 0, 0); }
+  STNode parent(const STNode& node) const;
+  STNode parent(range_type range) const;
+
+  // Low-level interface. The return value is a pair (res, LCP[res]) or notFound().
+  range_type psv(size_type pos) const;
+  range_type psev(size_type pos) const;
+  range_type nsv(size_type pos) const;
+  range_type nsev(size_type pos) const;
+
+  inline STNode nodeFor(range_type range) const
+  {
+    if(range.second + 1 < this->size())
+    {
+      return STNode(range.first, range.second, this->data[range.first], this->data[range.second + 1]);
+    }
+    else
+    {
+      return STNode(range.first, range.second, this->data[range.first], 0);
+    }
+  }
+
+  // Returned when a psv/nsv query cannot find a smaller value.
+  inline range_type notFound() const { return range_type(this->values(), 0); }
 
 //------------------------------------------------------------------------------
 
@@ -102,43 +170,41 @@ private:
     level of the parameter node.
   */
 
+public:
   inline size_type rmtRoot() const
   {
     return this->data.size() - 1;
   }
 
-  inline size_type rmtLevel(size_type node) const
-  {
-    size_type level = 0;
-    while(this->offsets[level + 1] <= node) { level++; }
-    return level;
-  }
-
   inline size_type rmtParent(size_type node, size_type level) const
   {
-    return this->offsets[level + 1] + (node - this->offsets[level]) / this->branching_factor;
+    return this->offsets[level + 1] + (node - this->offsets[level]) / this->branching();
   }
 
-  inline size_type rmtFirstSibling(size_type last_child, size_type level) const
+  inline bool rmtIsFirst(size_type node, size_type level) const
   {
-    return last_child - (last_child - this->offsets[level]) % this->branching_factor;
+    return ((node - this->offsets[level]) % this->branching() == 0);
+  }
+
+  inline size_type rmtFirstSibling(size_type node, size_type level) const
+  {
+    return node - (node - this->offsets[level]) % this->branching();
   }
 
   inline size_type rmtLastSibling(size_type first_child, size_type level) const
   {
-    return std::min(this->offsets[level + 1] - 1, first_child + this->branching_factor - 1);
+    return std::min(this->offsets[level + 1], first_child + this->branching()) - 1;
   }
 
   inline size_type rmtFirstChild(size_type node, size_type level) const
   {
-    return this->offsets[level - 1] + (node - this->offsets[level]) * this->branching_factor;
+    return this->offsets[level - 1] + (node - this->offsets[level]) * this->branching();
   }
 
   inline size_type rmtLastChild(size_type node, size_type level) const
   {
     return this->rmtLastSibling(this->rmtFirstChild(node, level), level - 1);
   }
-
 };  // class LCPArray
 
 //------------------------------------------------------------------------------

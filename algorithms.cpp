@@ -72,14 +72,14 @@ struct KMerSplitComparator
 };
 
 bool
-verifyIndex(const GCSA& index, const InputGraph& graph)
+verifyIndex(const GCSA& index, const LCPArray* lcp, const InputGraph& graph)
 {
   std::vector<KMer> kmers; graph.read(kmers);
-  return verifyIndex(index, kmers, graph.k());
+  return verifyIndex(index, lcp, kmers, graph.k());
 }
 
 bool
-verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
+verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, size_type kmer_length)
 {
   double start = readTimer();
 
@@ -107,6 +107,7 @@ verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
       size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
       if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
 
+      // find()
       range_type range = index.find(kmer);
       if(Range::empty(range))
       {
@@ -120,6 +121,32 @@ verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
         i = next; continue;
       }
 
+      // parent()
+      if(lcp != 0)
+      {
+        STNode parent_res = lcp->parent(range);
+        range_type query_res = range;
+        std::string::iterator end = kmer.end();
+        while(query_res == range)
+        {
+          --end;
+          query_res = index.find(kmer.begin(), end);
+        }
+        if(parent_res != query_res)
+        {
+          #pragma omp critical
+          {
+            if(printFailure(fails))
+            {
+              std::cerr << "verifyIndex(): parent" << range << " returned " << parent_res
+                        << ", expected " << query_res << std::endl;
+            }
+          }
+          i = next; continue;
+        }
+      }
+
+      // count()
       std::vector<node_type> expected;
       for(size_type j = i; j < next; j++) { expected.push_back(kmers[j].from); }
       removeDuplicates(expected, false);
@@ -137,6 +164,7 @@ verifyIndex(const GCSA& index, std::vector<KMer>& kmers, size_type kmer_length)
         i = next; continue;
       }
 
+      // locate()
       std::vector<node_type> occs;
       index.locate(range, occs);
       if(occs.size() != expected.size())
