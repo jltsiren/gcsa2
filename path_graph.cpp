@@ -1102,7 +1102,6 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
 
   PathGraphMerger merger(source, kmer_lcp, false);
   std::vector<range_type> curr_from;
-  std::vector<uint8_t> lcp_buffer; lcp_buffer.reserve(MEGABYTE);
   size_type curr_comp = 0;  // Used to transform next.
   for(range_type range = merger.first(); !(merger.atEnd(range)); range = merger.next())
   {

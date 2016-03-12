@@ -414,6 +414,10 @@ MergedGraphReader::fromNodes(std::vector<node_type>& results)
 
 GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Alphabet& _alpha)
 {
+#ifdef VERBOSE_STATUS_INFO
+  double start = readTimer(), stop;
+#endif
+
   if(graph.size() == 0) { return; }
   size_type bytes_required = graph.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
   if(bytes_required > parameters.size_limit)
@@ -448,6 +452,12 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   // Create the initial PathGraph.
   PathGraph path_graph(graph, key_exists);
   sdsl::util::clear(key_exists);
+#ifdef VERBOSE_STATUS_INFO
+  stop = readTimer();
+  std::cerr << "GCSA::GCSA(): Preprocessing: " << (stop - start) << " seconds, "
+            << inGigabytes(memoryUsage()) << " GB" << std::endl;
+  start = stop;
+#endif
 
   // Prefix-doubling.
 #ifdef VERBOSE_STATUS_INFO
@@ -470,6 +480,12 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   this->header.path_nodes = merged_graph.size();
   path_graph.clear();
   sdsl::util::clear(lcp);
+#ifdef VERBOSE_STATUS_INFO
+  stop = readTimer();
+  std::cerr << "GCSA::GCSA(): Prefix-doubling: " << (stop - start) << " seconds, "
+            << inGigabytes(memoryUsage()) << " GB" << std::endl;
+  start = stop;
+#endif
 
   // Structures used for building GCSA.
   sdsl::int_vector<64> counts(mapper.alpha.sigma, 0); // alpha
@@ -648,6 +664,9 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   merged_graph.lcp_name.clear();
 
 #ifdef VERBOSE_STATUS_INFO
+  stop = readTimer();
+  std::cerr << "GCSA::GCSA(): Construction: " << (stop - start) << " seconds, "
+            << inGigabytes(memoryUsage()) << " GB" << std::endl;
   std::cerr << "GCSA::GCSA(): " << this->size() << " paths, " << this->edgeCount() << " edges" << std::endl;
   std::cerr << "GCSA::GCSA(): " << occ_count << " pointers (" << red_count << " redundant)" << std::endl;
   std::cerr << "GCSA::GCSA(): " << this->sampleCount() << " samples at "

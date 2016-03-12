@@ -134,6 +134,10 @@ LCPArray::load(std::istream& in)
 LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parameters) :
   branching_factor(parameters.lcp_branching)
 {
+#ifdef VERBOSE_STATUS_INFO
+  double start = readTimer();
+#endif
+
   if(graph.lcp_name.empty())
   {
     std::cerr << "LCPArray::LCPArray: The input graph does not contain the LCP file" << std::endl;
@@ -181,6 +185,9 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
   sdsl::util::bit_compress(this->data);
 
 #ifdef VERBOSE_STATUS_INFO
+  double seconds = readTimer() - start;
+  std::cerr << "LCPArray::LCPArray(): Construction: " << seconds << " seconds, "
+            << inGigabytes(memoryUsage()) << " GB" << std::endl;
   std::cerr << "LCPArray::LCPArray(): " << this->values() << " values at " << this->levels()
             << " levels (branching factor " << this->branching() << ")" << std::endl;
 #endif
