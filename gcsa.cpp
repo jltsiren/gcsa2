@@ -22,34 +22,12 @@
   SOFTWARE.
 */
 
-#include <cstdio>
-#include <cstdlib>
-
 #include "algorithms.h"
 #include "internal.h"
 #include "path_graph.h"
 
 namespace gcsa
 {
-
-//------------------------------------------------------------------------------
-
-ConstructionParameters::ConstructionParameters() :
-  doubling_steps(DOUBLING_STEPS), size_limit(SIZE_LIMIT * GIGABYTE)
-{
-}
-
-void
-ConstructionParameters::setSteps(size_type steps)
-{
-  this->doubling_steps = Range::bound(steps, 1, DOUBLING_STEPS);
-}
-
-void
-ConstructionParameters::setLimit(size_type gigabytes)
-{
-  this->size_limit = Range::bound(gigabytes, 1, ABSOLUTE_LIMIT) * GIGABYTE;
-}
 
 //------------------------------------------------------------------------------
 
@@ -434,8 +412,12 @@ MergedGraphReader::fromNodes(std::vector<node_type>& results)
 
 //------------------------------------------------------------------------------
 
-GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, const Alphabet& _alpha)
+GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Alphabet& _alpha)
 {
+#ifdef VERBOSE_STATUS_INFO
+  double start = readTimer(), stop;
+#endif
+
   if(graph.size() == 0) { return; }
   size_type bytes_required = graph.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
   if(bytes_required > parameters.size_limit)
@@ -470,6 +452,12 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   // Create the initial PathGraph.
   PathGraph path_graph(graph, key_exists);
   sdsl::util::clear(key_exists);
+#ifdef VERBOSE_STATUS_INFO
+  stop = readTimer();
+  std::cerr << "GCSA::GCSA(): Preprocessing: " << (stop - start) << " seconds, "
+            << inGigabytes(memoryUsage()) << " GB" << std::endl;
+  start = stop;
+#endif
 
   // Prefix-doubling.
 #ifdef VERBOSE_STATUS_INFO
@@ -492,6 +480,12 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   this->header.path_nodes = merged_graph.size();
   path_graph.clear();
   sdsl::util::clear(lcp);
+#ifdef VERBOSE_STATUS_INFO
+  stop = readTimer();
+  std::cerr << "GCSA::GCSA(): Prefix-doubling: " << (stop - start) << " seconds, "
+            << inGigabytes(memoryUsage()) << " GB" << std::endl;
+  start = stop;
+#endif
 
   // Structures used for building GCSA.
   sdsl::int_vector<64> counts(mapper.alpha.sigma, 0); // alpha
@@ -664,7 +658,15 @@ GCSA::GCSA(const InputGraph& graph, const ConstructionParameters& parameters, co
   for(size_type i = 0; i < sample_buffer.size(); i++) { this->stored_samples[i] = sample_buffer[i]; }
   sdsl::util::clear(sample_buffer);
 
+  // Transfer the LCP array from MergedGraph to InputGraph.
+  TempFile::remove(graph.lcp_name);
+  graph.lcp_name = merged_graph.lcp_name;
+  merged_graph.lcp_name.clear();
+
 #ifdef VERBOSE_STATUS_INFO
+  stop = readTimer();
+  std::cerr << "GCSA::GCSA(): Construction: " << (stop - start) << " seconds, "
+            << inGigabytes(memoryUsage()) << " GB" << std::endl;
   std::cerr << "GCSA::GCSA(): " << this->size() << " paths, " << this->edgeCount() << " edges" << std::endl;
   std::cerr << "GCSA::GCSA(): " << occ_count << " pointers (" << red_count << " redundant)" << std::endl;
   std::cerr << "GCSA::GCSA(): " << this->sampleCount() << " samples at "
@@ -688,13 +690,13 @@ GCSA::initSupport()
 bool
 GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
 {
-  return gcsa::verifyIndex(*this, kmers, kmer_length);
+  return gcsa::verifyIndex(*this, 0, kmers, kmer_length);
 }
 
 bool
 GCSA::verifyIndex(const InputGraph& graph) const
 {
-  return gcsa::verifyIndex(*this, graph);
+  return gcsa::verifyIndex(*this, 0, graph);
 }
 
 size_type

@@ -22,7 +22,6 @@
   SOFTWARE.
 */
 
-#include <cstring>
 #include <deque>
 
 #include "internal.h"
@@ -867,7 +866,7 @@ PathGraph::clear()
 {
   for(size_type file = 0; file < this->files(); file++)
   {
-    remove(this->filenames[file].c_str());
+    TempFile::remove(this->filenames[file]);
   }
   this->filenames.clear();
   this->sizes.clear();
@@ -1103,7 +1102,6 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
 
   PathGraphMerger merger(source, kmer_lcp, false);
   std::vector<range_type> curr_from;
-  std::vector<uint8_t> lcp_buffer; lcp_buffer.reserve(MEGABYTE);
   size_type curr_comp = 0;  // Used to transform next.
   for(range_type range = merger.first(); !(merger.atEnd(range)); range = merger.next())
   {
@@ -1143,10 +1141,10 @@ MergedGraph::~MergedGraph()
 void
 MergedGraph::clear()
 {
-  remove(this->path_name.c_str()); this->path_name = "";
-  remove(this->rank_name.c_str()); this->rank_name = "";
-  remove(this->from_name.c_str()); this->from_name = "";
-  remove(this->lcp_name.c_str()); this->lcp_name = "";
+  TempFile::remove(this->path_name);
+  TempFile::remove(this->rank_name);
+  TempFile::remove(this->from_name);
+  TempFile::remove(this->lcp_name);
 
   this->path_count = 0; this->rank_count = 0; this->from_count = 0;
   this->order = 0;

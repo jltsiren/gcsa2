@@ -29,6 +29,32 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+ConstructionParameters::ConstructionParameters() :
+  doubling_steps(DOUBLING_STEPS), size_limit(SIZE_LIMIT * GIGABYTE),
+  lcp_branching(LCP_BRANCHING)
+{
+}
+
+void
+ConstructionParameters::setSteps(size_type steps)
+{
+  this->doubling_steps = Range::bound(steps, 1, DOUBLING_STEPS);
+}
+
+void
+ConstructionParameters::setLimit(size_type gigabytes)
+{
+  this->size_limit = Range::bound(gigabytes, 1, ABSOLUTE_LIMIT) * GIGABYTE;
+}
+
+void
+ConstructionParameters::setLCPBranching(size_type factor)
+{
+  this->lcp_branching = std::max((size_type)2, factor);
+}
+
+//------------------------------------------------------------------------------
+
 /*
   The default alphabet interprets \0 and $ as endmarkers, ACGT and acgt as ACGT,
   # as a the label of the source node, and the and the remaining characters as N.

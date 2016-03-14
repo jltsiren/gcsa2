@@ -54,6 +54,8 @@ void verifyMapper(const InputGraph& graph);
 
 //------------------------------------------------------------------------------
 
+const size_type INDENT = 20;
+
 int
 main(int argc, char** argv)
 {
@@ -61,6 +63,7 @@ main(int argc, char** argv)
   {
     std::cerr << "Usage: build_gcsa [options] base_name [base_name2 ..]" << std::endl;
     std::cerr << "  -b    Read the input in binary format (default)" << std::endl;
+    std::cerr << "  -B N  Set LCP branching factor to N (default " << ConstructionParameters::LCP_BRANCHING << ")" << std::endl;
     std::cerr << "  -d N  Doubling steps (default and max " << ConstructionParameters::DOUBLING_STEPS << ")" << std::endl;
     std::cerr << "  -D X  Use X as the directory for temporary files (default: " << TempFile::DEFAULT_TEMP_DIR << ")" << std::endl;
     std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << ConstructionParameters::SIZE_LIMIT << ")" << std::endl;
@@ -74,14 +77,16 @@ main(int argc, char** argv)
 
   int c = 0;
   bool binary = true, verify = false;
-  std::string output_file;
+  std::string index_file, lcp_file;
   ConstructionParameters parameters;
-  while((c = getopt(argc, argv, "bd:D:l:o:tT:v")) != -1)
+  while((c = getopt(argc, argv, "bB:d:D:l:o:tT:v")) != -1)
   {
     switch(c)
     {
     case 'b':
       binary = true; break;
+    case 'B':
+      parameters.setLCPBranching(std::stoul(optarg)); break;
     case 'd':
       parameters.setSteps(std::stoul(optarg)); break;
     case 'D':
@@ -89,7 +94,9 @@ main(int argc, char** argv)
     case 'l':
       parameters.setLimit(std::stoul(optarg)); break;
     case 'o':
-      output_file = std::string(optarg) + GCSA::EXTENSION; break;
+      index_file = std::string(optarg) + GCSA::EXTENSION;
+      lcp_file = std::string(optarg) + LCPArray::EXTENSION;
+      break;
     case 't':
       binary = false; break;
     case 'T':
@@ -107,24 +114,27 @@ main(int argc, char** argv)
     std::cerr << "build_gcsa: No input files specified" << std::endl;
     std::exit(EXIT_FAILURE);
   }
-  if(output_file.empty())
+  if(index_file.empty())
   {
-    output_file = std::string(argv[optind]) + GCSA::EXTENSION;
+    index_file = std::string(argv[optind]) + GCSA::EXTENSION;
+    lcp_file = std::string(argv[optind]) + LCPArray::EXTENSION;
   }
 
   std::cout << "GCSA builder" << std::endl;
   std::cout << std::endl;
   for(int i = optind; i < argc; i++)
   {
-    std::cout << "Input:           " << argv[i];
+    printHeader("Input", INDENT);
+    std::cout << argv[i];
     if(binary) { std::cout << InputGraph::BINARY_EXTENSION << " (binary format)" << std::endl; }
     else { std::cout << InputGraph::TEXT_EXTENSION << " (text format)" << std::endl; }
   }
-  std::cout << "Output:          " << output_file << std::endl;
-  std::cout << "Doubling steps:  " << parameters.doubling_steps << std::endl;
-  std::cout << "Size limit:      " << inGigabytes(parameters.size_limit) << " GB" << std::endl;
-  std::cout << "Threads:         " << omp_get_max_threads() << std::endl;
-  std::cout << "Temp directory:  " << TempFile::temp_dir << std::endl;
+  printHeader("Output", INDENT); std::cout << index_file << ", " << lcp_file << std::endl;
+  printHeader("Doubling steps", INDENT); std::cout << parameters.doubling_steps << std::endl;
+  printHeader("Size limit", INDENT); std::cout << inGigabytes(parameters.size_limit) << " GB" << std::endl;
+  printHeader("Branching factor", INDENT); std::cout << parameters.lcp_branching << std::endl;
+  printHeader("Threads", INDENT); std::cout << omp_get_max_threads() << std::endl;
+  printHeader("Temp directory", INDENT); std::cout << TempFile::temp_dir << std::endl;
   std::cout << std::endl;
 
   InputGraph graph(argc - optind, argv + optind, binary);
@@ -138,19 +148,22 @@ main(int argc, char** argv)
 #endif
 
   GCSA index;
+  LCPArray lcp;
 #ifdef LOAD_INDEX
-  sdsl::load_from_file(index, output_file);
+  sdsl::load_from_file(index, index_file);
 #else
   {
     double start = readTimer();
-    GCSA temp(graph, parameters); index.swap(temp);
+    index = GCSA(graph, parameters);
+    lcp = LCPArray(graph, parameters);
     double seconds = readTimer() - start;
     std::cout << "Index built in " << seconds << " seconds" << std::endl;
     std::cout << "Memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;
     std::cout << "I/O volume: " << inGigabytes(readVolume()) << " GB read, "
               << inGigabytes(writeVolume()) << " GB write" << std::endl;
     std::cout << std::endl;
-    sdsl::store_to_file(index, output_file);
+    sdsl::store_to_file(index, index_file);
+    sdsl::store_to_file(lcp, lcp_file);
   }
 #endif
 
@@ -163,11 +176,13 @@ main(int argc, char** argv)
 
   size_type index_bytes = sdsl::size_in_bytes(index);
   size_type sample_bytes = sdsl::size_in_bytes(index.stored_samples);
+  size_type lcp_bytes = sdsl::size_in_bytes(lcp);
   printHeader("Index size"); std::cout << inMegabytes(index_bytes) << " MB" << std::endl;
   printHeader("Without samples"); std::cout << inMegabytes(index_bytes - sample_bytes) << " MB" << std::endl;
+  printHeader("LCP size"); std::cout << inMegabytes(lcp_bytes) << " MB" << std::endl;
   std::cout << std::endl;
 
-  if(verify) { verifyIndex(index, graph); }
+  if(verify) { verifyIndex(index, &lcp, graph); }
 
   std::cout << "Final memory usage: " << inGigabytes(memoryUsage()) << " GB" << std::endl;
   std::cout << std::endl;

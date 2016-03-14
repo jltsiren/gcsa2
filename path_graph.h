@@ -41,7 +41,7 @@ struct PathLabel
 {
   typedef std::uint32_t rank_type;
 
-  // This should be at least 1 << GCSA::DOUBLING_STEPS.
+  // This should be at least 1 << ConstructionParameters::DOUBLING_STEPS.
   const static size_type LABEL_LENGTH = 8;
 
   // Labels starting with NO_RANK will be after real labels in lexicographic order.
@@ -380,10 +380,11 @@ struct MergedGraph
   inline size_type path_bytes() const { return this->size() * sizeof(PathNode); }
   inline size_type rank_bytes() const { return this->ranks() * sizeof(PathNode::rank_type); }
   inline size_type from_bytes() const { return this->extra() * sizeof(range_type); }
+  inline size_type lcp_bytes() const { return this->size(); }
 
   inline size_type bytes() const
   {
-    return this->path_bytes() + this->rank_bytes() + this->from_bytes();
+    return this->path_bytes() + this->rank_bytes() + this->from_bytes() + this->lcp_bytes();
   }
 
   MergedGraph(const MergedGraph&) = delete;

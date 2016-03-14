@@ -23,6 +23,7 @@
 */
 
 #include "gcsa.h"
+#include "lcp.h"
 
 using namespace gcsa;
 
@@ -53,6 +54,11 @@ main(int argc, char** argv)
   sdsl::load_from_file(index, gcsa_name);
   printHeader("GCSA"); std::cout << inMegabytes(sdsl::size_in_bytes(index)) << " MB" << std::endl;
 
+  LCPArray lcp;
+  std::string lcp_name = base_name + LCPArray::EXTENSION;
+  sdsl::load_from_file(lcp, lcp_name);
+  printHeader("LCP"); std::cout << inMegabytes(sdsl::size_in_bytes(lcp)) << " MB" << std::endl;
+
   std::vector<std::string> patterns;
   size_type pattern_total = readRows(pattern_name, patterns, true);
   pattern_total -= filter(patterns);
@@ -61,13 +67,14 @@ main(int argc, char** argv)
   std::cout << std::endl;
 
   std::vector<range_type> ranges; ranges.reserve(patterns.size());
+  std::vector<size_type> lengths; lengths.reserve(patterns.size());
   {
     double start = readTimer();
     size_type total = 0;
     for(size_type i = 0; i < patterns.size(); i++)
     {
       range_type temp = index.find(patterns[i]);
-      if(!Range::empty(temp)) { ranges.push_back(temp); }
+      if(!Range::empty(temp)) { ranges.push_back(temp); lengths.push_back(patterns[i].length()); }
       total += Range::length(temp);
     }
     double seconds = readTimer() - start;
@@ -75,6 +82,21 @@ main(int argc, char** argv)
     printHeader("find()");
     std::cout << "Found " << ranges.size() << " patterns matching " << total << " paths ("
               << (inMegabytes(pattern_total) / seconds) << " MB/s)" << std::endl;
+    std::cout << std::endl;
+  }
+
+  {
+    double start = readTimer();
+    size_type total = 0;
+    for(size_type i = 0; i < ranges.size(); i++)
+    {
+      STNode temp = lcp.parent(ranges[i]);
+      total += lengths[i] - temp.lcp();
+    }
+    double seconds = readTimer() - start;
+    printTime("parent()", ranges.size(), seconds);
+    printHeader("parent()");
+    std::cout << "Average distance " << (total / (double)(ranges.size())) << " characters" << std::endl;
     std::cout << std::endl;
   }
 

@@ -201,7 +201,7 @@ GCSABody<BWTType, BitVector>::GCSABody(const GCSA& source)
 
   bwt_buffer = sdsl::int_vector_buffer<8>(filename);
   this->bwt = BWTType(bwt_buffer, source.bwt.size());
-  bwt_buffer.close(); remove(filename.c_str());
+  bwt_buffer.close(); TempFile::remove(filename);
   this->alpha = source.alpha;
 
   this->path_nodes = extract(source.path_nodes);

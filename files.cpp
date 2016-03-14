@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015 Genome Research Ltd.
+  Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -253,22 +253,26 @@ markSourceSinkNodes(std::vector<KMer>& kmers)
 const std::string InputGraph::BINARY_EXTENSION = ".graph";
 const std::string InputGraph::TEXT_EXTENSION = ".gcsa2";
 
-InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format)
+InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format) :
+  filenames(files), lcp_name(), binary(binary_format)
 {
-  this->filenames = files;
-  this->binary = binary_format;
   this->build();
 }
 
-InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format)
+InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format) :
+  lcp_name(), binary(binary_format)
 {
-  this->binary = binary_format;
   for(size_type file = 0; file < file_count; file++)
   {
     std::string filename = std::string(base_names[file]) + (this->binary ? BINARY_EXTENSION : TEXT_EXTENSION);
     this->filenames.push_back(filename);
   }
   this->build();
+}
+
+InputGraph::~InputGraph()
+{
+  TempFile::remove(this->lcp_name);
 }
 
 void
