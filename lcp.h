@@ -152,7 +152,7 @@ public:
 
   /*
     We store a k-ary range minimum tree over the LCP array. Each node is identified by
-    itse position in the data array. Level i occupies range [offsets[i], offsets[i + 1] - 1]
+    its position in the data array. Level i occupies range [offsets[i], offsets[i + 1] - 1]
     in the array. Level 0 is the leaves (the LCP array).
   */
 
