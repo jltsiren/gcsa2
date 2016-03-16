@@ -292,10 +292,18 @@ LCPArray::depth(const LCPArray::node_type& node) const
 }
 
 size_type
+LCPArray::depth(LCPArray::node_type& node) const
+{
+  if(node.lcp() == node_type::UNKNOWN) { node.node_lcp = this->depth(node.range()); }
+  return node.lcp();
+}
+
+size_type
 LCPArray::depth(range_type range) const
 {
-  if(Range::length(range) <= 1 || this->root() == range) { return 0; }
-  return this->rmq(range.first + 1, range.second).second;
+  if(Range::length(range) <= 1) { return node_type::UNKNOWN; }
+  range_type res = this->rmq(range.first + 1, range.second);
+  return (res == this->notFound() ? node_type::UNKNOWN : res.second);
 }
 
 //------------------------------------------------------------------------------

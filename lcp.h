@@ -141,6 +141,7 @@ public:
   // String depth of the node; the length of the longest pattern matching the range.
   // Not supported for leaf nodes / ranges of length 1.
   size_type depth(const node_type& node) const;
+  size_type depth(node_type& node) const;
   size_type depth(range_type range) const;
 
 //------------------------------------------------------------------------------
