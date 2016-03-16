@@ -40,17 +40,21 @@ struct STNode
 {
   size_type sp, ep;
   size_type left_lcp, right_lcp; // lcp[sp], lcp[ep + 1]
+  size_type node_lcp;            // Can be UNKNOWN.
 
-  STNode() : sp(0), ep(0), left_lcp(0), right_lcp(0) {}
+  const static size_type UNKNOWN = ~(size_type)0;
 
-  STNode(size_type start, size_type end, size_type left, size_type right) :
+  STNode() : sp(0), ep(0), left_lcp(0), right_lcp(0), node_lcp(0) {}
+
+  STNode(size_type start, size_type end, size_type left, size_type right, size_type depth) :
     sp(start), ep(end),
-    left_lcp(left), right_lcp(right)
+    left_lcp(left), right_lcp(right),
+    node_lcp(depth)
   {
   }
 
   inline range_type range() const { return range_type(this->sp, this->ep); }
-  inline size_type lcp() const { return std::max(this->left_lcp, this->right_lcp); }
+  inline size_type lcp() const { return this->node_lcp; }
 
   inline bool operator== (const STNode& node) const
   {
@@ -86,6 +90,7 @@ class LCPArray
 {
 public:
   typedef gcsa::size_type size_type;
+  typedef STNode          node_type;
 
 //------------------------------------------------------------------------------
 
@@ -122,31 +127,53 @@ public:
 
   inline size_type operator[] (size_type i) const { return this->data[i]; }
 
-  // High-level interface.
-  inline STNode root() const { return STNode(0, this->size() - 1, 0, 0); }
-  STNode parent(const STNode& node) const;
-  STNode parent(range_type range) const;
+//------------------------------------------------------------------------------
 
-  // Low-level interface. The return value is a pair (res, LCP[res]) or notFound().
+  /*
+    High-level interface.
+  */
+
+  inline node_type root() const { return node_type(0, this->size() - 1, 0, 0, 0); }
+
+  node_type parent(const node_type& node) const;
+  node_type parent(range_type range) const;
+
+  // String depth of the node; the length of the longest pattern matching the range.
+  // Not supported for leaf nodes / ranges of length 1.
+  size_type depth(const node_type& node) const;
+  size_type depth(range_type range) const;
+
+//------------------------------------------------------------------------------
+
+  /*
+    Low-level interface. The return value is a pair (res, LCP[res]) or notFound().
+  */
+
   range_type psv(size_type pos) const;
   range_type psev(size_type pos) const;
+
   range_type nsv(size_type pos) const;
   range_type nsev(size_type pos) const;
 
-  inline STNode nodeFor(range_type range) const
+  range_type rmq(size_type sp, size_type ep) const;
+  range_type rmq(range_type range) const;
+
+  inline node_type nodeFor(range_type range) const
   {
     if(range.second + 1 < this->size())
     {
-      return STNode(range.first, range.second, this->data[range.first], this->data[range.second + 1]);
+      return node_type(range.first, range.second,
+                       this->data[range.first], this->data[range.second + 1],
+                       node_type::UNKNOWN);
     }
     else
     {
-      return STNode(range.first, range.second, this->data[range.first], 0);
+      return node_type(range.first, range.second, this->data[range.first], 0, node_type::UNKNOWN);
     }
   }
 
-  // Returned when a psv/nsv query cannot find a smaller value.
-  inline range_type notFound() const { return range_type(this->values(), 0); }
+  // Returned when a psv/nsv/rmq query cannot find a suitable value.
+  inline range_type notFound() const { return range_type(this->values(), this->values()); }
 
 //------------------------------------------------------------------------------
 
@@ -162,49 +189,6 @@ public:
 
 private:
   void copy(const LCPArray& source);
-
-//------------------------------------------------------------------------------
-
-  /*
-    Tree operations on the range minimum tree. If level is required, it refers to the
-    level of the parameter node.
-  */
-
-public:
-  inline size_type rmtRoot() const
-  {
-    return this->values() - 1;
-  }
-
-  inline size_type rmtParent(size_type node, size_type level) const
-  {
-    return this->offsets[level + 1] + (node - this->offsets[level]) / this->branching();
-  }
-
-  inline bool rmtIsFirst(size_type node, size_type level) const
-  {
-    return ((node - this->offsets[level]) % this->branching() == 0);
-  }
-
-  inline size_type rmtFirstSibling(size_type node, size_type level) const
-  {
-    return node - (node - this->offsets[level]) % this->branching();
-  }
-
-  inline size_type rmtLastSibling(size_type first_child, size_type level) const
-  {
-    return std::min(this->offsets[level + 1], first_child + this->branching()) - 1;
-  }
-
-  inline size_type rmtFirstChild(size_type node, size_type level) const
-  {
-    return this->offsets[level - 1] + (node - this->offsets[level]) * this->branching();
-  }
-
-  inline size_type rmtLastChild(size_type node, size_type level) const
-  {
-    return this->rmtLastSibling(this->rmtFirstChild(node, level), level - 1);
-  }
 };  // class LCPArray
 
 //------------------------------------------------------------------------------

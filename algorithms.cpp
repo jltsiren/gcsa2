@@ -121,25 +121,38 @@ verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, si
         i = next; continue;
       }
 
-      // parent()
+      // parent() and depth()
       if(lcp != 0)
       {
         STNode parent_res = lcp->parent(range);
         range_type query_res = range;
-        std::string::iterator end = kmer.end();
+        std::string::iterator begin = kmer.begin(), end = kmer.end();
         while(query_res == range)
         {
           --end;
-          query_res = index.find(kmer.begin(), end);
+          query_res = index.find(begin, end);
         }
-        if(parent_res != query_res)
+        if(parent_res != query_res || parent_res.lcp() != (size_type)(end - begin))
         {
           #pragma omp critical
           {
             if(printFailure(fails))
             {
               std::cerr << "verifyIndex(): parent" << range << " returned " << parent_res
-                        << ", expected " << query_res << std::endl;
+                        << ", expected " << query_res << " at depth " << (end - begin) << std::endl;
+            }
+          }
+          i = next; continue;
+        }
+        size_type string_depth = lcp->depth(parent_res.range());
+        if(parent_res.lcp() != string_depth)
+        {
+          #pragma omp critical
+          {
+            if(printFailure(fails))
+            {
+              std::cerr << "verifyIndex(): depth" << parent_res.range() << " returned " << string_depth
+                        << ", expected " << parent_res.lcp() << std::endl;
             }
           }
           i = next; continue;

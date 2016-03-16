@@ -85,6 +85,7 @@ main(int argc, char** argv)
     std::cout << std::endl;
   }
 
+  std::vector<range_type> parents(ranges.size());
   {
     double start = readTimer();
     size_type total = 0;
@@ -92,11 +93,26 @@ main(int argc, char** argv)
     {
       STNode temp = lcp.parent(ranges[i]);
       total += lengths[i] - temp.lcp();
+      parents[i] = temp.range();
     }
     double seconds = readTimer() - start;
     printTime("parent()", ranges.size(), seconds);
     printHeader("parent()");
     std::cout << "Average distance " << (total / (double)(ranges.size())) << " characters" << std::endl;
+    std::cout << std::endl;
+  }
+
+  {
+    double start = readTimer();
+    size_type total = 0;
+    for(size_type i = 0; i < parents.size(); i++)
+    {
+      total += lengths[i] - lcp.depth(parents[i]);
+    }
+    double seconds = readTimer() - start;
+    printTime("depth()", ranges.size(), seconds);
+    printHeader("depth()");
+    std::cout << "Average distance " << (total / (double)(parents.size())) << " characters" << std::endl;
     std::cout << std::endl;
   }
 

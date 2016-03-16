@@ -22,6 +22,8 @@
   SOFTWARE.
 */
 
+#include <stack>
+
 #include "internal.h"
 #include "lcp.h"
 
@@ -32,7 +34,8 @@ namespace gcsa
 std::ostream&
 operator<< (std::ostream& out, const STNode& node)
 {
-  out << "(" << node.left_lcp << ", " << node.range() << ", " << node.right_lcp << ")";
+  out << "(" << node.left_lcp << ", " << node.range() << " at depth " << node.lcp()
+      << ", " << node.right_lcp << ")";
   return out;
 }
 
@@ -131,6 +134,63 @@ LCPArray::load(std::istream& in)
 
 //------------------------------------------------------------------------------
 
+/*
+  Tree operations on the range minimum tree. If level is required, it refers to the
+  level of the parameter node.
+*/
+
+inline size_type
+rmtRoot(const LCPArray& lcp)
+{
+  return lcp.values() - 1;
+}
+
+inline size_type
+rmtParent(const LCPArray& lcp, size_type node, size_type level)
+{
+  return lcp.offsets[level + 1] + (node - lcp.offsets[level]) / lcp.branching();
+}
+
+inline bool
+rmtIsFirst(const LCPArray& lcp, size_type node, size_type level)
+{
+  return ((node - lcp.offsets[level]) % lcp.branching() == 0);
+}
+
+inline size_type
+rmtFirstSibling(const LCPArray& lcp, size_type node, size_type level)
+{
+  return node - (node - lcp.offsets[level]) % lcp.branching();
+}
+
+inline size_type
+rmtLastSibling(const LCPArray& lcp, size_type first_child, size_type level)
+{
+  return std::min(lcp.offsets[level + 1], first_child + lcp.branching()) - 1;
+}
+
+inline size_type
+rmtFirstChild(const LCPArray& lcp, size_type node, size_type level)
+{
+  return lcp.offsets[level - 1] + (node - lcp.offsets[level]) * lcp.branching();
+}
+
+inline size_type
+rmtLastChild(const LCPArray& lcp, size_type node, size_type level)
+{
+  return rmtLastSibling(lcp, rmtFirstChild(lcp, node, level), level - 1);
+}
+
+inline size_type
+rmtLevel(const LCPArray& lcp, size_type node)
+{
+  size_type level = 0;
+  while(lcp.offsets[level + 1] <= node) { level++; }
+  return level;
+}
+
+//------------------------------------------------------------------------------
+
 LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parameters) :
   branching_factor(parameters.lcp_branching)
 {
@@ -178,7 +238,7 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
   {
     for(size_type i = this->offsets[level]; i < this->offsets[level + 1]; i++)
     {
-      size_type par = this->rmtParent(i, level);
+      size_type par = rmtParent(*this, i, level);
       if(this->data[i] < this->data[par]) { this->data[par] = this->data[i]; }
     }
   }
@@ -195,30 +255,47 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
 
 //------------------------------------------------------------------------------
 
-STNode
-LCPArray::parent(const STNode& node) const
+LCPArray::node_type
+LCPArray::parent(const LCPArray::node_type& node) const
 {
   if(node == this->root()) { return this->root(); }
 
+  size_type node_lcp = std::max(node.left_lcp, node.right_lcp);
   range_type left(node.sp, node.left_lcp), right(node.ep + 1, node.right_lcp);
-  if(node.left_lcp >= node.right_lcp)
+  if(node.left_lcp == node_lcp)
   {
     left = this->psv(node.sp);
-    if(left == this->notFound()) { left.first = 0; }
+    if(left == this->notFound()) { left = range_type(0, 0); }
   }
-  if(node.right_lcp >= node.left_lcp)
+  if(node.right_lcp == node_lcp)
   {
     right = this->nsv(node.ep + 1);
-    if(right == this->notFound()) { right.first = this->size(); }
+    if(right == this->notFound()) { right = range_type(this->size(), 0); }
   }
 
-  return STNode(left.first, right.first - 1, left.second, right.second);
+  return node_type(left.first, right.first - 1, left.second, right.second, node_lcp);
 }
 
-STNode
+LCPArray::node_type
 LCPArray::parent(range_type range) const
 {
   return this->parent(this->nodeFor(range));
+}
+
+//------------------------------------------------------------------------------
+
+size_type
+LCPArray::depth(const LCPArray::node_type& node) const
+{
+  if(node.lcp() != node_type::UNKNOWN) { return node.lcp(); }
+  return this->depth(node.range());
+}
+
+size_type
+LCPArray::depth(range_type range) const
+{
+  if(Range::length(range) <= 1 || this->root() == range) { return 0; }
+  return this->rmq(range.first + 1, range.second).second;
 }
 
 //------------------------------------------------------------------------------
@@ -248,19 +325,19 @@ psv(const LCPArray& lcp, size_type to, const Comparator& comp)
   // Find the children of the lowest common ancestor of psv(to) and 'to'.
   size_type level = 0, val = lcp[to];
   range_type res = lcp.notFound();
-  while(to != lcp.rmtRoot())
+  while(to != rmtRoot(lcp))
   {
-    res = gcsa::psv(lcp, lcp.rmtFirstSibling(to, level), to, val, comp);
+    res = gcsa::psv(lcp, rmtFirstSibling(lcp, to, level), to, val, comp);
     if(res.first < lcp.values()) { break; }
-    to = lcp.rmtParent(to, level); level++;
+    to = rmtParent(lcp, to, level); level++;
   }
   if(res.first >= lcp.values()) { return res; } // Not found.
 
   // Go to the leaf containing psv(to).
   while(level > 0)
   {
-    size_type from = lcp.rmtFirstChild(res.first, level); level--;
-    res = gcsa::psv(lcp, from, lcp.rmtLastSibling(from, level) + 1, val, comp);
+    size_type from = rmtFirstChild(lcp, res.first, level); level--;
+    res = gcsa::psv(lcp, from, rmtLastSibling(lcp, from, level) + 1, val, comp);
   }
 
   return res;
@@ -304,19 +381,19 @@ nsv(const LCPArray& lcp, size_type from, const Comparator& comp)
   // Find the children of the lowest common ancestor for 'from' and nsv(from).
   size_type level = 0, val = lcp[from];
   range_type res = lcp.notFound();
-  while(from != lcp.rmtRoot())
+  while(from != rmtRoot(lcp))
   {
-    res = gcsa::nsv(lcp, from + 1, lcp.rmtLastSibling(from, level), val, comp);
+    res = gcsa::nsv(lcp, from + 1, rmtLastSibling(lcp, from, level), val, comp);
     if(res.first < lcp.values()) { break; }
-    from = lcp.rmtParent(from, level); level++;
+    from = rmtParent(lcp, from, level); level++;
   }
   if(res.first >= lcp.values()) { return res; }
 
   // Go to the leaf containing nsv(to).
   while(level > 0)
   {
-    from = lcp.rmtFirstChild(res.first, level); level--;
-    res = gcsa::nsv(lcp, from, lcp.rmtLastSibling(from, level), val, comp);
+    from = rmtFirstChild(lcp, res.first, level); level--;
+    res = gcsa::nsv(lcp, from, rmtLastSibling(lcp, from, level), val, comp);
   }
 
   return res;
@@ -332,6 +409,87 @@ range_type
 LCPArray::nsev(size_type pos) const
 {
   return gcsa::nsv(*this, pos, std::less_equal<size_type>());
+}
+
+//------------------------------------------------------------------------------
+
+inline void
+updateRes(const LCPArray& lcp, range_type& res, size_type i)
+{
+  if(lcp.data[i] < res.second) { res.first = i; res.second = lcp.data[i]; }
+}
+
+range_type
+LCPArray::rmq(size_type sp, size_type ep) const
+{
+  if(sp > ep || ep >= this->size()) { return this->notFound(); }
+  if(sp == ep) { return range_type(sp, this->data[sp]); }
+
+  /*
+    Search for a subtree containing the rmq, maintaining the following invariants:
+      - left < right
+      - nodes before subtree(left) are processed
+      - nodes after subtree(right) are in tail
+      - res contains (i, lcp[i]) for the rmq in the processed range
+  */
+  range_type res(this->values(), this->size());
+  size_type level = 0, left = sp, right = ep;
+  std::stack<range_type> tail;
+  while(true)
+  {
+    size_type left_par = rmtParent(*this, left, level), right_par = rmtParent(*this, right, level);
+    if(left_par == right_par)
+    {
+      for(size_type i = left; i <= right; i++) { updateRes(*this, res, i); }
+      break;
+    }
+
+    size_type left_child = rmtFirstChild(*this, left_par, level + 1);
+    if(left != left_child)
+    {
+      size_type last_child = rmtLastSibling(*this, left_child, level);
+      for(size_type i = left; i <= last_child; i++) { updateRes(*this, res, i); }
+      left_par++;
+    }
+
+    size_type right_child = rmtLastChild(*this, right_par, level + 1);
+    if(right != right_child)
+    {
+      size_type first_child = rmtFirstSibling(*this, right_child, level);
+      for(size_type i = right; i >= first_child; i--) { tail.push(range_type(i, this->data[i])); }
+      right_par--;
+    }
+
+    if(left_par >= right_par)
+    {
+      if(left_par == right_par) { updateRes(*this, res, left_par); }
+      break;
+    }
+    left = left_par; right = right_par; level++;
+  }
+
+  // Check the tail.
+  while(!(tail.empty()))
+  {
+    range_type temp = tail.top(); tail.pop();
+    if(temp.second < res.second) { res = temp; }
+  }
+
+  // Find the leftmost leaf in subtree(res.first) containing LCP value res.second.
+  level = rmtLevel(*this, res.first);
+  while(level > 0)
+  {
+    res.first = rmtFirstChild(*this, res.first, level); level--;
+    while(this->data[res.first] != res.second) { res.first++; }
+  }
+
+  return res;
+}
+
+range_type
+LCPArray::rmq(range_type range) const
+{
+  return this->rmq(range.first, range.second);
 }
 
 //------------------------------------------------------------------------------
