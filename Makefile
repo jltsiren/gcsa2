@@ -10,10 +10,7 @@ SDSL_DIR=../sdsl-lite
 # Multithreading with OpenMP and libstdc++ Parallel Mode.
 PARALLEL_FLAGS=-fopenmp -pthread -D_GLIBCXX_PARALLEL
 
-# Verbose output during index construction etc.
-OUTPUT_FLAGS=-DVERBOSE_STATUS_INFO
-
-OTHER_FLAGS=$(RUSAGE_FLAGS) $(VERIFY_FLAGS) $(PARALLEL_FLAGS) $(OUTPUT_FLAGS)
+OTHER_FLAGS=$(RUSAGE_FLAGS) $(VERIFY_FLAGS) $(PARALLEL_FLAGS)
 
 include $(SDSL_DIR)/Make.helper
 CXX_FLAGS=$(MY_CXX_FLAGS) $(OTHER_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(INC_DIR)

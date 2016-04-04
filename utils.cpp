@@ -35,6 +35,33 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+size_type Verbosity::level = Verbosity::DEFAULT;
+
+void
+Verbosity::set(size_type new_level)
+{
+  level = Range::bound(new_level, SILENT, FULL);
+}
+
+std::string
+Verbosity::levelName()
+{
+  switch(level)
+  {
+    case SILENT:
+      return "silent"; break;
+    case BASIC:
+      return "basic"; break;
+    case EXTENDED:
+      return "extended"; break;
+    case FULL:
+      return "full"; break;
+  }
+  return "unknown";
+}
+
+//------------------------------------------------------------------------------
+
 void
 printHeader(const std::string& header, size_type indent)
 {

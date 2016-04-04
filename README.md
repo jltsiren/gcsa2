@@ -16,8 +16,6 @@ The maximum resident size reported by `getrusage()` is in kilobytes in Linux and
 
 There are some verification/debugging options in `build_gcsa`. To enable them, uncomment the line `VERIFY_FLAGS=-DVERIFY_CONSTRUCTION` in the makefile and select the debugging options in `build_gcsa.cpp`.
 
-Index construction can be set to output some status information to `stderr` by uncommenting the line `OUTPUT_FLAGS=-DVERBOSE_STATUS_INFO` in the makefile.
-
 ## References
 
 Jouni Sirén, Niko Välimäki, and Veli Mäkinen: **Indexing Graphs for Path Queries with Applications in Genome Research**.

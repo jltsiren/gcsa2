@@ -414,9 +414,7 @@ MergedGraphReader::fromNodes(std::vector<node_type>& results)
 
 GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Alphabet& _alpha)
 {
-#ifdef VERBOSE_STATUS_INFO
-  double start = readTimer(), stop;
-#endif
+  double start = readTimer();
 
   if(graph.size() == 0) { return; }
   size_type bytes_required = graph.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
@@ -452,24 +450,27 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   // Create the initial PathGraph.
   PathGraph path_graph(graph, key_exists);
   sdsl::util::clear(key_exists);
-#ifdef VERBOSE_STATUS_INFO
-  stop = readTimer();
-  std::cerr << "GCSA::GCSA(): Preprocessing: " << (stop - start) << " seconds, "
-            << inGigabytes(memoryUsage()) << " GB" << std::endl;
-  start = stop;
-#endif
+  if(Verbosity::level >= Verbosity::EXTENDED)
+  {
+    double stop = readTimer();
+    std::cerr << "GCSA::GCSA(): Preprocessing: " << (stop - start) << " seconds, "
+              << inGigabytes(memoryUsage()) << " GB" << std::endl;
+    start = stop;
+  }
 
   // Prefix-doubling.
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "GCSA::GCSA(): Initial path length: " << path_graph.k() << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::BASIC)
+  {
+    std::cerr << "GCSA::GCSA(): Initial path length: " << path_graph.k() << std::endl;
+  }
   path_graph.prune(lcp, parameters.size_limit);
   for(size_type step = 1; step <= parameters.doubling_steps && path_graph.unsorted > 0; step++)
   {
-#ifdef VERBOSE_STATUS_INFO
-    std::cerr << "GCSA::GCSA(): Step " << step << " (path length " << path_graph.k() << " -> "
-              << (2 * path_graph.k()) << ")" << std::endl;
-#endif
+    if(Verbosity::level >= Verbosity::BASIC)
+    {
+      std::cerr << "GCSA::GCSA(): Step " << step << " (path length " << path_graph.k() << " -> "
+                << (2 * path_graph.k()) << ")" << std::endl;
+    }
     path_graph.extend(parameters.size_limit);
     path_graph.prune(lcp, parameters.size_limit);
   }
@@ -480,14 +481,19 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   this->header.path_nodes = merged_graph.size();
   path_graph.clear();
   sdsl::util::clear(lcp);
-#ifdef VERBOSE_STATUS_INFO
-  stop = readTimer();
-  std::cerr << "GCSA::GCSA(): Prefix-doubling: " << (stop - start) << " seconds, "
-            << inGigabytes(memoryUsage()) << " GB" << std::endl;
-  start = stop;
-#endif
+  if(Verbosity::level >= Verbosity::EXTENDED)
+  {
+    double stop = readTimer();
+    std::cerr << "GCSA::GCSA(): Prefix-doubling: " << (stop - start) << " seconds, "
+              << inGigabytes(memoryUsage()) << " GB" << std::endl;
+    start = stop;
+  }
 
   // Structures used for building GCSA.
+  if(Verbosity::level >= Verbosity::BASIC)
+  {
+    std::cerr << "GCSA::GCSA(): Building the index" << std::endl;
+  }
   sdsl::int_vector<64> counts(mapper.alpha.sigma, 0); // alpha
   sdsl::int_vector<8> bwt_buffer(merged_graph.size() + merged_graph.size() / 2, 0); // bwt
   this->path_nodes = bit_vector(bwt_buffer.size(), 0);
@@ -629,9 +635,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   sdsl::util::clear(mapper);
 
   // Initialize extra_pointers and redundant_pointers.
-#ifdef VERBOSE_STATUS_INFO
   size_type occ_count = occurrences.sum() + occurrences.size(), red_count = redundant.sum();
-#endif
   this->extra_pointers = SadaSparse(occurrences);
   this->redundant_pointers = SadaCount(redundant);
   sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
@@ -663,15 +667,19 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   graph.lcp_name = merged_graph.lcp_name;
   merged_graph.lcp_name.clear();
 
-#ifdef VERBOSE_STATUS_INFO
-  stop = readTimer();
-  std::cerr << "GCSA::GCSA(): Construction: " << (stop - start) << " seconds, "
-            << inGigabytes(memoryUsage()) << " GB" << std::endl;
-  std::cerr << "GCSA::GCSA(): " << this->size() << " paths, " << this->edgeCount() << " edges" << std::endl;
-  std::cerr << "GCSA::GCSA(): " << occ_count << " pointers (" << red_count << " redundant)" << std::endl;
-  std::cerr << "GCSA::GCSA(): " << this->sampleCount() << " samples at "
-            << this->sampledPositions() << " positions" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::EXTENDED)
+  {
+    double stop = readTimer();
+    std::cerr << "GCSA::GCSA(): Construction: " << (stop - start) << " seconds, "
+              << inGigabytes(memoryUsage()) << " GB" << std::endl;
+  }
+  if(Verbosity::level >= Verbosity::BASIC)
+  {
+    std::cerr << "GCSA::GCSA(): " << this->size() << " paths, " << this->edgeCount() << " edges" << std::endl;
+    std::cerr << "GCSA::GCSA(): " << occ_count << " pointers (" << red_count << " redundant)" << std::endl;
+    std::cerr << "GCSA::GCSA(): " << this->sampleCount() << " samples at "
+              << this->sampledPositions() << " positions" << std::endl;
+  }
 }
 
 void

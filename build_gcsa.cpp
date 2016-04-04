@@ -71,6 +71,7 @@ main(int argc, char** argv)
     std::cerr << "  -t    Read the input in text format" << std::endl;
     std::cerr << "  -T N  Set the number of threads to N (default and max " << omp_get_max_threads() << " on this system)" << std::endl;
     std::cerr << "  -v    Verify the index by querying it with the kmers" << std::endl;
+    std::cerr << "  -V N  Set verbosity level to N (default " << Verbosity::DEFAULT << ")" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
@@ -79,7 +80,7 @@ main(int argc, char** argv)
   bool binary = true, verify = false;
   std::string index_file, lcp_file;
   ConstructionParameters parameters;
-  while((c = getopt(argc, argv, "bB:d:D:l:o:tT:v")) != -1)
+  while((c = getopt(argc, argv, "bB:d:D:l:o:tT:vV:")) != -1)
   {
     switch(c)
     {
@@ -103,6 +104,8 @@ main(int argc, char** argv)
       omp_set_num_threads(Range::bound(std::stoul(optarg), 1, omp_get_max_threads())); break;
     case 'v':
       verify = true; break;
+    case 'V':
+      Verbosity::set(std::stoul(optarg)); break;
     case '?':
       std::exit(EXIT_FAILURE);
     default:
@@ -135,6 +138,7 @@ main(int argc, char** argv)
   printHeader("Branching factor", INDENT); std::cout << parameters.lcp_branching << std::endl;
   printHeader("Threads", INDENT); std::cout << omp_get_max_threads() << std::endl;
   printHeader("Temp directory", INDENT); std::cout << TempFile::temp_dir << std::endl;
+  printHeader("Verbosity", INDENT); std::cout << Verbosity::levelName() << std::endl;
   std::cout << std::endl;
 
   InputGraph graph(argc - optind, argv + optind, binary);
@@ -281,13 +285,14 @@ verifyGraph(const InputGraph& input_graph)
 void
 verifyMapper(const InputGraph& graph)
 {
-    std::vector<key_type> keys; graph.read(keys);
-    DeBruijnGraph mapper(keys, graph.k());
-#ifdef VERBOSE_STATUS_INFO
+  std::vector<key_type> keys; graph.read(keys);
+  DeBruijnGraph mapper(keys, graph.k());
+  if(Verbosity::level >= Verbosity::EXTENDED)
+  {
     std::cerr << "build_gcsa: verifyMapper(): Mapper has " << mapper.size() << " nodes, "
               << mapper.edge_count() << " edges" << std::endl;
     std::cerr << "build_gcsa: verifyMapper(): Mapper size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
-#endif
+  }
 
   bool ok = true;
   for(size_type i = 0; i < keys.size(); i++)

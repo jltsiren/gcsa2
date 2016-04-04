@@ -168,9 +168,10 @@ writeKMers(const std::string& base_name, std::vector<KMer>& kmers, size_type kme
   writeBinary(output, kmers, kmer_length);
   output.close();
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "writeKMers(): Wrote " << kmers.size() << " " << kmer_length << "-mers" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::FULL)
+  {
+    std::cerr << "writeKMers(): Wrote " << kmers.size() << " " << kmer_length << "-mers" << std::endl;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -313,10 +314,11 @@ InputGraph::build()
     input.close();
   }
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "InputGraph::InputGraph(): " << this->size() << " kmers in "
-            << this->files() << " file(s)" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::BASIC)
+  {
+    std::cerr << "InputGraph::InputGraph(): " << this->size() << " kmers in "
+              << this->files() << " file(s)" << std::endl;
+  }
 }
 
 void
@@ -367,9 +369,10 @@ InputGraph::read(std::vector<KMer>& kmers) const
     this->read(kmers, file, true);
   }
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "InputGraph::read(): Read " << kmers.size() << " " << this->k() << "-mers" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::FULL)
+  {
+    std::cerr << "InputGraph::read(): Read " << kmers.size() << " " << this->k() << "-mers" << std::endl;
+  }
 
   markSourceSinkNodes(kmers);
 }
@@ -385,13 +388,11 @@ InputGraph::read(std::vector<KMer>& kmers, size_type file, bool append) const
   this->checkK(new_k, file);
   input.close();
 
-#ifdef VERBOSE_STATUS_INFO
-  if(!append)
+  if(!append && Verbosity::level >= Verbosity::FULL)
   {
     std::cerr << "InputGraph::read(): Read " << kmers.size() << " " << this->k() << "-mers"
               << " from " << this->filenames[file] << std::endl;
   }
-#endif
 
   if(!append) { markSourceSinkNodes(kmers); }
 }
@@ -423,9 +424,10 @@ InputGraph::readKeys(std::vector<key_type>& keys) const
   }
   keys.resize(i + 1);
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "InputGraph::readKeys(): " << keys.size() << " unique keys" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::BASIC)
+  {
+    std::cerr << "InputGraph::readKeys(): " << keys.size() << " unique keys" << std::endl;
+  }
 }
 
 void
@@ -446,9 +448,10 @@ InputGraph::readFrom(std::vector<node_type>& from_nodes) const
   }
   removeDuplicates(from_nodes, true);
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "InputGraph::readFrom(): " << from_nodes.size() << " unique from nodes" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::BASIC)
+  {
+    std::cerr << "InputGraph::readFrom(): " << from_nodes.size() << " unique from nodes" << std::endl;
+  }
 }
 
 //------------------------------------------------------------------------------

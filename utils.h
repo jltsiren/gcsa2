@@ -115,6 +115,33 @@ std::ostream& operator<<(std::ostream& stream, const std::pair<A, B>& data)
 
 //------------------------------------------------------------------------------
 
+/*
+  Global verbosity setting for index construction. Used in conditions of type
+  if(Verbosity::level >= Verbosity::THRESHOLD). While the level can be set directly,
+  Verbosity::set() does a few sanity checks.
+
+  SILENT    no status information
+  BASIC     basic progress information and statistics on the input and the final index
+  EXTENDED  add intermediate statistics
+  FULL      add technical information on processing individual files
+*/
+
+struct Verbosity
+{
+  static size_type level;
+
+  static void set(size_type new_level);
+  static std::string levelName();
+
+  const static size_type SILENT   = 0;
+  const static size_type BASIC    = 1;
+  const static size_type EXTENDED = 2;
+  const static size_type DEFAULT  = 3;
+  const static size_type FULL     = 3;
+};
+
+//------------------------------------------------------------------------------
+
 template<class IntegerType>
 inline size_type
 bit_length(IntegerType val)

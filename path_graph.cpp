@@ -448,10 +448,11 @@ PathGraphBuilder::sort(size_type file)
   this->files[file].open(this->graph.filenames[file].c_str(), std::ios_base::binary);
   for(auto& path : paths) { path.serialize(this->files[file], labels); }
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "PathGraphBuilder::sort(): File " << file << ": Sorted "
-            << this->graph.sizes[file] << " paths" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::FULL)
+  {
+    std::cerr << "PathGraphBuilder::sort(): File " << file << ": Sorted "
+              << this->graph.sizes[file] << " paths" << std::endl;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -837,12 +838,13 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
     out.close();
   }
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "PathGraph::PathGraph(): " << this->size() << " paths with "
-            << this->ranks() << " ranks" << std::endl;
-  std::cerr << "PathGraph::PathGraph(): " << inGigabytes(this->bytes()) << " GB in "
-            << this->files() << " file(s)" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::EXTENDED)
+  {
+    std::cerr << "PathGraph::PathGraph(): " << this->size() << " paths with "
+              << this->ranks() << " ranks" << std::endl;
+    std::cerr << "PathGraph::PathGraph(): " << inGigabytes(this->bytes()) << " GB in "
+              << this->files() << " file(s)" << std::endl;
+  }
 }
 
 PathGraph::PathGraph(size_type file_count, size_type path_order, size_type steps) :
@@ -917,9 +919,7 @@ PathGraph::open(std::ifstream& input, size_type file) const
 void
 PathGraph::prune(const LCP& lcp, size_type size_limit)
 {
-#ifdef VERBOSE_STATUS_INFO
   size_type old_path_count = this->size();
-#endif
 
   PathGraphMerger merger(*this, lcp, true);
   PathGraphBuilder builder(this->files(), this->k(), this->step(), size_limit);
@@ -946,14 +946,15 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
   merger.close(); builder.close();
   this->clear(); this->swap(builder.graph);
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "PathGraph::prune(): " << old_path_count << " -> " << this->size() << " paths ("
-            << this->ranges() << " ranges)" << std::endl;
-  std::cerr << "PathGraph::prune(): " << this->unique << " unique, " << this->unsorted << " unsorted, "
-            << this->nondeterministic << " nondeterministic paths" << std::endl;
-  std::cerr << "PathGraph::prune(): " << inGigabytes(this->bytes()) << " GB in "
-            << this->files() << " file(s)" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::EXTENDED)
+  {
+    std::cerr << "PathGraph::prune(): " << old_path_count << " -> " << this->size() << " paths ("
+              << this->ranges() << " ranges)" << std::endl;
+    std::cerr << "PathGraph::prune(): " << this->unique << " unique, " << this->unsorted << " unsorted, "
+              << this->nondeterministic << " nondeterministic paths" << std::endl;
+    std::cerr << "PathGraph::prune(): " << inGigabytes(this->bytes()) << " GB in "
+              << this->files() << " file(s)" << std::endl;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -961,9 +962,7 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
 void
 PathGraph::extend(size_type size_limit)
 {
-#ifdef VERBOSE_STATUS_INFO
   size_type old_path_count = this->size();
-#endif
 
   PathGraphBuilder builder(this->files(), 2 * this->k(), this->step() + 1, size_limit);
   for(size_type file = 0; file < this->files(); file++)
@@ -1020,10 +1019,11 @@ PathGraph::extend(size_type size_limit)
     }
     sdsl::util::clear(paths); sdsl::util::clear(labels);
 
-#ifdef VERBOSE_STATUS_INFO
-    std::cerr << "PathGraph::extend(): File " << file << ": Created " << builder.graph.sizes[file]
-              << " order-" << builder.graph.k() << " paths" << std::endl;
-#endif
+    if(Verbosity::level >= Verbosity::FULL)
+    {
+      std::cerr << "PathGraph::extend(): File " << file << ": Created " << builder.graph.sizes[file]
+                << " order-" << builder.graph.k() << " paths" << std::endl;
+    }
 
     // Sort the next generation.
     builder.sort(file);
@@ -1031,12 +1031,13 @@ PathGraph::extend(size_type size_limit)
   builder.close();
   this->clear(); this->swap(builder.graph);
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "PathGraph::extend(): " << old_path_count << " -> " << this->size() << " paths ("
-            << this->ranks() << " ranks)" << std::endl;
-  std::cerr << "PathGraph::extend(): " << inGigabytes(this->bytes()) << " GB in "
-            << this->files() << " file(s)" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::EXTENDED)
+  {
+    std::cerr << "PathGraph::extend(): " << old_path_count << " -> " << this->size() << " paths ("
+              << this->ranks() << " ranks)" << std::endl;
+    std::cerr << "PathGraph::extend(): " << inGigabytes(this->bytes()) << " GB in "
+              << this->files() << " file(s)" << std::endl;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1051,10 +1052,11 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
   for(size_type i = 0; i < this->sizes[file]; i++) { paths.push_back(PathNode(input, labels)); }
   input.close();
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "PathGraph::read(): File " << file << ": Read " << paths.size()
-            << " order-" << this->k()<< " paths" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::FULL)
+  {
+    std::cerr << "PathGraph::read(): File " << file << ": Read " << paths.size()
+              << " order-" << this->k()<< " paths" << std::endl;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1126,11 +1128,12 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
   merger.close();
   path_file.close(); rank_file.close(); from_file.close(); lcp_array.close();
 
-#ifdef VERBOSE_STATUS_INFO
-  std::cerr << "MergedGraph::MergedGraph(): " << this->size() << " paths with "
-            << this->ranks() << " ranks and " << this->extra() << " additional from nodes" << std::endl;
-  std::cerr << "MergedGraph::MergedGraph(): " << inGigabytes(this->bytes()) << " GB" << std::endl;
-#endif
+  if(Verbosity::level >= Verbosity::EXTENDED)
+  {
+    std::cerr << "MergedGraph::MergedGraph(): " << this->size() << " paths with "
+              << this->ranks() << " ranks and " << this->extra() << " additional from nodes" << std::endl;
+    std::cerr << "MergedGraph::MergedGraph(): " << inGigabytes(this->bytes()) << " GB" << std::endl;
+  }
 }
 
 MergedGraph::~MergedGraph()
