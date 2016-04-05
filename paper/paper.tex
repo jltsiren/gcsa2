@@ -1,0 +1,175 @@
+\documentclass[a4paper,UKenglish]{lipics-v2016}
+
+\usepackage{microtype}
+
+\bibliographystyle{plainurl}
+
+% Author macros::begin %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{Indexing Variation Graphs\footnote{This work was supported by the Wellcome Trust grant [098051].}}
+
+\author[1]{Jouni Sirén}
+\affil[1]{Wellcome Trust Sanger Institute, Hinxton, Cambridge, UK\\
+  \texttt{jouni.siren@iki.fi}}
+\authorrunning{J. Sirén}
+
+\Copyright{Jouni Sirén}
+
+\subjclass{E.1 Data Structures}
+\keywords{Dummy keyword -- please provide 1--5 keywords}% FIXME
+% Author macros::end %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%Editor-only macros:: begin (do not touch as author)%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\EventEditors{John Q. Open and Joan R. Acces}
+\EventNoEds{2}
+\EventLongTitle{42nd Conference on Very Important Topics (CVIT 2016)}
+\EventShortTitle{CVIT 2016}
+\EventAcronym{CVIT}
+\EventYear{2016}
+\EventDate{December 24--27, 2016}
+\EventLocation{Little Whinging, United Kingdom}
+\EventLogo{}
+\SeriesVolume{42}
+\ArticleNo{23}
+% Editor-only macros::end %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% Mathematics
+\newcommand{\set}[1]{\ensuremath{\{ #1 \}}}
+\newcommand{\abs}[1]{\ensuremath{\lvert #1 \rvert}}
+
+% DNA
+\newcommand{\dnaseq}[1]{\ensuremath{\mathtt{#1}}}
+\newcommand{\baseA}{\dnaseq{A}}
+\newcommand{\baseC}{\dnaseq{C}}
+\newcommand{\baseG}{\dnaseq{G}}
+\newcommand{\baseT}{\dnaseq{T}}
+\newcommand{\baseN}{\dnaseq{N}}
+\newcommand{\dnacomp}[1]{\ensuremath{\overline{#1}}}
+\newcommand{\revcomp}[1]{\ensuremath{\overleftarrow{#1}}}
+
+% Rank/select
+\newcommand{\rank}{\textsf{rank}}
+\newcommand{\select}{\textsf{select}}
+\newcommand{\mrank}{\ensuremath{\mathsf{rank}}}
+\newcommand{\mselect}{\ensuremath{\mathsf{select}}}
+
+% Graphs
+\newcommand{\gindegree}{\ensuremath{\mathsf{in}}}
+\newcommand{\goutdegree}{\ensuremath{\mathsf{out}}}
+\newcommand{\glabel}{\ensuremath{\mathsf{label}}}
+\newcommand{\gkey}{\ensuremath{\mathsf{key}}}
+\newcommand{\gvalue}{\ensuremath{\mathsf{value}}}
+
+% Shorthands
+\newcommand{\kmer}[1]{$#1$\nobreakdash-mer}
+\newcommand{\orderk}[1]{order\nobreakdash-$#1$}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}% FIXME
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent convallis orci arcu, eu mollis dolor. Aliquam eleifend suscipit lacinia. Maecenas quam mi, porta ut lacinia sed, convallis ac dui. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse potenti.
+ \end{abstract}
+
+
+\section{Introduction}
+
+1000GP: \cite{1000GP2015}
+
+Graph genomes: \cite{Schneeberger2009}
+
+FM-index: \cite{Ferragina2005a}
+
+CST-NPR: \cite{Fischer2009a}
+
+CST MEMs: \cite{Ohlebusch2010a}
+
+XBW: \cite{Ferragina2009b}
+
+GCSA: \cite{Siren2014}
+
+Succinct DBG: \cite{Bowe2012}, variable-order \cite{Boucher2014}, alternative representation \cite{Roedland2013}
+
+BWBBLE: \cite{Huang2013}
+
+Contracted DBG: \cite{Cazaux2014}
+
+Compressed DBG: \cite{Marcus2014}
+
+Manifold DBG: \cite{Lin2014}
+
+Hypertext index: \cite{Thachuk2013}
+
+FM-index of alignment: \cite{Na2015}
+
+HISAT / HISAT2: \cite{Kim2015}
+
+
+\section{Background}
+
+\subsection{Strings}
+
+A \emph{string} $S[0, n-1] = s_{0} \dotsm s_{n-1}$ is a sequence of \emph{characters} over an \emph{alphabet} $\Sigma = \set{0, \dotsc, \sigma - 1}$. For indexing purposes, we often consider \emph{text} strings $T[0, n-1]$ terminated by an \emph{endmarker} $T[n-1] = \$ = 0$ not found anywhere else in the text. \emph{Binary} sequences are strings over the alphabet $\set{0, 1}$. A \emph{substring} of string $S$ is a sequence of the form $S[i, j] = s_{i} \dotsm s_{j}$. We call substrings of the type $S[0, j]$ and $S[i, n-1]$ \emph{prefixes} and \emph{suffixes}, respectively.
+
+In this paper, we primarily consider sequences over the \emph{DNA} alphabet $\set{\$, \baseA, \baseC, \baseG, \baseT, \baseN}$. Characters $\baseA$, $\baseC$, $\baseG$, and $\baseT$ are called \emph{bases}, while character $\baseN$ represents an arbitrary or unknown base. In addition to the endmarker $\$$, the alphabet may also contain other characters for technical purposes. Each character $c$ of the DNA alphabet has a \emph{complement} $\dnacomp{c}$ defined as $\dnacomp{\baseA} = \baseT$, $\dnacomp{\baseC} = \baseG$, $\dnacomp{\baseG} = \baseC$, $\dnacomp{\baseT} = \baseA$, and $\dnacomp{c} = c$ for other characters $c$. Given a DNA sequence $S$, its \emph{reverse complement} is the sequence $\revcomp{S}$ obtained by reversing the non-technical parts of the sequence and replacing each character with its complement. For example, $\revcomp{\dnaseq{GATTACA}\$} = \dnaseq{TGTAATC}\$$.
+
+Given string $S[0, n-1]$, we define $S.\mrank(i, c)$ to be the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define $S.\mselect(i, c) = \arg \max_{j \le n} S.\mrank(j, c) < i$ as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions correspond to the ones used in the SDSL library \cite{Gog2014b}.} A \emph{bitvector} is a binary sequence supporting efficient \rank/\select{} queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support \rank/\select{} queries on arbitrary strings.
+
+\subsection{Graphs}
+
+A \emph{graph} $G = (V, E)$ consists of a set of \emph{nodes} $V = \set{0, \dotsc, \abs{V}-1}$ and a set of \emph{edges} $E \subseteq V \times V$. We say that $(u, v) \in E$ is an edge \emph{from} node $u$ \emph{to} node $v$, and assume that the edges are \emph{directed}: $(u, v) \ne (v, u)$ for $u \ne v$. The \emph{indegree} $G.\gindegree(v)$ of node $v$ is the number of \emph{incoming} edges to node $v$, while the \emph{outdegree} $G.\goutdegree(v)$ is the number of \emph{outgoing} edges from node $v$.
+
+The graphs we consider are \emph{labeled} with alphabet $\Sigma$: each node $v \in V$ has a \emph{label} $G.\glabel(v) \in \Sigma$. A \emph{path} in a graph is a sequence of nodes $P = v_{0} \dotsm v_{\abs{P}-1}$ such that $(v_{i}, v_{i+1}) \in E$ for $0 \le i < \abs{P}-1$. The label of a path is the concatenation of node labels $G.\glabel(P) = G.\glabel(v_{0}) \dotsm G.\glabel(v_{\abs{P}-1})$.
+
+We assume for convenience that all graphs have two special nodes: the \emph{source} node $s$ and the \emph{sink} node $t$. To distinguish them from the other nodes, we label them with characters $G.\glabel(s) = \#$ and $G.\glabel(t) = \$$ not used elsewhere in the graph. We add an edge $(s, v)$ for all nodes $v \in V \setminus \set{s}$ that have no other incoming edges, and an edge $(v, t)$ for all nodes $v \in V \setminus \set{t}$ with no other outgoing edges. We also add the edge $(t, s)$ to guarantee that $G.\gindegree(v) \ge 1$ and $G.\goutdegree(v) \ge 1$ for all nodes $v \in V$.
+
+% FIXME example
+Let $\mathcal{S}$ be a (potentially infinite) collection of strings over alphabet $\Sigma$, each of them ending with $k$ copies of the endmarker $\$$. The \orderk{k} \emph{de~Bruijn graph} of $\mathcal{S}$ is a graph $G = (V, E)$, where each distinct \emph{\kmer{k}} (substring of length $k$) $X$ occurring in collection $\mathcal{S}$ is represented by a node $v_{X} \in V$. Each node $v_{X}$ has a \emph{key} $G.\gkey(v_{X}) = X$ and a label $G.\glabel(v_{X}) = X[0]$. The edges of the de~Bruijn graph represent \kmer{k+1}s $Y$ occurring in the collection. For each such substring $Y = cX$, where $c \in \Sigma$, we have an edge from node $v_{Y[0, k-1]}$ to node $v_{X}$. We use the node corresponding to substring $\$^{k}$ as the sink node, and add the source node (with $G.\gkey(s) = \#$) and the associated edges in the usual way. We may also have edges from the source node to the nodes representing the prefixes of the collection.
+
+\begin{lemma}[No false negatives]
+Let $G = (V, E)$ be an \orderk{k} de~Bruijn graph of string collection $\mathcal{S}$, and let $X$ be a substring of $\mathcal{S}$ not containing character $\$$. Then there is a path $P$ in the graph with $G.\glabel(P) = X$.
+\end{lemma}
+
+\begin{proof}
+Let $X = S[i, i+\abs{X}-1]$ for a string $S \in \mathcal{S}$. For $i \le j \le i+\abs{X}-1$, there is node $v_{j} \in V$ representing substring $X_{j} = S[j, j+k-1]$, with $G.\glabel(v_{j}) = S[j]$. By definition, the de~Bruijn graph has an edge $(v_{j}, v_{j+1})$ for $i \le j < i+\abs{X}-1$. Hence $P = v_{i} \dotsm v_{i+\abs{X}-1}$ is a path in $G$ and $G.\glabel(P) = X$.
+\end{proof}
+
+\begin{lemma}[No false positives with $\abs{P} \le k+1$]
+Let $G = (V, E)$ be an \orderk{k} de~Bruijn graph of string collection $\mathcal{S}$, and let $P$ be a path in $G$ with $\abs{P} \le k+1$. Then path $P$ either contains the source node $s$ or its label is a substring of a string $S \in \mathcal{S}$.
+\end{lemma}
+
+\begin{proof}
+Assume that path $P = v_{0} \dotsm v_{\abs{P}-1}$ does not contain node $s$. If $\abs{P} = 0$, the label is an empty string and hence a substring of each string $S \in \mathcal{S}$. If $\abs{P} = 1$, the label is equal to $G.\glabel(v_{0})$, which is a prefix of $G.\gkey(v_{0})$ and hence a substring of $\mathcal{S}$.
+
+Now assume that $G.\glabel(P) = cX$, where $c \in \Sigma \setminus \set{\#}$ and $1 \le \abs{X} \le k$. By induction, string $X$ is a prefix of $G.\gkey(v_{1})$. As edge $(v_{0}, v_{1})$ exists, $c \cdot G.\gkey(v_{1})$ must be a substring of $\mathcal{S}$. Hence $cX$ is a substring of $\mathcal{S}$, and also a prefix of $G.\gkey(v_{0})$ if $\abs{cX} \le k$.
+\end{proof}
+
+\subsection{Indexes}
+
+
+\section{Path indexes}
+
+
+\section{GCSA2}
+
+
+\section{Construction}
+
+
+\section{Experiments}
+
+
+\section{Discussion}
+
+
+% FIXME
+\subparagraph*{Acknowledgements.}
+
+I want to thank \dots
+
+
+\bibliography{paper}
+
+
+\end{document}

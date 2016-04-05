@@ -7,5 +7,14 @@ count_kmers
 gcsa_format
 query_gcsa
 
+paper.pdf
+*.aux
+*.bak
+*.bbl
+*.blg
+*.log
+*.out
+*.vtc
+
 .DS_Store
 
