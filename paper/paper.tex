@@ -147,8 +147,42 @@ Now assume that $G.\glabel(P) = cX$, where $c \in \Sigma \setminus \set{\#}$ and
 
 \subsection{Indexes}
 
+Suffix tree \cite{Weiner1973}, suffix array \cite{Manber1993}
+
+BWT \cite{Burrows1994}, LF-mapping
+
+FM-index \cite{Ferragina2005a}, find, locate, extract
+
+LCP array \cite{Manber1993}, CST \cite{Sadakane2007}
+
+XBW \cite{Ferragina2009b}, GCSA \cite{Siren2014}
+
 
 \section{Path indexes}
+
+find the start nodes of paths with label matching the pattern
+
+general difficulty: exponential growth
+GCSA \cite{Siren2014}
+
+k-mer indexes based on hash tables, sorted k-mers
+
+similarities between k-mer indexes and de Bruijn graphs
+
+using de Bruijn graphs as indexes; false positives
+- string Y matches node with key X: X is a prefix of Y or Y is a prefix of X
+- add values (pointers to start nodes) to each node
+- valid for existence queries of length up to k+1 and locate queries of length up to k
+
+Path graphs
+- a generalization of DBG as a path index
+- keys must be prefix-free
+- k-index: has a node matching any k-path in the input graph
+- edge condition: Y has predecessor with c -> edge (X, Y) if cY matches X
+- k-equivalent: union of values for nodes matching X identical for all |X| <= k
+- k-equivalent + edge condition: no false positives of length <= k; no false negatives
+
+pruned de Bruijn graphs: merge nodes of DBG while keeping the path graph k-equivalent
 
 
 \section{GCSA2}
