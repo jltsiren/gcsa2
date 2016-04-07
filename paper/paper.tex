@@ -36,6 +36,7 @@
 % Mathematics
 \newcommand{\set}[1]{\ensuremath{\{ #1 \}}}
 \newcommand{\abs}[1]{\ensuremath{\lvert #1 \rvert}}
+\newcommand{\Oh}[1]{\ensuremath{\mathsf{O}\!\left( #1 \right)}}
 
 % DNA
 \newcommand{\dnaseq}[1]{\ensuremath{\mathtt{#1}}}
@@ -47,11 +48,10 @@
 \newcommand{\dnacomp}[1]{\ensuremath{\overline{#1}}}
 \newcommand{\revcomp}[1]{\ensuremath{\overleftarrow{#1}}}
 
-% Rank/select
-\newcommand{\rank}{\textsf{rank}}
-\newcommand{\select}{\textsf{select}}
-\newcommand{\mrank}{\ensuremath{\mathsf{rank}}}
-\newcommand{\mselect}{\ensuremath{\mathsf{select}}}
+% Queries
+\newcommand{\rank}{\ensuremath{\mathsf{rank}}}
+\newcommand{\select}{\ensuremath{\mathsf{select}}}
+\newcommand{\LF}{\ensuremath{\mathsf{LF}}}
 
 % Graphs
 \newcommand{\gindegree}{\ensuremath{\mathsf{in}}}
@@ -63,6 +63,17 @@
 % Shorthands
 \newcommand{\kmer}[1]{$#1$\nobreakdash-mer}
 \newcommand{\orderk}[1]{order\nobreakdash-$#1$}
+\newcommand{\LFmapping}{LF\nobreakdash-mapping}
+\newcommand{\FMindex}{FM\nobreakdash-index}
+
+% Structures
+\newcommand{\SA}{\ensuremath{\mathsf{SA}}}
+\newcommand{\BWT}{\ensuremath{\mathsf{BWT}}}
+\newcommand{\Carray}{\ensuremath{\mathsf{C}}}
+\newcommand{\LCP}{\ensuremath{\mathsf{LCP}}}
+\newcommand{\bvIN}{\ensuremath{\mathsf{IN}}}
+\newcommand{\bvOUT}{\ensuremath{\mathsf{OUT}}}
+
 
 \begin{document}
 
@@ -110,11 +121,11 @@ HISAT / HISAT2: \cite{Kim2015}
 
 \subsection{Strings}
 
-A \emph{string} $S[0, n-1] = s_{0} \dotsm s_{n-1}$ is a sequence of \emph{characters} over an \emph{alphabet} $\Sigma = \set{0, \dotsc, \sigma - 1}$. For indexing purposes, we often consider \emph{text} strings $T[0, n-1]$ terminated by an \emph{endmarker} $T[n-1] = \$ = 0$ not found anywhere else in the text. \emph{Binary} sequences are strings over the alphabet $\set{0, 1}$. A \emph{substring} of string $S$ is a sequence of the form $S[i, j] = s_{i} \dotsm s_{j}$. We call substrings of the type $S[0, j]$ and $S[i, n-1]$ \emph{prefixes} and \emph{suffixes}, respectively.
+A \emph{string} $S[0, n-1] = s_{0} \dotsm s_{n-1}$ of length $\abs{S} = n$ is a sequence of \emph{characters} over an \emph{alphabet} $\Sigma = \set{0, \dotsc, \sigma - 1}$. For indexing purposes, we often consider \emph{text} strings $T[0, n-1]$ terminated by an \emph{endmarker} $T[n-1] = \$ = 0$ not found anywhere else in the text. \emph{Binary} sequences are strings over the alphabet $\set{0, 1}$. A \emph{substring} of string $S$ is a sequence of the form $S[i, j] = s_{i} \dotsm s_{j}$. We call substrings of the type $S[0, j]$ and $S[i, n-1]$ \emph{prefixes} and \emph{suffixes}, respectively.
 
 In this paper, we primarily consider sequences over the \emph{DNA} alphabet $\set{\$, \baseA, \baseC, \baseG, \baseT, \baseN}$. Characters $\baseA$, $\baseC$, $\baseG$, and $\baseT$ are called \emph{bases}, while character $\baseN$ represents an arbitrary or unknown base. In addition to the endmarker $\$$, the alphabet may also contain other characters for technical purposes. Each character $c$ of the DNA alphabet has a \emph{complement} $\dnacomp{c}$ defined as $\dnacomp{\baseA} = \baseT$, $\dnacomp{\baseC} = \baseG$, $\dnacomp{\baseG} = \baseC$, $\dnacomp{\baseT} = \baseA$, and $\dnacomp{c} = c$ for other characters $c$. Given a DNA sequence $S$, its \emph{reverse complement} is the sequence $\revcomp{S}$ obtained by reversing the non-technical parts of the sequence and replacing each character with its complement. For example, $\revcomp{\dnaseq{GATTACA}\$} = \dnaseq{TGTAATC}\$$.
 
-Given string $S[0, n-1]$, we define $S.\mrank(i, c)$ to be the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define $S.\mselect(i, c) = \arg \max_{j \le n} S.\mrank(j, c) < i$ as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions correspond to the ones used in the SDSL library \cite{Gog2014b}.} A \emph{bitvector} is a binary sequence supporting efficient \rank/\select{} queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support \rank/\select{} queries on arbitrary strings.
+Given string $S[0, n-1]$, we define $S.\rank(i, c)$ to be the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define $S.\select(i, c) = \arg \max_{j \le n} S.\rank(j, c) < i$ as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions correspond to the ones used in the SDSL library \cite{Gog2014b}.} A \emph{bitvector} is a binary sequence supporting efficient $\rank$/$\select$ queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support $\rank$/$\select$ queries on arbitrary strings.
 
 \subsection{Graphs}
 
@@ -124,7 +135,7 @@ The graphs we consider are \emph{labeled} with alphabet $\Sigma$: each node $v \
 
 We assume for convenience that all graphs have two special nodes: the \emph{source} node $s$ and the \emph{sink} node $t$. To distinguish them from the other nodes, we label them with characters $G.\glabel(s) = \#$ and $G.\glabel(t) = \$$ not used elsewhere in the graph. We add an edge $(s, v)$ for all nodes $v \in V \setminus \set{s}$ that have no other incoming edges, and an edge $(v, t)$ for all nodes $v \in V \setminus \set{t}$ with no other outgoing edges. We also add the edge $(t, s)$ to guarantee that $G.\gindegree(v) \ge 1$ and $G.\goutdegree(v) \ge 1$ for all nodes $v \in V$.
 
-% FIXME example
+% FIXME example of strings, DBG, long paths, false positives
 Let $\mathcal{S}$ be a (potentially infinite) collection of strings over alphabet $\Sigma$, each of them ending with $k$ copies of the endmarker $\$$. The \orderk{k} \emph{de~Bruijn graph} of $\mathcal{S}$ is a graph $G = (V, E)$, where each distinct \emph{\kmer{k}} (substring of length $k$) $X$ occurring in collection $\mathcal{S}$ is represented by a node $v_{X} \in V$. Each node $v_{X}$ has a \emph{key} $G.\gkey(v_{X}) = X$ and a label $G.\glabel(v_{X}) = X[0]$. The edges of the de~Bruijn graph represent \kmer{k+1}s $Y$ occurring in the collection. For each such substring $Y = cX$, where $c \in \Sigma$, we have an edge from node $v_{Y[0, k-1]}$ to node $v_{X}$. We use the node corresponding to substring $\$^{k}$ as the sink node, and add the source node (with $G.\gkey(s) = \#$) and the associated edges in the usual way. We may also have edges from the source node to the nodes representing the prefixes of the collection.
 
 \begin{lemma}[No false negatives]
@@ -145,17 +156,39 @@ Assume that path $P = v_{0} \dotsm v_{\abs{P}-1}$ does not contain node $s$. If 
 Now assume that $G.\glabel(P) = cX$, where $c \in \Sigma \setminus \set{\#}$ and $1 \le \abs{X} \le k$. By induction, string $X$ is a prefix of $G.\gkey(v_{1})$. As edge $(v_{0}, v_{1})$ exists, $c \cdot G.\gkey(v_{1})$ must be a substring of $\mathcal{S}$. Hence $cX$ is a substring of $\mathcal{S}$, and also a prefix of $G.\gkey(v_{0})$ if $\abs{cX} \le k$.
 \end{proof}
 
-\subsection{Indexes}
+\subsection{Text indexes}
 
-Suffix tree \cite{Weiner1973}, suffix array \cite{Manber1993}
+The \emph{suffix tree} \cite{Weiner1973} is the most fundamental full-text index supporting arbitrary substring queries. It is formed by taking the suffixes of the text, storing them in a trie, and compacting unary paths in the trie into single edges. Although fast and versatile, suffix trees are only of limited use in indexing large texts, as they require much more space than the text itself.
 
-BWT \cite{Burrows1994}, LF-mapping
+% FIXME SA/BWT/LCP example
+\emph{Suffix arrays} \cite{Manber1993} were introduced as a space-efficient alternative to the suffix tree. The suffix array of text $T[0, n-1]$ is an array of pointers $\SA[0, n-1]$ to the suffixes of the text in \emph{lexicographic order}. Given a text and its suffix array, we can find the occurrences of \emph{pattern} string $X$ in the text by using \emph{binary search} in $\Oh{\abs{X} \log n}$ time. The suffix array requires $n \log n$ bits of space in addition to the $n \log \sigma$ bits used by the text --- still much more than the text --- while its functionality is more limited than that of the suffix tree.
 
-FM-index \cite{Ferragina2005a}, find, locate, extract
+The \emph{Burrows-Wheeler transform (BWT)} \cite{Burrows1994} is a permutation of the text sharing the combinatorial structure of the suffix array. The BWT of text $T[0, n-1]$ is a string $\BWT[0, n-1]$ defined as $\BWT[i] = T[(\SA[i]-1) \bmod n]$. Given the \emph{lexicographic rank} $i$ of suffix $T[\SA[i], n-1]$, we can use \emph{\LFmapping} on the BWT to find the lexicographic rank of the previous suffix $T[(\SA[i]-1) \bmod n, n-1]$. Let
+$$
+\LF(i) = \Carray[\BWT[i]] + \BWT.\rank(i, \BWT[i]),
+$$
+where $\Carray[c]$ is the number of suffixes of the text starting with any character $c' < c$. Then $\SA[\LF(i)] = (\SA[i]-1) \bmod n$. We can also generalize the definition for any character $c \in \Sigma$:
+$$
+\LF(i, c) = \Carray[c] + \BWT.\rank(i, c).
+$$
+Let $X$ be a string. If there are $i$ suffixes $S'$ of text $T$ such that $S' < X$ in lexicographic order, then there are $\LF(i, c)$ suffixes smaller than string $cX$ in lexicographic order.
 
-LCP array \cite{Manber1993}, CST \cite{Sadakane2007}
+Given the similarities to the suffix array, we can use the BWT as a space-efficient text index. The \emph{\FMindex} \cite{Ferragina2005a} combines a plain or compressed representation of the BWT supporting rank/select queries, the $\Carray$ array, and a set of \emph{sampled pointers} from the suffix array. It finds the \emph{lexicographic range} of suffixes matching pattern $X$ (having $X$ as a prefix) with a process called \emph{backward searching}. If the lexicographic range matching suffix $X[i+1, \abs{X}-1]$ of the pattern is $\SA[sp, ep]$, then the lexicographic range matching suffix $X[i, \abs{X}-1]$ of the pattern is $\SA[\LF(sp, X[i]), \LF(ep+1, X[i]) - 1]$. Finding the lexicographic range matching the entire pattern requires $\Oh{\abs{X}}$ rank queries.
 
-XBW \cite{Ferragina2009b}, GCSA \cite{Siren2014}
+We can use the sampled suffix array pointers to find the text positions containing the occurrences. If $\SA[i]$ is not sampled, we start iterating $\LF(i)$, until we find a sampled pointer. If we find a sample at $\SA[\LF^{k}(i)]$, we know that
+$$
+\SA[i] = (\SA[\LF^{k}(i)] + k) \bmod n.
+$$
+If we have sampled one out of $d$ suffix array pointers at regular intervals, finding each occurrence takes $\Oh{d}$ rank queries. If we also sample one out of $d'$ \emph{inverse suffix array} pointers\footnote{The suffix array is a permutation of $\set{0, \dotsc n-1}$, and the inverse suffix array is the inverse permutation.}, we can \emph{extract} an arbitrary substring $X$ of the text using $\Oh{\abs{X}+d'}$ rank queries. In a typical case, we expect an \FMindex{} to take less than $n \log \sigma$ bits of space and to be able to find about 100,000 pattern occurrences per second \cite{Ferragina2009a}.
+
+The \emph{longest-common-prefix array} (LCP array) \cite{Manber1993} is an integer array $\LCP[0, n-1]$, where each value $\LCP[i]$ tells the length of the longest common prefix of suffixes $T[\SA[i-1], n-1]$ and $T[\SA[i], n-1]$ (with $\LCP[0] = 0$). It is often used to augment the functionality of the suffix array and the \FMindex. In particular, if we augment the \FMindex{} with the LCP array and the topology of the suffix tree, we get the \emph{compressed suffix tree}, which supports the full functionality of the suffix tree in a space-efficient manner \cite{Sadakane2007}.
+
+\subsection{Generalized indexes}
+
+Suffix trees, suffix arrays, and \FMindex{} can be generalized to index multiple texts. There are also generalizations for other combinatorial structures. The \emph{XBW transform} \cite{Ferragina2009b} is essentially an \FMindex{} for \emph{labeled trees}. The nodes of the tree are sorted by path labels from the node to the root of the tree. $\BWT$ stores the labels of the children of each node (leaf nodes require special treatment). If a node has $k$ children, we encode that as binary sequence $0^{k-1} 1$. We concatenate these sequences to form bitvector $B$, which is used for mapping lexicographic ranks of nodes to the corresponding BWT ranges. The labels of the children of node $i$ are found in $\BWT[B.\select(i, 1) + 1, B.\select(i + 1, 1)]$ (with $0$ as the lower bound for $i = 0$).
+
+% FIXME LF(i, c) picture from the slides for the earlier DBG example
+The \emph{generalized compressed suffix array} (GCSA) \cite{Siren2014} is a further generalization of the XBW transform for a class of graphs that includes \emph{directed acyclic graphs} and \emph{de Bruijn graphs}. Before a graph can be indexed, we have to transform it into an equivalent graph, where the nodes can be unambiguously sorted by the labels of the paths starting from them. The transformation is expensive and may increase the size of the graph exponentially. After sorting the nodes of the transformed graph, we encode them using three sequences. $\BWT$ contains the labels of the predecessors, while bitvectors $\bvIN$ and $\bvOUT$ encode the indegrees and outdegrees of each node in the same way as bitvector $B$ of the XBW transform. \LFmapping{} uses select queries on bitvector $\bvIN$ to map nodes into BWT ranges, ordinary \LFmapping{} with $\BWT$ to map incoming edges into the corresponding outgoing edges, and rank queries on bitvector $\bvOUT$ to map the outgoing edges to the predecessor nodes.
 
 
 \section{Path indexes}
