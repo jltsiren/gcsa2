@@ -179,7 +179,7 @@ We can use the sampled suffix array pointers to find the text positions containi
 $$
 \SA[i] = (\SA[\LF^{k}(i)] + k) \bmod n.
 $$
-If we have sampled one out of $d$ suffix array pointers at regular intervals, finding each occurrence takes $\Oh{d}$ rank queries. If we also sample one out of $d'$ \emph{inverse suffix array} pointers\footnote{The suffix array is a permutation of $\set{0, \dotsc n-1}$, and the inverse suffix array is the inverse permutation.}, we can \emph{extract} an arbitrary substring $X$ of the text using $\Oh{\abs{X}+d'}$ rank queries. In a typical case, we expect an \FMindex{} to take less than $n \log \sigma$ bits of space and to be able to find about 100,000 pattern occurrences per second \cite{Ferragina2009a}.
+If we have sampled one out of $d$ suffix array pointers at regular intervals, finding each occurrence takes $\Oh{d}$ rank queries. If we also sample one out of $d'$ \emph{inverse suffix array} pointers\footnote{The suffix array is a permutation of $\set{0, \dotsc, n-1}$, and the inverse suffix array is the inverse permutation.}, we can \emph{extract} an arbitrary substring $X$ of the text using $\Oh{\abs{X}+d'}$ rank queries. In a typical case, we expect an \FMindex{} to take less than $n \log \sigma$ bits of space and to be able to find about 100,000 pattern occurrences per second \cite{Ferragina2009a}.
 
 The \emph{longest-common-prefix array} (LCP array) \cite{Manber1993} is an integer array $\LCP[0, n-1]$, where each value $\LCP[i]$ tells the length of the longest common prefix of suffixes $T[\SA[i-1], n-1]$ and $T[\SA[i], n-1]$ (with $\LCP[0] = 0$). It is often used to augment the functionality of the suffix array and the \FMindex. In particular, if we augment the \FMindex{} with the LCP array and the topology of the suffix tree, we get the \emph{compressed suffix tree}, which supports the full functionality of the suffix tree in a space-efficient manner \cite{Sadakane2007}.
 
@@ -193,14 +193,16 @@ The \emph{generalized compressed suffix array} (GCSA) \cite{Siren2014} is a furt
 
 \section{Path indexes}
 
-find the start nodes of paths with label matching the pattern
+A \emph{path index} is a generalization of text indexes for \emph{labeled graphs}. Given a path index for graph $G = (V, E)$, we want to use the index to find the \emph{start nodes} $v_{0} \in V$ of the paths $P = v_{0} \dotsm v_{\abs{X}-1}$ \emph{matching} the pattern $X$ (paths $P$ with $G.\glabel(P) = X$).
 
-general difficulty: exponential growth
-GCSA \cite{Siren2014}
+The design of a path index is a trade-off between the maximum supported query length and the size of the index. In the worst case, a graph may have up to $(\sigma-2)^{k}$ distinct labels for paths of length $k$ (ignoring paths containing the source node or the sink node), and the length of possible paths is unlimited in cyclic graphs. GCSA \cite{Siren2014} tried to avoid this by considering only a relatively simple class of graphs, using \emph{pruning heuristics} to simplify the graphs when necessary. The price of this was the possibility of \emph{false negatives}: path labels that exist in the graph but not in the index.
 
+% FIXME from here
 k-mer indexes based on hash tables, sorted k-mers
 
-similarities between k-mer indexes and de Bruijn graphs
+similarities between k-mer indexes and de Bruijn graphs: order-k+1 index can simulate order-k DBG; order-k DBG can be used as an order-k index
+
+define de Bruijn graphs for graphs (infinite strings, no source node, repeat sink node instead)
 
 using de Bruijn graphs as indexes; false positives
 - string Y matches node with key X: X is a prefix of Y or Y is a prefix of X
