@@ -6,6 +6,11 @@ paper.pdf: cc-by.pdf lipics-logo-bw.pdf paper.bbl $(SOURCES)
 	pdflatex paper
 	pdflatex paper
 
+force: cc-by.pdf lipics-logo-bw.pdf paper.bbl $(SOURCES)
+	rm -f paper.pdf
+	pdflatex paper
+	pdflatex paper
+
 bib:
 	pdflatex paper
 	bibtex paper
