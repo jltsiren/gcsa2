@@ -80,9 +80,9 @@
 
 \maketitle
 
-\begin{abstract}% FIXME
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent convallis orci arcu, eu mollis dolor. Aliquam eleifend suscipit lacinia. Maecenas quam mi, porta ut lacinia sed, convallis ac dui. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse potenti.
- \end{abstract}
+\begin{abstract}
+Variation graphs, which represent genetic variation within a population, are replacing sequences as reference genomes. Path indexes are one of the most important tools for working with variation graphs. They generalize text indexes for graphs, allowing one to find the paths matching the query string. We propose using pruned de Bruijn graphs as path indexes, encoding them space-efficiently with the Burrows-Wheeler transform. We also generalize many ideas from text indexing literature to work with graphs. The proposed approach has been implemented in the variation graph toolkit vg.
+\end{abstract}
 
 
 \section{Introduction}
@@ -109,8 +109,6 @@ Contracted DBG: \cite{Cazaux2014}
 
 Compressed DBG: \cite{Marcus2014}
 
-Manifold DBG: \cite{Lin2014}
-
 Hypertext index: \cite{Thachuk2013}
 
 FM-index of alignment: \cite{Na2015}
@@ -124,59 +122,21 @@ HISAT / HISAT2: \cite{Kim2015}
 
 A \emph{string} $S[0, n-1] = s_{0} \dotsm s_{n-1}$ of length $\abs{S} = n$ is a sequence of \emph{characters} over an \emph{alphabet} $\Sigma = \set{0, \dotsc, \sigma - 1}$. For indexing purposes, we often consider \emph{text} strings $T[0, n-1]$ terminated by an \emph{endmarker} $T[n-1] = \$ = 0$ not found anywhere else in the text. \emph{Binary} sequences are strings over the alphabet $\set{0, 1}$. A \emph{substring} of string $S$ is a sequence of the form $S[i, j] = s_{i} \dotsm s_{j}$. We call substrings of the type $S[0, j]$ and $S[i, n-1]$ \emph{prefixes} and \emph{suffixes}, respectively, and substrings of length $k$ as \kmer{k}s. We say that string $S'$ is a substring of string collection $\mathcal{S}$, if there is a string $S \in \mathcal{S}$ such that $S'$ is a substring of $S$.
 
-In some cases, we also consider potentially \emph{infinite} character sequences $S = (s_{i})_{i \in Z}$, where set $Z$ is a contiguous subset of $\mathbb{Z}$. The notion of substrings generalizes for such infinite sequences in a natural way. We say that a substring of an infinite sequence $S$ is \emph{left-infinite} if it extends infinitely to the left, and \emph{right-infinite} if it extends infinitely to the right. A substring of a finite or infinite sequence $S$ is \emph{left-maximal} if it is left-infinite or a prefix; \emph{right-maximal} if it is right-infinite or a suffix; and \emph{maximal} if it is both left-maximal and right-maximal.
+In some cases, we also consider potentially \emph{infinite} character sequences $S = (s_{i})_{i \in Z}$, where set $Z$ is a contiguous infinite subset of $\mathbb{Z}$. The notion of substrings generalizes for such infinite sequences in a natural way. We say that a substring of an infinite sequence $S$ is \emph{left-infinite} if it extends infinitely to the left, and \emph{right-infinite} if it extends infinitely to the right. A substring of a finite or infinite sequence $S$ is \emph{left-maximal} if it is left-infinite or a prefix; \emph{right-maximal} if it is right-infinite or a suffix; and \emph{maximal} if it is both left-maximal and right-maximal.
 
 In this paper, we primarily consider sequences over the \emph{DNA} alphabet $\set{\$, \baseA, \baseC, \baseG, \baseT, \baseN}$. Characters $\baseA$, $\baseC$, $\baseG$, and $\baseT$ are called \emph{bases}, while character $\baseN$ represents an arbitrary or unknown base. In addition to the endmarker $\$$, the alphabet may also contain other characters for technical purposes. Each character $c$ of the DNA alphabet has a \emph{complement} $\dnacomp{c}$ defined as $\dnacomp{\baseA} = \baseT$, $\dnacomp{\baseC} = \baseG$, $\dnacomp{\baseG} = \baseC$, $\dnacomp{\baseT} = \baseA$, and $\dnacomp{c} = c$ for other characters $c$. Given a DNA sequence $S$, its \emph{reverse complement} is the sequence $\revcomp{S}$ obtained by reversing the non-technical parts of the sequence and replacing each character with its complement. For example, $\revcomp{\dnaseq{GATTACA}\$} = \dnaseq{TGTAATC}\$$.
 
 Given string $S[0, n-1]$, we define $S.\rank(i, c)$ to be the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define $S.\select(i, c) = \arg \max_{j \le n} S.\rank(j, c) < i$ as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions correspond to the ones used in the SDSL library \cite{Gog2014b}.} A \emph{bitvector} is a binary sequence supporting efficient $\rank$/$\select$ queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support $\rank$/$\select$ queries on arbitrary strings.
 
-\subsection{Graphs}\label{sect:graphs}
+The following definitions are useful when discussing text indexes and path indexes.
 
-A \emph{graph} $G = (V, E)$ consists of a set of \emph{nodes} $V = \set{0, \dotsc, \abs{V}-1}$ and a set of \emph{edges} $E \subseteq V \times V$. We say that $(u, v) \in E$ is an edge \emph{from} node $u$ \emph{to} node $v$, and assume that the edges are \emph{directed}: $(u, v) \ne (v, u)$ for $u \ne v$. The \emph{indegree} $G.\gindegree(v)$ of node $v$ is the number of \emph{incoming} edges to node $v$, while the \emph{outdegree} $G.\goutdegree(v)$ is the number of \emph{outgoing} edges from node $v$.
-
-The graphs we consider are \emph{labeled} with alphabet $\Sigma$: each node $v \in V$ has a \emph{label} $G.\glabel(v) \in \Sigma$. A \emph{path} in a graph is a sequence of nodes $P = v_{0} \dotsm v_{\abs{P}-1}$ such that $(v_{i}, v_{i+1}) \in E$ for all $i, i+1 \in \set{0, \dotsc, \abs{P}-1}$. The label of a path is the concatenation of node labels $G.\glabel(P) = G.\glabel(v_{0}) \dotsm G.\glabel(v_{\abs{P}-1})$. We can also generalize the definition for infinite paths $P = (v_{i})_{i \in Z}$ as we did with infinite character sequences in Section~\ref{sect:strings}.
-
-We assume for convenience that all graphs have two special nodes: the \emph{source} node $s$ and the \emph{sink} node $t$. To distinguish them from the other nodes, we label them with characters $G.\glabel(s) = \#$ and $G.\glabel(t) = \$$. The label of the sink node is unique in the graph, while the label of the source node can be used in other nodes for technical purposes. We add an edge $(s, v)$ for all nodes $v \in V \setminus \set{s}$ that have no other incoming edges, and an edge $(v, t)$ for all nodes $v \in V \setminus \set{t}$ with no other outgoing edges. We also add the edge $(t, s)$ to guarantee that $G.\gindegree(v) \ge 1$ and $G.\goutdegree(v) \ge 1$ for all nodes $v \in V$. However, we assume for convenience that no path in the graph crosses the edge $(t, s)$.
-
-\begin{definition}[\kcollection{k}]
-Let $\mathcal{S}$ be a collection of character sequences over alphabet $\Sigma$, and let $k$ be a parameter value. We say that $\mathcal{S}$ is a \emph{\kcollection{k}}, if each sequence $S \in \mathcal{S}$
-\begin{enumerate}
-\item is left-infinite or begins with $\#^{k}$;
-\item is right-infinite or ends with $\$^{k}$; and
-\item contains no other occurrences of characters $\#$ and $\$$,
-\end{enumerate}
-and the collection contains substrings $\#^{k}$ and $\$^{k}$.
+\begin{definition}[Prefix-matching strings]
+Let $S$ and $S'$ be strings over alphabet $\Sigma$. We say that string $S$ and $S'$ \emph{prefix-match}, if $S$ is a prefix of $S'$ or $S'$ is a prefix of $S$.
 \end{definition}
 
-% FIXME example of strings, DBG, long paths, false positives
-% FIXME some comments about DBGs
-\begin{definition}[de~Bruijn graph]
-Let $\mathcal{S}$ be a \kcollection{k} over alphabet $\Sigma$. The \orderk{k} \emph{de~Bruijn graph} of $\mathcal{S}$ is a graph $G = (V, E)$ such that
-\begin{enumerate}
-\item each node $v_{X} \in V$ represent a distinct \kmer{k} occurring in $\mathcal{S}$;
-\item $G.\glabel(v_{X}) = X[0]$ and $G.\gkey(v_{X}) = X$ for all $v_{X} \in V$; and
-\item each edge $(v_{X}, v_{X'}) \in E$ represents a distinct \kmer{k+1} $Y = Xc = c'X'$ (where $c, c' \in \Sigma$) occurring in $\mathcal{S}$.
-\end{enumerate}
-We use the node corresponding to $\#^{k}$ as the source node $s$ and the node corresponding to $\$^{k}$ as the sink node $t$, adding the technical edge $(t, s)$ in the usual way.
+\begin{definition}[Prefix-free set]
+Let $\mathcal{S}$ be a set of strings over alphabet $\Sigma$. We say that set $\mathcal{S}$ is \emph{prefix-free}, if no two strings $S, S' \in \mathcal{S}$ (with $S \ne S'$) prefix-match.
 \end{definition}
-
-\begin{lemma}[No false negatives]\label{lemma:dbg-fn}
-Let $G = (V, E)$ be the \orderk{k} de~Bruijn graph of \kcollection{k} $\mathcal{S}$, and let $X$ be a finite substring of $\mathcal{S}$ containing at most one $\$$. Then there is a path $P$ in the graph with $G.\glabel(P) = X$.
-\end{lemma}
-
-\begin{proof}
-Let $X = S[i, i+\abs{X}-1]$ for a sequence $S \in \mathcal{S}$. For $i \le j \le i+\abs{X}-1$, there is a node $v_{j} \in V$ representing substring $X_{j} = S[j, j+k-1]$, with $G.\glabel(v_{j}) = S[j]$. By definition, the de~Bruijn graph has an edge $(v_{j}, v_{j+1})$ for $i \le j < i+\abs{X}-1$. Hence $P = v_{i} \dotsm v_{i+\abs{X}-1}$ is a path in $G$ and $G.\glabel(P) = X$.
-\end{proof}
-
-\begin{lemma}[No false positives with $\abs{P} \le k+1$]\label{lemma:dbg-fp}
-Let $G = (V, E)$ be an \orderk{k} de~Bruijn graph of \kcollection{k} $\mathcal{S}$, and let $P$ be a path in $G$ with $\abs{P} \le k+1$. Then the label of the path is a substring of a sequence $S \in \mathcal{S}$.
-\end{lemma}
-
-\begin{proof}
-If $\abs{P} = 0$, the label is an empty string and hence a substring of each sequence $S \in \mathcal{S}$.
-If $\abs{P} = 1$, the label is equal to $G.\glabel(v_{0})$, which is a prefix of $G.\gkey(v_{0})$ and hence a substring of $\mathcal{S}$.
-Now assume that $G.\glabel(P) = cX$, where $c \in \Sigma$ and $1 \le \abs{X} \le k$. By induction, string $X$ is a prefix of $G.\gkey(v_{1})$. As edge $(v_{0}, v_{1})$ exists, $c \cdot G.\gkey(v_{1})$ must be a substring of $\mathcal{S}$. Hence $cX$ is a substring of $\mathcal{S}$, and also a prefix of $G.\gkey(v_{0})$ if $\abs{cX} \le k$.
-\end{proof}
 
 \subsection{Text indexes}
 
@@ -185,7 +145,7 @@ The \emph{suffix tree} \cite{Weiner1973} is the most fundamental full-text index
 % FIXME SA/BWT/LCP example
 \emph{Suffix arrays} \cite{Manber1993} were introduced as a space-efficient alternative to the suffix tree. The suffix array of text $T[0, n-1]$ is an array of pointers $\SA[0, n-1]$ to the suffixes of the text in \emph{lexicographic order}. Given a text and its suffix array, we can find the occurrences of \emph{pattern} string $X$ in the text by using \emph{binary search} in $\Oh{\abs{X} \log n}$ time. The suffix array requires $n \log n$ bits of space in addition to the $n \log \sigma$ bits used by the text --- still much more than the text --- while its functionality is more limited than that of the suffix tree.
 
-The \emph{Burrows-Wheeler transform (BWT)} \cite{Burrows1994} is a permutation of the text sharing the combinatorial structure of the suffix array. The BWT of text $T[0, n-1]$ is a string $\BWT[0, n-1]$ defined as $\BWT[i] = T[(\SA[i]-1) \bmod n]$. Given the \emph{lexicographic rank} $i$ of suffix $T[\SA[i], n-1]$, we can use \emph{\LFmapping} on the BWT to find the lexicographic rank of the previous suffix $T[(\SA[i]-1) \bmod n, n-1]$. Let
+The \emph{Burrows-Wheeler transform (BWT)} \cite{Burrows1994} is a permutation of the text with the same combinatorial structure as the suffix array. Given text $T[0, n-1]$, its Burrows-Wheeler transform is a string $\BWT[0, n-1]$, where $\BWT[i] = T[(\SA[i]-1) \bmod n]$. Given the \emph{lexicographic rank} $i$ of suffix $T[\SA[i], n-1]$, we can use \emph{\LFmapping} on the BWT to find the lexicographic rank of the previous suffix $T[(\SA[i]-1) \bmod n, n-1]$. Let
 $$
 \LF(i) = \Carray[\BWT[i]] + \BWT.\rank(i, \BWT[i]),
 $$
@@ -205,6 +165,66 @@ If we have sampled one out of $d$ suffix array pointers at regular intervals, fi
 
 The \emph{longest-common-prefix array} (LCP array) \cite{Manber1993} is an integer array $\LCP[0, n-1]$, where each value $\LCP[i]$ tells the length of the longest common prefix of suffixes $T[\SA[i-1], n-1]$ and $T[\SA[i], n-1]$ (with $\LCP[0] = 0$). It is often used to augment the functionality of the suffix array and the \FMindex. In particular, if we augment the \FMindex{} with the LCP array and the topology of the suffix tree, we get the \emph{compressed suffix tree}, which supports the full functionality of the suffix tree in a space-efficient manner \cite{Sadakane2007}.
 
+\subsection{Graphs}\label{sect:graphs}
+
+A \emph{graph} $G = (V, E)$ consists of a set of \emph{nodes} $V = \set{0, \dotsc, \abs{V}-1}$ and a set of \emph{edges} $E \subseteq V \times V$. We say that $(u, v) \in E$ is an edge \emph{from} node $u$ \emph{to} node $v$, and assume that the edges are \emph{directed}: $(u, v) \ne (v, u)$ for $u \ne v$. The \emph{indegree} $G.\gindegree(v)$ of node $v$ is the number of \emph{incoming} edges to $v$, while the \emph{outdegree} $G.\goutdegree(v)$ is the number of \emph{outgoing} edges from $v$.
+
+The graphs we consider are \emph{labeled} with alphabet $\Sigma$: each node $v \in V$ has a \emph{label} $G.\glabel(v) \in \Sigma$. A \emph{path} in a graph is a sequence of nodes $P = v_{0} \dotsm v_{\abs{P}-1}$ such that $(v_{i}, v_{i+1}) \in E$ for all $i, i+1 \in \set{0, \dotsc, \abs{P}-1}$. We say that $v_{0}$ is the \emph{start} node and $v_{\abs{P}-1}$ is the \emph{end} node of the path. The label of a path is the concatenation of node labels $G.\glabel(P) = G.\glabel(v_{0}) \dotsm G.\glabel(v_{\abs{P}-1})$. We can also generalize the definition for infinite paths $P = (v_{i})_{i \in Z}$ as we did with infinite character sequences in Section~\ref{sect:strings}.
+
+We assume for convenience that all graphs have two special nodes: the \emph{source} node $s$ and the \emph{sink} node $t$. To distinguish them from the other nodes, we label them with characters $G.\glabel(s) = \#$ and $G.\glabel(t) = \$$. The label of the sink node is unique in the graph, while the label of the source node can be used in other nodes for technical purposes. We add an edge $(s, v)$ for all nodes $v \in V \setminus \set{s}$ that have no other incoming edges, and an edge $(v, t)$ for all nodes $v \in V \setminus \set{t}$ with no other outgoing edges. We also add the edge $(t, s)$ to guarantee that $G.\gindegree(v) \ge 1$ and $G.\goutdegree(v) \ge 1$ for all nodes $v \in V$. However, we assume for convenience that no path in the graph crosses the edge $(t, s)$.
+
+In this paper, we work with de~Bruijn graphs and their generalizations. In order to do so, we need to define collections of (finite or infinite) sequences suitable for constructing \orderk{k} de~Bruijn graphs.
+
+\begin{definition}[\kcollection{k}]
+Let $\mathcal{S}$ be a collection of character sequences over alphabet $\Sigma$, and let $k$ be a parameter value. We say that $\mathcal{S}$ is a \emph{\kcollection{k}}, if the collection contains substrings $\#^{k}$ and $\$^{k}$, and each sequence $S \in \mathcal{S}$
+\begin{enumerate}
+\item is left-infinite or begins with $\#^{k}$;
+\item is right-infinite or ends with $\$^{k}$; and
+\item contains no other occurrences of characters $\#$ and $\$$.
+\end{enumerate}
+\end{definition}
+
+% FIXME example of strings, DBG, long paths, false positives
+\begin{definition}[de~Bruijn graph]
+Let $\mathcal{S}$ be a \kcollection{k} over alphabet $\Sigma$. The \orderk{k} \emph{de~Bruijn graph} of $\mathcal{S}$ is a graph $G = (V, E)$ such that
+\begin{enumerate}
+\item each node $v_{X} \in V$ represent a distinct \kmer{k} $X$ occurring in $\mathcal{S}$, with $G.\glabel(v_{X}) = X[0]$;
+\item each node $v_{X} \in V$ has a \emph{key} $G.\gkey(v_{X}) = X$; and
+\item each edge $(v_{X}, v_{Y}) \in E$ represents a \kmer{k+1} $X[0]Y = Xc$ (where $c \in \Sigma$) occurring in $\mathcal{S}$.
+\end{enumerate}
+We use the node corresponding to $\#^{k}$ as the source node $s$ and the node corresponding to $\$^{k}$ as the sink node $t$, adding the technical edge $(t, s)$ in the usual way.
+\end{definition}
+
+The following lemmas summarize the key properties of de~Bruijn graphs for indexing purposes.
+
+\begin{lemma}[Keys prefix-match with path labels]\label{lemma:dbg-key}
+Let $G = (V, E)$ be an \orderk{k} de~Bruijn graph, and let $P$ be a path starting from node $v_{0} \in V$. Then strings $G.\gkey(v_{0})$ and $G.\glabel(P)$ prefix-match.
+\end{lemma}
+
+\begin{proof}
+Let $P[0, k'-1] = v_{0} \dotsm v_{k'-1}$ be a prefix of path $P$, where $1 \le k' \le \min(k, \abs{P})$.
+If $k' = 1$, we know that $G.\glabel(P[0]) = G.\glabel(v_{0})$ is a prefix of $G.\gkey(v_{0})$.
+Now assume that $k' > 1$. By induction, we know that $G.\glabel(P[1, k'-1])$ is a prefix of $G.\gkey(v_{1})$. As edge $(v_{i}, v_{i+1}) \in E$ exists, $G.\glabel(v_{0}) \cdot G.\gkey(v_{1}) = G.\gkey(v_{0}) \cdot c$ (where $c \in \Sigma$), and hence $G.\glabel(P[0, k'-1])$ is a prefix of $G.\gkey(v_{0})$. As the first $\min(k, \abs{P})$ characters of $G.\gkey(v_{0})$ and $G.\glabel(P)$ are identical, the result follows.
+\end{proof}
+
+\begin{lemma}[No false negatives]\label{lemma:dbg-fn}
+Let $G = (V, E)$ be the \orderk{k} de~Bruijn graph of \kcollection{k} $\mathcal{S}$, and let $X$ be a finite substring of $\mathcal{S}$ containing at most one $\$$. Then there is a path $P$ in the graph with $G.\glabel(P) = X$.
+\end{lemma}
+
+\begin{proof}
+Let $X = S[i, i+\abs{X}-1]$ for a sequence $S \in \mathcal{S}$. For $i \le j \le i+\abs{X}-1$, there is a node $v_{j} \in V$ representing substring $S[j, j+k-1]$, with $G.\glabel(v_{j}) = S[j]$. By definition, the de~Bruijn graph has an edge $(v_{j}, v_{j+1})$ for $i \le j < i+\abs{X}-1$. Hence $P = v_{i} \dotsm v_{i+\abs{X}-1}$ is a path in $G$ and $G.\glabel(P) = X$.
+\end{proof}
+
+\begin{lemma}[No false positives with $\abs{P} \le k$]\label{lemma:dbg-fp}
+Let $G = (V, E)$ be an \orderk{k} de~Bruijn graph of \kcollection{k} $\mathcal{S}$, and let $P = v_{0} \dotsm v_{\abs{P}-1}$ be a path in $G$ with $\abs{P} \le k$. Then the label of the path is a prefix of $G.\gkey(v_{0})$ and hence a substring of a sequence $S \in \mathcal{S}$.
+\end{lemma}
+
+\begin{proof}
+The label $G.\glabel(P)$ prefix-matches $G.\gkey(v_{0})$ by Lemma~\ref{lemma:dbg-key}. As $\abs{P} \le k$, string $G.\glabel(P)$ is a prefix of $G.\gkey(v_{0})$
+\end{proof}
+
+Note that the labels of all paths of length $k+1$ are also substrings of collection $\mathcal{S}$.
+
 \subsection{Generalized indexes}
 
 Suffix trees, suffix arrays, and \FMindex{} can be generalized to index multiple texts. There are also generalizations for other combinatorial structures. The \emph{XBW transform} \cite{Ferragina2009b} is essentially an \FMindex{} for \emph{labeled trees}. The nodes of the tree are sorted by path labels from the node to the root of the tree. $\BWT$ stores the labels of the children of each node (leaf nodes require special treatment). If a node has $k$ children, we encode that as binary sequence $0^{k-1} 1$. We concatenate these sequences to form bitvector $B$, which is used for mapping lexicographic ranks of nodes to the corresponding BWT ranges. The labels of the children of node $i$ are found in $\BWT[B.\select(i, 1) + 1, B.\select(i + 1, 1)]$ (with $0$ as the lower bound for $i = 0$).
@@ -215,7 +235,7 @@ The \emph{generalized compressed suffix array} (GCSA) \cite{Siren2014} is a furt
 
 \section{Path indexes}
 
-A \emph{path index} is a generalization of text indexes for \emph{labeled graphs}. Given a path index for graph $G = (V, E)$, we want to use the index to find the \emph{start nodes} $v_{0} \in V$ of the paths $P = v_{0} \dotsm v_{\abs{X}-1}$ \emph{matching} the pattern $X$ (paths $P$ with $G.\glabel(P) = X$).
+A \emph{path index} is a generalization of text indexes for \emph{labeled graphs}. Given a path index for graph $G = (V, E)$, we want to use the index to find the start nodes $v_{0} \in V$ of the paths $P = v_{0} \dotsm v_{\abs{X}-1}$ \emph{matching} the pattern $X$ (paths $P$ with $G.\glabel(P) = X$).
 
 The design of a path index is a trade-off between the maximum supported query length and the size of the index. In the worst case, a graph may have up to $\sigma^{k}$ distinct labels for paths of length $k$ (ignoring the special treatment of characters $\#$ and $\$$), and the length of possible paths is unlimited in cyclic graphs. GCSA \cite{Siren2014} tried to avoid this by considering only a relatively simple class of graphs, using \emph{pruning heuristics} to simplify the graphs when necessary. The price of this was the possibility of \emph{false negatives}: path labels that exist in the graph but not in the index.
 
@@ -231,49 +251,45 @@ As de~Bruijn graphs and \kmer{k} indexes are both based on \kmer{k}s, we can use
 Let $G = (V, E)$ be a labeled graph. We say that path $P$ in the graph is \emph{left-maximal} if it starts at the source node or extends infinitely to the left; \emph{right-maximal} if it ends at the sink node or extends infinitely to the right; and \emph{maximal} if it is both left-maximal and right-maximal.
 \end{definition}
 
-We can build a \kcollection{k} of maximal path labels by starting with the collection $\mathcal{S}$ of maximal path labels. In order to transform $\mathcal{S}$ into a \kcollection{k}, we adjust the number of characters $\#$ at the beginning of each non-left-infinite sequence, and the number of characters $\$$ at the end of each non-right-infinite sequence. We also add string $\#^{k} \$^{k}$ into the collection if necessary.
+We can build a \kcollection{k} based on the labels of maximal paths by starting with the collection $\mathcal{S}$ of such labels. In order to transform $\mathcal{S}$ into a \kcollection{k}, we adjust the number of characters $\#$ at the beginning of each non-left-infinite sequence, and the number of characters $\$$ at the end of each non-right-infinite sequence.
 
 \begin{definition}[de~Bruijn graph of a graph]
-Let $G = (V, E)$ be a labeled graph, and let $\mathcal{S}$ be a \kcollection{k} of maximal path labels in $G$. The \orderk{k} de~Bruijn graph of $\mathcal{S}$ is also the \orderk{k} de~Bruijn graph of graph $G$.
+Let $G = (V, E)$ be a labeled graph, and let $\mathcal{S}$ be a \kcollection{k} of maximal path labels in $G$. Then the \orderk{k} de~Bruijn graph of $\mathcal{S}$ is the \orderk{k} de~Bruijn graph of graph $G$.
 \end{definition}
 
 Given a \kmer{k+1} index of graph $G = (V, E)$, we can use it to simulate the \orderk{k} de~Bruijn graph $G' = (V', E')$ of $G$. As the nodes of the de~Bruijn graph correspond to \kmer{k}s and the edges correspond to \kmer{k+1}s, we can represent the nodes by the adjacent edges. If we are interested in node $v_{X} \in V'$, we search for incoming edges $cX$ and outgoing edges $Xc$ for all $c \in \Sigma$. Determining the existence of a node requires $2 \sigma$ queries in the \kmer{k+1} index, and we learn the presence of adjacent nodes and edges in the process.
 
-On the other hand, we can use the \orderk{k} de~Bruijn graph $G' = (V', E')$ of graph $G = (V, E)$ directly as a \kmer{k} index of $G$. For each key-value pair $(X, W)$ in the index, we find the node $v_{X} \in V'$ with $G'.\gkey(v_{X}) = X$, and attach the \emph{value} $G'.\gvalue(v_{X}) = W$ to the node. We can then search for patterns of any length in the de~Bruijn graph. As Lemmas~\ref{lemma:dbg-fn} and \ref{lemma:dbg-fp} suggest, there will be no false negatives, and no \emph{false positives} with short enough patterns. With longer patterns, we have to \emph{verify} the results in graph $G$ to avoid false positives. We will develop the idea of using graphs similar to de~Bruijn graphs as path indexes further in the next section.
+On the other hand, we can use the \orderk{k} de~Bruijn graph $G' = (V', E')$ of graph $G = (V, E)$ as a \kmer{k} index of $G$ that supports queries of arbitrary length. For each key-value pair $(X, W)$ in the index, we find the node $v_{X} \in V'$ with $G'.\gkey(v_{X}) = X$, and attach the \emph{value} $G'.\gvalue(v_{X}) = W$ to the node.
+
+\begin{definition}[de~Bruijn graph as an index]
+Let $G = (V, E)$ be a graph, and let $G' = (V', E')$ be its \orderk{k} de~Bruijn graph. Pattern $X \in \Sigma^{\ast}$ matches node $v \in V'$ if it prefix-matches string $G'.\gkey(v)$. The set of occurrences for pattern $X$ is the union of sets $G.\gvalue(v)$ for the matching nodes $v \in V'$.
+\end{definition}
+
+As Lemmas~\ref{lemma:dbg-fn} and \ref{lemma:dbg-fp} suggest, there will be no false negatives, and no \emph{false positives} (path labels that exist in the de~Bruijn graph but not in the input graph) with patterns of length at most $k$. With longer patterns, we have to \emph{verify} the results in graph $G$ to avoid false positives. We will develop the idea of using graphs similar to de~Bruijn graphs as path indexes further in the next section.
 
 \subsection{Path graphs}
 
 De~Bruijn graphs are a special case of path graphs. They represent paths of length $k$ in the \emph{input graph} as nodes and paths overlapping on $k-1$ nodes of the input graph as edges. We can generalize the notion by allowing the nodes of the path graph to represent paths of different lengths.
 
-\begin{definition}[Prefix-matching strings]
-Let $S$ and $S'$ be strings over alphabet $\Sigma$. We say that string $S$ and $S'$ \emph{prefix-match}, if $S$ is a prefix of $S'$ or $S'$ is a prefix of $S$.
-\end{definition}
-
-\begin{definition}[Prefix-free set]
-Let $\mathcal{S}$ be a set of strings over alphabet $\Sigma$. We say that set $\mathcal{S}$ is \emph{prefix-free}, if no two strings $S, S' \in \mathcal{S}$ (with $S \ne S'$) prefix-match.
-\end{definition}
-
 \begin{definition}[Path graph]
 Let $\mathcal{S}$ be a \kcollection{k} of the labels of maximal paths in graph $G = (V, E)$, and let $\mathcal{K}$ be a prefix-free set of strings containing $\#^{k}$ and $\$^{k}$. We assume that each right-maximal substring $S$ in $\mathcal{S}$ prefix-matches a string $K \in \mathcal{K}$, and that each string $K \in \mathcal{K}$ is a substring of $\mathcal{S}$. Then the \orderk{k} \emph{path graph} of graph $G$ with \emph{key set} $\mathcal{K}$ is a graph $G' = (V', E')$ such that
 \begin{enumerate}
-\item each node $v_{K} \in V'$ represent a distinct key $K \in \mathcal{K}$;
-\item $G'.\glabel(v_{K}) = K[0]$ and $G'.\gkey(v_{K}) = K$ for all $v_{K} \in V$; and
+\item each node $v_{K} \in V'$ represent a distinct key $K \in \mathcal{K}$, with $G'.\glabel(v_{K}) = K[0]$;
+\item each node has a key $G'.\gkey(v_{K}) = K$; and
 \item each edge $(v_{K}, v_{K'}) \in E'$ represents the occurrence of substring $K[0] K'$ in $\mathcal{S}$ such that strings $K$ and $K[0] K'$ prefix-match.
 \end{enumerate}
 We use the node corresponding to $\#^{k}$ as the source node $s$ and the node corresponding to $\$^{k}$ as the sink node $t$, adding the technical edge $(t, s)$ in the usual way.
 \end{definition}
 
 % FIXME from here
+- using path graphs as indexes
 - k-index: has a node matching any k-path in the input graph
 - edge condition: Y has predecessor with c -> edge (X, Y) if cY matches X
 - k-equivalent: union of values for nodes matching X identical for all |X| <= k
 - k-equivalent + edge condition: no false positives of length <= k; no false negatives
 
 pruned de Bruijn graphs: merge nodes of DBG while keeping the path graph k-equivalent
-
-using pruned de Bruijn graphs as indexes; false positives
-- string Y matches node with key X: X is a prefix of Y or Y is a prefix of X
-- valid for existence queries of length up to k+1 and locate queries of length up to k
+similar to manifold de Bruijn graphs \cite{Lin2014}
 
 
 \section{GCSA2}
@@ -291,7 +307,7 @@ using pruned de Bruijn graphs as indexes; false positives
 % FIXME
 \subparagraph*{Acknowledgements.}
 
-I want to thank \dots
+I thank Richard Durbin, Erik Garrison, and Adam Novak for \dots
 
 
 \bibliography{paper}
