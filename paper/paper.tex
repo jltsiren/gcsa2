@@ -52,6 +52,8 @@
 \newcommand{\rank}{\ensuremath{\mathsf{rank}}}
 \newcommand{\select}{\ensuremath{\mathsf{select}}}
 \newcommand{\LF}{\ensuremath{\mathsf{LF}}}
+\newcommand{\find}{\ensuremath{\mathsf{find}}}
+\newcommand{\locate}{\ensuremath{\mathsf{locate}}}
 
 % Graphs
 \newcommand{\gindegree}{\ensuremath{\mathsf{in}}}
@@ -64,6 +66,7 @@
 % Shorthands
 \newcommand{\kmer}[1]{$#1$\nobreakdash-mer}
 \newcommand{\kcollection}[1]{$#1$\nobreakdash-collection}
+\newcommand{\kequivalent}[1]{$#1$\nobreakdash-equivalent}
 \newcommand{\orderk}[1]{order\nobreakdash-$#1$}
 \newcommand{\LFmapping}{LF\nobreakdash-mapping}
 \newcommand{\FMindex}{FM\nobreakdash-index}
@@ -179,7 +182,7 @@ We assume for convenience that all graphs have two special nodes: the \emph{sour
 In this paper, we work with de~Bruijn graphs and their generalizations. In order to do so, we need to define collections of (finite or infinite) sequences suitable for constructing \orderk{k} de~Bruijn graphs.
 
 \begin{definition}[\kcollection{k}]
-Let $\mathcal{S}$ be a collection of character sequences over alphabet $\Sigma$, and let $k$ be a parameter value. We say that $\mathcal{S}$ is a \emph{\kcollection{k}}, if the collection contains substrings $\#^{k}$ and $\$^{k}$, and each sequence $S \in \mathcal{S}$
+Let $\mathcal{S}$ be a collection of character sequences over alphabet $\Sigma$, and let $k > 0$ be a parameter value. We say that $\mathcal{S}$ is a \emph{\kcollection{k}}, if the collection contains substrings $\#^{k}$ and $\$^{k}$, and each sequence $S \in \mathcal{S}$
 \begin{enumerate}
 \item is left-infinite or begins with $\#^{k}$;
 \item is right-infinite or ends with $\$^{k}$; and
@@ -198,48 +201,19 @@ Let $\mathcal{S}$ be a \kcollection{k} over alphabet $\Sigma$. The \orderk{k} \e
 We use the node corresponding to $\#^{k}$ as the source node $s$ and the node corresponding to $\$^{k}$ as the sink node $t$, adding the technical edge $(t, s)$ in the usual way.
 \end{definition}
 
-The following lemmas summarize the key properties of de~Bruijn graphs for indexing purposes.
-
-\begin{lemma}[Keys prefix-match with path labels]\label{lemma:dbg-key}
-Let $G = (V, E)$ be an \orderk{k} de~Bruijn graph, and let $P$ be a path starting from node $v_{0} \in V$. Then strings $G.\gkey(v_{0})$ and $G.\glabel(P)$ prefix-match.
-\end{lemma}
-
-\begin{proof}
-Let $P[0, k'-1] = v_{0} \dotsm v_{k'-1}$ be a prefix of path $P$, where $1 \le k' \le \min(k, \abs{P})$.
-If $k' = 1$, we know that $G.\glabel(P[0]) = G.\glabel(v_{0})$ is a prefix of $G.\gkey(v_{0})$.
-
-Now assume that $k' > 1$. By induction, we know that $G.\glabel(P[1, k'-1])$ is a prefix of $G.\gkey(v_{1})$. As edge $(v_{i}, v_{i+1}) \in E$ exists, $G.\glabel(v_{0}) \cdot G.\gkey(v_{1}) = G.\gkey(v_{0}) \cdot c$ (where $c \in \Sigma$), and hence $G.\glabel(P[0, k'-1])$ is a prefix of $G.\gkey(v_{0})$. As the first $\min(k, \abs{P})$ characters of $G.\gkey(v_{0})$ and $G.\glabel(P)$ are identical, the result follows.
-\end{proof}
-
-\begin{lemma}[No false negatives]\label{lemma:dbg-fn}
-Let $G = (V, E)$ be the \orderk{k} de~Bruijn graph of \kcollection{k} $\mathcal{S}$, and let $X$ be a finite substring of $\mathcal{S}$ containing at most one $\$$. Then there is a path $P$ in the graph with $G.\glabel(P) = X$.
-\end{lemma}
-
-\begin{proof}
-Let $X = S[i, i+\abs{X}-1]$ for a sequence $S \in \mathcal{S}$. For $i \le j \le i+\abs{X}-1$, there is a node $v_{j} \in V$ representing substring $S[j, j+k-1]$, with $G.\glabel(v_{j}) = S[j]$. By definition, the de~Bruijn graph has an edge $(v_{j}, v_{j+1})$ for $i \le j < i+\abs{X}-1$. Hence $P = v_{i} \dotsm v_{i+\abs{X}-1}$ is a path in $G$ and $G.\glabel(P) = X$.
-\end{proof}
-
-\begin{lemma}[No false positives with $\abs{P} \le k$]\label{lemma:dbg-fp}
-Let $G = (V, E)$ be an \orderk{k} de~Bruijn graph of \kcollection{k} $\mathcal{S}$, and let $P = v_{0} \dotsm v_{\abs{P}-1}$ be a path in $G$ with $\abs{P} \le k$. Then the label of the path is a prefix of $G.\gkey(v_{0})$ and hence a substring of a sequence $S \in \mathcal{S}$.
-\end{lemma}
-
-\begin{proof}
-The label $G.\glabel(P)$ prefix-matches $G.\gkey(v_{0})$ by Lemma~\ref{lemma:dbg-key}. As $\abs{P} \le k$, string $G.\glabel(P)$ is a prefix of $G.\gkey(v_{0})$
-\end{proof}
-
-Note that the labels of all paths of length $k+1$ are also substrings of collection $\mathcal{S}$.
+De~Bruijn graphs have several properties that make them useful for indexing purposes. Node keys are prefixes of the labels of all paths of length at least $k$ starting from the node. This makes it possible to sort the nodes unambiguosly by path labels. Every substring of the \kcollection{k} is the label of a path in the de~Bruijn graph, and every path label of length at most $k+1$ is a substring of the collection. In Section~\ref{sect:path-indexes}, we develop an index structure based on a generalization of de~Bruijn graphs.
 
 \subsection{Generalized indexes}
 
 Suffix trees, suffix arrays, and \FMindex{} can be generalized to index multiple texts. There are also generalizations for other combinatorial structures. The \emph{XBW transform} \cite{Ferragina2009b} is essentially an \FMindex{} for \emph{labeled trees}. The nodes of the tree are sorted by path labels from the node to the root of the tree. $\BWT$ stores the labels of the children of each node (leaf nodes require special treatment). If a node has $k$ children, we encode that as binary sequence $0^{k-1} 1$. We concatenate these sequences to form bitvector $B$, which is used for mapping lexicographic ranks of nodes to the corresponding BWT ranges. The labels of the children of node $i$ are found in $\BWT[B.\select(i, 1) + 1, B.\select(i + 1, 1)]$ (with $0$ as the lower bound for $i = 0$).
 
 % FIXME LF(i, c) picture from the slides for the earlier DBG example
-The \emph{generalized compressed suffix array} (GCSA) \cite{Siren2014} is a further generalization of the XBW transform for a class of graphs that includes \emph{directed acyclic graphs} and de Bruijn graphs. Before a graph can be indexed, we have to transform it into an equivalent graph, where the nodes can be unambiguously sorted by the labels of the paths starting from them. The transformation is expensive and may increase the size of the graph exponentially. After sorting the nodes of the transformed graph, we encode them using three sequences. $\BWT$ contains the labels of the predecessors, while bitvectors $\bvIN$ and $\bvOUT$ encode the indegrees and outdegrees of each node in the same way as bitvector $B$ of the XBW transform. \LFmapping{} uses select queries on bitvector $\bvIN$ to map nodes into BWT ranges, ordinary \LFmapping{} with $\BWT$ to map incoming edges into the corresponding outgoing edges, and rank queries on bitvector $\bvOUT$ to map the outgoing edges to the predecessor nodes.
+The \emph{generalized compressed suffix array} (GCSA) \cite{Siren2014} is a further generalization of the XBW transform for a class of graphs that includes \emph{directed acyclic graphs} and de Bruijn graphs. Before a graph can be indexed, we have to transform it into an equivalent graph, where the nodes can be unambiguously sorted by the labels of the right-maximal paths starting from them. In the worst case, the transformation increases the size of the graph exponentially. After sorting the nodes of the transformed graph in lexicographic order, we encode them using three sequences. $\BWT$ contains the labels of the predecessors, while bitvectors $\bvIN$ and $\bvOUT$ encode the indegrees and outdegrees of each node in the same way as bitvector $B$ of the XBW transform. \LFmapping{} uses select queries on bitvector $\bvIN$ to map nodes into BWT ranges, ordinary \LFmapping{} with $\BWT$ to map incoming edges into the corresponding outgoing edges, and rank queries on bitvector $\bvOUT$ to map the outgoing edges to the predecessor nodes.
 
 
-\section{Path indexes}
+\section{Path indexes}\label{sect:path-indexes}
 
-A \emph{path index} is a generalization of text indexes for \emph{labeled graphs}. Given a path index for graph $G = (V, E)$, we want to use the index to find the start nodes $v_{0} \in V$ of the paths $P = v_{0} \dotsm v_{\abs{X}-1}$ \emph{matching} the pattern $X$ (paths $P$ with $G.\glabel(P) = X$).
+A \emph{path index} is a generalization of text indexes for \emph{labeled graphs}. Given a path index for \emph{input graph} $G = (V, E)$, we want to use the index to find the start nodes $v_{0} \in V$ of the paths $P = v_{0} \dotsm v_{\abs{X}-1}$ \emph{matching} the pattern $X$ (paths $P$ with $G.\glabel(P) = X$).
 
 The design of a path index is a trade-off between the maximum supported query length and the size of the index. In the worst case, a graph may have up to $\sigma^{k}$ distinct labels for paths of length $k$ (ignoring the special treatment of characters $\#$ and $\$$), and the length of possible paths is unlimited in cyclic graphs. GCSA \cite{Siren2014} tried to avoid this by considering only a relatively simple class of graphs, using \emph{pruning heuristics} to simplify the graphs when necessary. The price of this was the possibility of \emph{false negatives}: path labels that exist in the graph but not in the index.
 
@@ -247,81 +221,116 @@ The design of a path index is a trade-off between the maximum supported query le
 
 The \emph{\kmer{k} index} is the simplest path index. In its most basic form, the \kmer{k} index consists of a parameter value $k$, a hash function $h$, and an array $A$ of \emph{key-value pairs} $(X, V_{X})$, where $X \in \Sigma^{k}$ and $V_{X} \subseteq V$. Given a \kmer{k} $X \in \Sigma^{k}$, we start looking for key $X$ from $A[h(X)]$, and list the set of start nodes $V_{X}$ as matches if we find it. Searching using a hash table is fast, but we can only search for patterns of length $k$, and the array requires a lot of space.
 
-Another representation of the \kmer{k} index trades query performance for the ability to search for shorter patterns. Instead of using a hash table, we sort the key-value pairs by their keys, and store the pairs in array $A$ in sorted order. Given a pattern $X \in \Sigma^{\ast}$, $\abs{X} \le k$, we use binary search to find the range $A[sp, ep]$ of pairs $(X_{i}, V_{X_{i}})$, where pattern $X$ is a prefix of the key $X_{i}$. We then list the union $\bigcup_{i=sp}^{ep} V_{X_{i}}$ as the set of matches.
+Another representation of the \kmer{k} index trades query performance for the ability to search for shorter patterns. Instead of using a hash table, we sort the key-value pairs by their keys, and store the pairs in array $A$ in sorted order. Given a pattern $X \in \Sigma^{\ast}$, $\abs{X} \le k$, we use binary search to find the range $A[sp, ep]$ of pairs $(X_{i}, V_{i})$, where pattern $X$ is a prefix of the key $X_{i}$. We then list the union $\bigcup_{i=sp}^{ep} V_{i}$ as the set of matches.
 
-As de~Bruijn graphs and \kmer{k} indexes are both based on \kmer{k}s, we can use one to simulate the other. In order to define the de~Bruijn graph of a graph, we build a \kcollection{k} based on the collection $\mathcal{S}$ of the labels of the maximal paths in graph $G = (V, E)$. If sequence $S \in \mathcal{S}$ is the label of path $P = (v_{i})_{i \in Z}$ in the graph, we set $\mathcal{S}.\gnode(S, i) = v_{i}$ for all positions $i \in Z$. We then transform $\mathcal{S}$ into a \kcollection{k} by adjusting the number of characters $\#$ at the beginning of each non-left-infinite sequence, and the number of characters $\$$ at the end of each non-right-infinite sequence. If $S[i]$ is a $\#$ we inserted, we set $\mathcal{S}.\gnode(S, i) = (s, j)$, where $s$ is the start node of $G$ and $j$ is the distance to the nearest non-inserted $\#$ in $S$.
+As de~Bruijn graphs and \kmer{k} indexes are both based on \kmer{k}s, we can use one to simulate the other. In order to define the de~Bruijn graph of a graph, we build a \kcollection{k} based on the collection $\mathcal{S}$ of the labels of the maximal paths in graph $G = (V, E)$. If sequence $S \in \mathcal{S}$ is the label of path $P = (v_{i})_{i \in Z}$ in the graph, we set $\mathcal{S}.\gnode(S, i) = v_{i}$ for all positions $i \in Z$. We then transform $\mathcal{S}$ into a \kcollection{k} by inserting the required the number of characters $\#$ to the beginning of each non-left-infinite sequence, and characters $\$$ to the end of each non-right-infinite sequence. If $S[i]$ is a $\#$ we inserted, we set $\mathcal{S}.\gnode(S, i) = (s, j)$, where $s$ is the start node of $G$ and $j$ is the distance to the nearest non-inserted $\#$ in $S$. Similarly, if $S[i]$ is an inserted $\$$, we set $\mathcal{S}.\gnode(S, i) = (t, j)$, where $t$ is the sink node and $j$ is the distance to the nearest non-inserted $\$$.
 
 \begin{definition}[de~Bruijn graph of a graph]
-Let $G = (V, E)$ be a labeled graph, and let $\mathcal{S}$ be the \kcollection{k} of maximal path labels in $G$. Then the \orderk{k} de~Bruijn graph of $\mathcal{S}$ is the \orderk{k} de~Bruijn graph of graph $G$.
+Let $G = (V, E)$ be a labeled graph, and let $\mathcal{S}$ be the \kcollection{k} of maximal path labels in $G$. The \orderk{k} de~Bruijn graph of $\mathcal{S}$ is the \orderk{k} de~Bruijn graph of graph $G$.
 \end{definition}
 
-Given a \kmer{k+1} index of graph $G = (V, E)$, we can use it to simulate the \orderk{k} de~Bruijn graph $G' = (V', E')$ of $G$. As the nodes of the de~Bruijn graph correspond to \kmer{k}s and the edges correspond to \kmer{k+1}s, we can represent the nodes by the adjacent edges. If we are interested in node $v_{X} \in V'$, we search for incoming edges $cX$ and outgoing edges $Xc$ for all $c \in \Sigma$. Determining the existence of a node requires $2 \sigma$ queries in the \kmer{k+1} index, and we learn the presence of adjacent nodes and edges in the process.
+We can use a \kmer{k+1} index of graph $G = (V, E)$ to simulate the \orderk{k} de~Bruijn graph $G' = (V', E')$ of $G$. As the nodes of the de~Bruijn graph correspond to \kmer{k}s and the edges correspond to \kmer{k+1}s, we can represent the nodes by the adjacent edges. If we are interested in node $v \in V'$ with $G'.\gkey(v) = X$, we search for incoming edges $cX$ and outgoing edges $Xc$ for all $c \in \Sigma$. Determining the existence of a node requires $2 \sigma$ queries in the \kmer{k+1} index, and we learn the presence of adjacent nodes and edges in the process.
 
-On the other hand, we can use the \orderk{k} de~Bruijn graph $G' = (V', E')$ of graph $G = (V, E)$ as a \kmer{k} index of $G$ that supports queries of arbitrary length. For each key-value pair $(X, V_{X})$ in the index, we find the node $v_{X} \in V'$ with $G'.\gkey(v_{X}) = X$, and attach the \emph{value} $G'.\gvalue(v_{X}) = V_{X}$ to the node. We say that a pattern matches node $v \in V'$ if it prefix-matches string $G.\gkey(v)$. As Lemmas~\ref{lemma:dbg-fn} and \ref{lemma:dbg-fp} suggest, there will be no false negatives, and no \emph{false positives} (path labels that exist in the de~Bruijn graph but not in the input graph) with patterns of length at most $k$. With longer patterns, we have to \emph{verify} the results in graph $G$ to avoid false positives. We will develop the idea of using graphs similar to de~Bruijn graphs as path indexes further in the next section.
+On the other hand, we can use the \orderk{k} de~Bruijn graph $G' = (V', E')$ of graph $G = (V, E)$ as a \kmer{k} index of $G$ that supports queries of arbitrary length. Let $\mathcal{S}$ be the \kcollection{k} used for building the de~Bruijn graph. For each node $v \in V'$, we attach a set of nodes of graph $G$ as a \emph{value}:
+$$
+G'.\gvalue(v) = \set{ \mathcal{S}.\gnode(S, i) \mid S \in \mathcal{S}, S[i, i+k-1] = G'.\gkey(v)}.
+$$
+Apart from some technicalities near the source/sink nodes, set $G'.\gvalue(v)$ is the set of start nodes of the paths $P$ in graph $G$ with $G.\glabel(P) = G'.\gkey(v)$. Due to the nature of de~Bruijn graphs, this index will not produce any false negatives. There may be \emph{false positives} (path labels that exist in the index but not in the input graph) with patterns longer than $k$, but we can avoid them by \emph{verifying} the results of such queries in the input graph.
 
 \subsection{Path graphs}
 
 De~Bruijn graphs are a special case of path graphs. They represent the paths of length $k$ in the \emph{input graph} as nodes and the pairs of paths overlapping on $k-1$ nodes of the input graph as edges. We can generalize the notion by allowing the nodes of the path graph to represent paths of different lengths.
 
 \begin{definition}[Path graph]
-Let $\mathcal{S}$ be a \kcollection{k} of the labels of maximal paths in graph $G = (V, E)$, and let $\mathcal{K}$ be a prefix-free set of strings containing $\#^{k}$ and $\$^{k}$. We assume that each right-maximal substring $S$ in $\mathcal{S}$ prefix-matches a string $K \in \mathcal{K}$, and that each string $K \in \mathcal{K}$ is a substring of $\mathcal{S}$. Then the \orderk{k} \emph{path graph} of graph $G$ with \emph{key set} $\mathcal{K}$ is a graph $G' = (V', E')$ such that
+Let $\mathcal{S}$ be a \kcollection{k} of the labels of maximal paths in graph $G = (V, E)$, and let $\mathcal{K}$ be a prefix-free set of strings of length at most $k$ containing $\#^{k}$ and $\$^{k}$. We assume that each right-maximal substring $S$ in $\mathcal{S}$ prefix-matches a string $K \in \mathcal{K}$, and that each string $K \in \mathcal{K}$ is a substring of $\mathcal{S}$. The \orderk{k} \emph{path graph} of graph $G$ with \emph{key set} $\mathcal{K}$ is a graph $G' = (V', E')$ such that
 \begin{enumerate}
 \item each node $v_{K} \in V'$ represent a distinct key $K \in \mathcal{K}$, with $G'.\glabel(v_{K}) = K[0]$;
-\item each node has a key $G'.\gkey(v_{K}) = K$ and a value $G'.\gvalue(v_{K}) = V_{K}$, where $V_{K}$ is the set of nodes $\mathcal{S}.\gnode(S, i)$ for $S \in \mathcal{S}$ and positions $i$ such that $S[i, i+\abs{K}-1] = K$; and
+\item each node has a key $G'.\gkey(v_{K}) = K$ and a value $G'.\gvalue(v_{K}) = V_{K}$, where $V_{K}$ is the set of nodes $\mathcal{S}.\gnode(S, i) \in V$ for $S \in \mathcal{S}$ and positions $i$ such that $S[i, i+\abs{K}-1] = K$; and
 \item each edge $(v_{K}, v_{K'}) \in E'$ represents the occurrence of substring $K[0] K'$ in $\mathcal{S}$ such that strings $K$ and $K[0] K'$ prefix-match.
 \end{enumerate}
 We use the node corresponding to $\#^{k}$ as the source node $s$ and the node corresponding to $\$^{k}$ as the sink node $t$, adding the technical edge $(t, s)$ in the usual way.
 \end{definition}
 
 \begin{definition}[Path graph as an index]
-Let $G = (V, E)$ be a graph, and let $G' = (V', E')$ be the \orderk{k} path graph of $G$ with key set $\mathcal{K}$. Pattern $X \in \Sigma^{\ast}$ \emph{matches} node $v \in V'$ if it prefix-matches string $G'.\gkey(v)$. If $V_{X}$ is the set of nodes $v \in V'$ matching pattern $X$, the set of \emph{occurrences} for the pattern is $G'.\gvalue(X) = G'.\gvalue(V_{X}) = \bigcup_{v \in V_{X}} G'.\gvalue(v)$.
+Let $G = (V, E)$ be a graph, and let $G' = (V', E')$ be a path graph of $G$.
+\begin{itemize}
+\item Pattern $X \in \Sigma^{\ast}$ \emph{matches} node $v \in V'$, if there is a path $P$ in $G'$ with $G'.\glabel(P) = X$. We use $G'.\find(X)$ to denote the set of nodes $V'_{X} \subseteq V'$ matching the pattern.
+\item If $V'_{X} \subseteq V'$ is the set of nodes matching pattern $X$, the set of \emph{occurrences} for the pattern is $G'.\locate(V'_{X}) = G'.\gvalue(V'_{X}) = \bigcup_{v \in V'_{X}} G'.\gvalue(v)$. We use $G'.\locate(X)$ as a shorthand for $G'.\locate(G'.\find(X))$.
+\end{itemize}
 \end{definition}
 
-In the general case, queries using a path graph may result in false positives for patterns $X$ of length $\abs{X} > \abs{K}$, where $K$ is the shortest key in the key set $\mathcal{K}$. To avoid this, we restrict our attention to path graphs that are equivalent to de~Bruijn graphs.
+\begin{lemma}[No false negatives]\label{lemma:pg-fn}
+Let $G' = (V', E')$ be a path graph of graph $G = (V, E)$, and let $X \in (\Sigma \setminus \set{\#, \$})^{\ast}$ be a pattern string. Set $G'.\locate(X)$ contains the start nodes of all paths $P$ in graph $G$ with $G.\glabel(P) = X$.
+\end{lemma}
+
+\begin{proof}
+Let $\mathcal{S}$ be the \kcollection{k} used for building the path graph, and let $P$ be a path starting from node $v_{0} \in V$ with $G.\glabel(P) = X$. The collection contains a sequence $S \in \mathcal{S}$ such that $S[i, i+\abs{X}-1] = X$ and $\mathcal{S}.\gnode(S, i) = v_{0}$.
+
+For all positions $j$ with $i \le j < i+\abs{X}$, there is a node $v'_{j} \in V'$ with $G'.\glabel(v'_{j}) = S[j]$ and $G'.\gkey(v'_{j}) = S[j, j+\abs{G'.\gkey(v'_{j})}-1]$.
+By definition, the path graph has an edge $(v'_{j}, v'_{j+1}) \in E'$ for $i \le j < i+\abs{X}-1$.
+Hence $P' = v'_{i} \dotsm v'_{i+\abs{X}-1}$ is a path in $G'$ with $G'.\glabel(P') = X$.
+As path $P'$ starts from node $v'_{i} \in V'$, node $v'_{i}$ is included in the set $G'.\find(X)$.
+Furthermore, $v_{0} = \mathcal{S}.\gnode(S, i) \in G'.\gvalue(v'_{i}) \subseteq G'.\locate(X)$.
+\end{proof}
+
+When used as an index, a path graph will not produce false negatives. On the other hand, we may encounter false positives already at path length $k'+1$, where $k'$ is the length of the shortest key in the key set. This is not very convenient for a path index. In the next section, we consider a class of path graphs that can be proven to be equivalent to de~Bruijn graphs.
+
+
+\subsection{Pruned de Bruijn graphs}
+
+De~Bruijn graphs often have nodes that are redundant when the graph is used as a path index. Removing these nodes from the graph would make the index smaller and more practical. On the other hand, we still want to guarantee that the index works correctly with patterns of length $k$ or less, where $k$ is the order of the de~Bruijn graph.
 
 \begin{definition}[Equivalent path graphs]
-Let $G = (V, E)$ and $G' = (V', E')$ be two path graphs. We say that graphs $G$ and $G'$ are \emph{equivalent}, if we have $G.\gvalue(X) = G'.\gvalue(X)$ for all patterns $X \in \Sigma^{\ast}$.
+Let $G = (V, E)$ and $G' = (V', E')$ be two path graphs, and let $k > 0$ be a parameter value. We say that graphs $G$ and $G'$ are \emph{\kequivalent{k}}, if we have $G.\locate(X) = G'.\locate(X)$ for all patterns $X \in (\Sigma \setminus \set{\#, \$})^{\ast}$ with $\abs{X} \le k$.
 \end{definition}
 
 \begin{definition}[Pruned de~Bruijn graph]
-Let $G = (V, G)$ be a graph, and let $G' = (V', E')$ be the \orderk{k} path graph of $G$ with key set $\mathcal{K}$. Path graph $G'$ is an \orderk{k} \emph{pruned de~Bruijn graph}, if it is equivalent to the \orderk{k} de~Bruijn graph of $G$, and $\abs{K} \le k$ for all $K \in \mathcal{K}$.
+Let $G = (V, G)$ be a graph, and let $G' = (V', E')$ be an \orderk{k} path graph of $G$. Path graph $G'$ is an \orderk{k} \emph{pruned de~Bruijn graph}, if it is \kequivalent{k} to the \orderk{k} de~Bruijn graph of $G$.
 \end{definition}
 
 Pruned de~Bruijn graphs can be built by merging nodes of a de~Bruijn graph. They are similar to manifold de Bruijn graphs \cite{Lin2014}.
 
 \begin{lemma}[Pruning a de~Bruijn graph]\label{lemma:dbg-prune}
-Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be the \orderk{k} pruned de~Bruijn graph of $G$ with key set $\mathcal{K}$, and let $V_{K}$ be the set of nodes $v \in V'$ having string $K$ as a prefix of $G'.\gkey(v)$. If $\abs{V_{K}} > 0$ and $G'.\gvalue(u) = G'.\gvalue(v)$ for all $u, v \in V_{K}$, the path graph remains an \orderk{k} pruned de~Bruijn graph of $G$ after we remove $G'.\gkey(v)$ for all $v \in V_{K}$ from the key set and replace them with $K$.
+Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be the \orderk{k} pruned de~Bruijn graph of $G$ with key set $\mathcal{K}$, and let $V'_{K}$ be the set of nodes $v \in V'$ having string $K$ as a prefix of $G'.\gkey(v)$. If $\abs{V'_{K}} > 0$ and $G'.\gvalue(u) = G'.\gvalue(v)$ for all $u, v \in V_{K}$, the path graph remains an \orderk{k} pruned de~Bruijn graph of $G$, if we remove $G'.\gkey(v)$ for all $v \in V'_{K}$ from the key set and replace them with $K$.
 \end{lemma}
 
 \begin{proof}
-Let $X \in \Sigma^{\ast}$ be a pattern, and let $V_{X} \subseteq V'$ be the set of nodes matching it. If the pattern does not prefix-match string $K$, we have $V_{X} \cap V_{K} = \emptyset$, and the changes in the key set do not affect the set of occurrences for pattern $X$.
+Let $X \in (\Sigma \setminus \set{\#, \$})^{\ast}$ be a pattern with $\abs{X} \le k$, let $G'' = (V'', E'')$ be the path graph after the changes in the key set, and let $v''_{K} \in V''$ be the node with $G''.\gkey(v''_{K}) = K$.
 
-Otherwise let $G'' = (V'', E'')$ be the path graph with adjusted key set, and let $v_{K} \in V''$ be the node corresponding to key $K$. Then
-\begin{align*}
-G''.\gvalue(X) & = G''.\gvalue(V_{X} \setminus V_{K}) \cup G''.\gvalue(v_{K}) \\
- & = G'.\gvalue(V_{X} \setminus V_{K}) \cup G'.\gvalue(V_{X} \cap V_{K}) = G'.\gvalue(X).
-\end{align*}
+Each node $v \in V' \setminus V'_{K}$ is also a node of graph $G''$ with $G''.\gvalue(v) = G'.\gvalue(v)$. As each occurrence of substring $K$ in the \kcollection{k} $\mathcal{S}$ can be extended into an occurrence of substring $G'.\gkey(v)$ for a node $v \in V'_{K}$, we also have $G''.\gvalue(v''_{K}) = G'.\gvalue(v)$ for all $v \in V'_{K}$.
+
+We now prove that for every path matching the pattern in graph $G'$, we can find a matching path in graph $G''$ with the same set of occurrences, and the other way around. As graph $G'$ is a pruned de~Bruijn graph and we prove that graph $G''$ is \kequivalent{k} to it, graph $G''$ must also be a pruned de~Bruijn graph.
+
+(From $G'$ to $G''$) Consider a path $P' = v'_{0} \dotsm v'_{\abs{X}-1}$ matching the pattern in graph $G'$. Let $P'' = v''_{0} \dotsm v''_{\abs{X}-1}$ be the sequence of nodes of graph $G''$ created by replacing every node $v \in V'_{K}$ in path $P$ with node $v''_{K}$. We note that $G''.\gkey(v''_{i})$ is a prefix of $G'.\gkey(v'_{i})$ for $0 \le i < \abs{X}$, and hence $G''.\glabel(v''_{i}) \cdot G''.\gkey(v''_{i+1})$ is a prefix of $G'.\glabel(v'_{i}) \cdot G'.\gkey(v'_{i+1})$ for $0 \le i < \abs{X}-1$. As key $G'.\gkey(v'_{i})$ prefix-matches $G'.\glabel(v'_{i}) \cdot G'.\gkey(v'_{i+1})$, key $G''.\gkey(v''_{i})$ must also prefix-match $G''.\glabel(v''_{i}) \cdot G''.\gkey(v''_{i+1})$, giving us an edge $(v''_{i}, v''_{i+1}) \in E''$. Hence sequence $P''$ is a path in $G''$, with $G''.\glabel(P'') = G'.\glabel(P')$ and $G''.\gvalue(v''_{0}) = G'.\gvalue(v'_{0})$.
+
+% FIXME the same for P'' -> P'
+% by contradiction: assume that G'' contains X but G' does not
+% let X[i, ...] be the rightmost suffix not in G'
+% X[i, ...] does not occur in the k-collection but X[i+1, ...] does
+% X[i] G''.key(i+1) does occur, must be a proper prefix of X[i, ...]
+% ...
+(From $G''$ to $G'$)
 \end{proof}
 
-\begin{lemma}[Correctness]\label{lemma:dbl-correct}
-Let $G = (V, G)$ be a graph, and let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph of $G$. For every pattern $X \in (\Sigma \setminus \set{\#, \$})^{\ast}$, let $V_{X}$ be the set of start nodes of paths $P$ in graph $G$ with $G.\glabel(P) = X$. Then $V_{X} \subseteq G'.\gvalue(X)$, and
-$V_{X} = G'.\gvalue(X)$ if $\abs{X} \le k$.
+% Pruning generalizes the graph in the same way as DBG generalizes it?
+
+\begin{lemma}[No short false positives]\label{lemma:dbg-fp}
+Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph of $G$, and let $P$ be a path in $G'$ with $\abs{P'} \le k$. Then there is a path $P$ in graph $G$ with $G.\glabel(P) = G'.\glabel(P')$.
 \end{lemma}
 
-% FIXME
-% Introduce the de Bruijn graph
-% Set of nodes of DBG matching the pattern -> set of kmers in S prefix-matching the pattern
-% -> set of start nodes in G for paths matching the first min(k, |X|) characters of the pattern.
-% If |X| > k, this may be a superset of start nodes matching the entire pattern.
-% Pruned DBG equivalent to DBG -> holds with G' as well.
+% FIXME proof
 \begin{proof}
 Foo
 \end{proof}
 
+
 \section{GCSA2}
 
+\subsection{GCSA for path indexes}
 
-\section{Construction}
+\subsection{Index construction}
+
+\subsection{Extensions}
 
 
 \section{Experiments}
