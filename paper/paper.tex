@@ -71,6 +71,7 @@
 \newcommand{\orderk}[1]{order\nobreakdash-$#1$}
 \newcommand{\LFmapping}{LF\nobreakdash-mapping}
 \newcommand{\FMindex}{FM\nobreakdash-index}
+\newcommand{\patternset}{\ensuremath{(\Sigma \setminus \set{\#, \$})^{\ast}}}
 
 % Structures
 \newcommand{\SA}{\ensuremath{\mathsf{SA}}}
@@ -97,10 +98,6 @@ Variation graphs, which represent genetic variation within a population, are rep
 Graph genomes: \cite{Schneeberger2009}
 
 FM-index: \cite{Ferragina2005a}
-
-CST-NPR: \cite{Fischer2009a}
-
-CST MEMs: \cite{Ohlebusch2010a}
 
 XBW: \cite{Ferragina2009b}
 
@@ -154,7 +151,7 @@ The \emph{Burrows-Wheeler transform (BWT)} \cite{Burrows1994} is a permutation o
 $$
 \LF(i) = \Carray[\BWT[i]] + \BWT.\rank(i, \BWT[i]),
 $$
-where $\Carray[c]$ is the number of suffixes of the text starting with any character $c' < c$. Then $\SA[\LF(i)] = (\SA[i]-1) \bmod n$. We can also generalize the definition for any character $c \in \Sigma$:
+where $\Carray[c]$ is the number of occurrences of characters $c' < c$ in the BWT. Then $\SA[\LF(i)] = (\SA[i]-1) \bmod n$. We can also generalize the definition for any character $c \in \Sigma$:
 $$
 \LF(i, c) = \Carray[c] + \BWT.\rank(i, c).
 $$
@@ -261,7 +258,7 @@ Let $G = (V, E)$ be a graph, and let $G' = (V', E')$ be a path graph of $G$.
 \end{definition}
 
 \begin{lemma}[No false negatives]\label{lemma:pg-fn}
-Let $G' = (V', E')$ be a path graph of graph $G = (V, E)$, and let $X \in (\Sigma \setminus \set{\#, \$})^{\ast}$ be a pattern string. Set $G'.\locate(X)$ contains the start nodes of all paths $P$ in graph $G$ with $G.\glabel(P) = X$.
+Let $G' = (V', E')$ be a path graph of graph $G = (V, E)$, and let $X \in \patternset$ be a pattern string. Set $G'.\locate(X)$ contains the start nodes of all paths $P$ in graph $G$ with $G.\glabel(P) = X$.
 \end{lemma}
 
 \begin{proof}
@@ -282,7 +279,7 @@ When used as an index, a path graph will not produce false negatives. On the oth
 De~Bruijn graphs often have nodes that are redundant when the graph is used as a path index. Removing these nodes from the graph would make the index smaller and more practical. On the other hand, we still want to guarantee that the index works correctly with patterns of length $k$ or less, where $k$ is the order of the de~Bruijn graph.
 
 \begin{definition}[Equivalent path graphs]
-Let $G$ and $G'$ be two path graphs, and let $k > 0$ be a parameter value. We say that graphs $G$ and $G'$ are \emph{\kequivalent{k}}, if we have $G.\locate(X) = G'.\locate(X)$ for all patterns $X \in (\Sigma \setminus \set{\#, \$})^{\ast}$ with $1 \le \abs{X} \le k$.
+Let $G$ and $G'$ be two path graphs, and let $k > 0$ be a parameter value. We say that graphs $G$ and $G'$ are \emph{\kequivalent{k}}, if we have $G.\locate(X) = G'.\locate(X)$ for all patterns $X \in \patternset$ with $1 \le \abs{X} \le k$.
 \end{definition}
 
 \begin{definition}[Pruned de~Bruijn graph]
@@ -292,14 +289,17 @@ Let $G$ be a graph, and let $G'$ be an \orderk{k} path graph of $G$. Path graph 
 Pruned de~Bruijn graphs are similar to manifold de Bruijn graphs \cite{Lin2014}.
 
 \begin{lemma}[No short false positives]\label{lemma:dbg-fp}
-Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph of $G$, and let $P' = v'_{0} \dotsm v'_{\abs{P}-1}$ be a path in graph $G'$ with $1 \le \abs{P'} \le k$ and $G'.\glabel(P') \in (\Sigma \setminus \set{\#, \$})^{\ast}$. Then there is a path $P$ in $G$ with $G.\glabel(P) = G'.\glabel(P')$. If $G'$ is a de~Bruijn graph, $G'.\glabel(P)$ is a prefix of $G'.\gkey(v'_{0})$.
+Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph of $G$, and let $X \in \patternset$ be a pattern with $1 \le \abs{X} \le k$. Then
+(a) $G'.\locate(X)$ is a set of start nodes $v_{0} \in V$ of paths $P$ matching the pattern in graph $G$; and
+(b) if $G'$ is a de~Bruijn graph, $X$ is prefix of $G'.\gkey(v'_{0})$ for all $v'_{0} \in G'.\find(X)$.
 \end{lemma}
 
 \begin{proof}
-We may assume without loss of generality that graph $G'$ is a de~Bruijn graph.
+If (a) holds for de~Bruijn graphs, it also holds for pruned de~Bruijn graphs. From now on, let $G'$ be a de~Bruijn graph, and let $\mathcal(S)$ be the \kcollection{k} used for building graph $G'$.
 
-If $\abs{P} = 1$, every node $v \in G'.\gvalue(v'_{0})$ is a path in graph $G$ with label $X = G'.\glabel(P')$.
-Otherwise every edge $(v'_{i}, v'_{i+1}) \in E'$ corresponds to a substring $S_{i}[j, j+k] = X[i] \cdot G'.\gkey(v'_{i+1})$ in the \kcollection{k} $\mathcal{S}$ used for building graph $G'$. Furthermore, the substring has $G'.\gkey(v'_{i})$ as its prefix. We can show by induction from $\abs{P}-2$ to $0$ that $S_{0}[j, j+k]$ has $X$ as its prefix. The sequence of nodes $P = \mathcal{S}.\gnode(S_{0}, j+i) \dotsm \mathcal{S}.\gnode(S_{0}, j+\abs{X}-1)$ is a path in graph $G$ with $G.\glabel(P) = X$.
+(b) If $\abs{X} = 1$, the statement is true by definition. Now let $\abs{X} \ge 2$, and let $P' = v'_{0} \dotsm v'_{\abs{X}}$ be a path matching $X$ in graph $G'$. Every edge $(v'_{i}, v'_{i+1}) \in E'$ corresponds to a substring $S_{i}[j, j+k] = X[i] \cdot G'.\gkey(v'_{i+1})$ in $\mathcal{S}$, and the substring has $G'.\gkey(v'_{i})$ as a prefix. By induction from $\abs{X}-2$ to $0$, substring $S_{i}[j, j+k]$ has $X[i, \abs{X}-1]$ as a prefix.
+
+(a) Now let $S[i, i+k-1] = G'.\gkey(v'_{0})$ be a substring of $\mathcal{S}$, where $v'_{0} \in G'.\find(X)$. Every node $v \in G'.\gvalue(v'_{0})$ is the node $\mathcal{S}.\gnode(S, i)$ for one of such substrings. By (b), $S[i, i+\abs{X}-1] = X$, which corresponds to a path $P$ matching $X$ in graph $G$, with $\mathcal{S}.\gnode(S, i)$ as the start node.
 \end{proof}
 
 \begin{lemma}[Pruning a de~Bruijn graph]\label{lemma:dbg-prune}
@@ -309,7 +309,7 @@ Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be the \orderk{k} pruned de~Bru
 \begin{proof}
 Let $G_{d} = (V_{d}, E_{d})$ be the \orderk{k} de~Bruijn graph of $G$, let $G'' = (V'', E'')$ be the path graph corresponding to the new key set, and let $\mathcal{S}$ be the \kcollection{k} used for building the path graphs. Each node $v'' \in V''$ is an equivalence class of nodes $V_{d}(v'') \subseteq V_{d}$ corresponding to a shared prefix $G''.\gkey(v'')$ of keys. For all $v \in V_{d}(v'')$, we have $G_{d}.\gvalue(v) = G''.\gvalue(v'')$.
 
-Let $X \in (\Sigma \setminus \set{\#, \$})^{\ast}$ be a pattern with $1 \le \abs{X} \le k$, and let $S[i, i+k-1] = G_{d}.\gkey(v_{0})$ be a substring of $\mathcal{S}$, where $v_{0} \in G_{d}.\find(X)$. By Lemma~\ref{lemma:dbg-fp}, $X$ is a prefix of the substring. We extend the substring to length $\abs{X}+k-1$ without changing its starting position. The extended substring $S[i, i+\abs{X}+k-2]$ corresponds to a path $P = v_{0} \dotsm v_{\abs{X}}$ with label $X$ in the de~Bruijn graph, with $G_{d}.\gkey(v_{j}) = S[i+j, i+j+k-1]$. If we change each node $v_{j}$ to the corresponding equivalence class $v''_{j} \in V''$, we get a path with label $X$ in graph $G''$.
+Let $X \in \patternset$ be a pattern with $1 \le \abs{X} \le k$, and let $S[i, i+k-1] = G_{d}.\gkey(v_{0})$ be a substring of $\mathcal{S}$, where $v_{0} \in G_{d}.\find(X)$. By Lemma~\ref{lemma:dbg-fp}, $X$ is a prefix of the substring. We extend the substring to length $\abs{X}+k-1$ without changing its starting position. The extended substring $S[i, i+\abs{X}+k-2]$ corresponds to a path $P = v_{0} \dotsm v_{\abs{X}}$ with label $X$ in the de~Bruijn graph, with $G_{d}.\gkey(v_{j}) = S[i+j, i+j+k-1]$. If we change each node $v_{j}$ to the corresponding equivalence class $v''_{j} \in V''$, we get a path with label $X$ in graph $G''$.
 
 Now let $P'' = v''_{0} \dotsm v''_{\abs{X}-1}$ be a path matching pattern $X$ in graph $G''$. If $\abs{X} = 1$, we can choose any $v_{0} \in V_{d}(v''_{0})$. Now assume that we have chosen node $v_{j+1}$ from the equivalence class $V_{d}(v''_{j+1})$ and that $X[j+1, \abs{X}-1]$ is a prefix of $G_{d}.\gkey(v_{j+1})$. As edge $(v''_{j}, v''_{j+1}) \in E''$ exists, it must be that $\abs{G.\gpred(v, X[j])} > 0$ for a node $v \in G''.\gvalue(v''_{j+1}) = G_{d}.\gvalue(v_{j+1})$. Therefore substring $X[j] \cdot G_{d}.\gkey(v_{j+1})$ exists in $\mathcal{S}$, and the node $v_{j} \in V_{d}$ with $G_{d}.\gkey(v_{j}) = (X[j] \cdot G_{d}.\gkey(v_{j+1}))[0, k-1]$ has $X[j, \abs{X}-1]$ as a prefix of its key. As $G''.\gkey(v''_{j})$ is a prefix of $X[j] \cdot G''.\gkey(v''_{j+1})$, which is a prefix of $X[j] \cdot G_{d}.\gkey(v_{j+1})$, key $G''.\gkey(v''_{j})$ is also a prefix of $G_{d}.\gkey(v_{j})$, and hence $v_{j} \in V_{d}(v''_{j})$. When $j = 0$, we can extend the substring as above to get a path matching the pattern in $G_{d}$, with $v_{0}$ as the start node.
 
@@ -326,7 +326,7 @@ Let $G'$ be a a pruned de~Bruijn graph of graph $G$ with key set $\mathcal{K}$. 
 Let $G' = (V', E')$ be a maximally pruned \orderk{k} de~Bruijn graph. Then
 (a) $\abs{G'.\gpred(v', c)} \le 1$ for all nodes $v' \in V'$ and characters $c \in \Sigma$;
 (b) $\abs{G'.\gkey(u')} \le \abs{G'.\gkey(v')}+1$ for all nodes $v' \in V'$, characters $c \in \Sigma$, and nodes $u' \in G'.\gpred(v', c)$; and
-(c) key $G'.\gkey(v')$ prefix-matches pattern $X \in (\Sigma \setminus \set{\#, \$})^{\ast}$ for all nodes $v' \in G'.\find(X)$.
+(c) key $G'.\gkey(v')$ prefix-matches pattern $X \in \patternset$ for all nodes $v' \in G'.\find(X)$.
 \end{lemma}
 
 \begin{proof}
@@ -339,12 +339,57 @@ Let $G' = (V', E')$ be a maximally pruned \orderk{k} de~Bruijn graph. Then
 
 \section{GCSA2}
 
-\subsection{GCSA for path indexes}
+\subsection{GCSA for path graphs}
+
+Path graphs are essentially equivalent to the prefix-sorted automata, which were used in the original paper on GCSA \cite{Siren2014}. As our technical details are different from the ones used in that paper, we now describe how the GCSA of a path graph works.
+
+% FIXME refer to the figure in Section 2.4
+Let $G = (V, E)$ be a path graph. We sort the nodes $V$ by their keys in lexicographic order and then process the nodes in that order to generate the sequences $\BWT$, $\bvIN$, and $\bvOUT$. For each node $v \in V$, we append
+\begin{itemize}
+\item $\BWT$ with the predecessor labels $G.\glabel(u)$ for all edges $(u, v) \in E$;
+\item $\bvIN$ with the indegree $x = G.\gindegree(v)$ encoded as a binary sequence $0^{x-1} 1$; and
+\item $\bvOUT$ with the outdegree $x = G.\goutdegree(v)$ encoded as a binary sequence $0^{x-1} 1$.
+\end{itemize}
+If node $v \in V$ has lexicographic rank $i$, the range of incoming edges $(u, v) \in E$ to the node is $[sp_{in}, ep_{in}] = [\bvIN.\select(i, 1) + 1, \bvIN.\select(i+1, 1)]$, with $sp_{in} = 0$ if $i = 0$. The labels of predecessor nodes $u$ are encoded in $\BWT[sp_{in}, ep_{in}]$. Sorting the incoming edges by pairs $(\BWT[j], i)$, where $\BWT[j]$ corresponds to edge $(u, v)$, is equivalent to sorting them by strings $G.\glabel(u) \cdot G.\gkey(v)$. As multiple edges may have the same sort keys, our sorting algorithm must be stable. We can achieve the desired sorting order by using \LFmapping: $j \mapsto \LF(j)$.
+
+Consider now the outgoing edges. If the lexicographic rank of node $u \in V$ is $i'$, the range of outgoing edges $(u, v) \in E$ is $[sp_{out}, ep_{out}] = [\bvOUT.\select(i', 1) + 1, \bvOUT.\select(i'+1, 1)]$, with $sp_{out} = 0$ if $i' = 0$. The edges are already sorted by keys $G.\gkey(u)$. All outgoing edges from the same node have the same sort key, as there is nothing to distinguish them from one another. Because graph $G$ is a path graph, we know that key $G.\gkey(u)$ prefix-matches string $G.\glabel(u) \cdot G.\gkey(v)$. The sorting orders are therefore compatible. For every $j \in [sp_{in}, ep_{in}]$ for node $v \in V$, having $\LF(j) \in [sp_{out}, ep_{out}]$ for node $u \in V$ implies an edge $(u, v) \in E$. If we sort the incoming edges $(u, v) \in E$ stably by strings $G.\glabel(u) \cdot G.\gkey(v)$, we have $(u, v) < (u', v')$ in that order, if $G.\gkey(u) < G.\gkey(u')$.
+
+We implement query $G.\find(X)$ with backward searching. Let $X \in \patternset$ be a pattern. If $\abs{X} = 0$, query $G.\find(X)$ returns the lexicographic range $[0, \abs{V}-1]$ containing all nodes of the path graph. Now assume that $\abs{X} \ge 1$ and that query $G.\find(X[i+1, \abs{X}-1])$ has returned range $[sp_{i+1}, ep_{i+1}]$. We want to find the lexicographic range corresponding to the union of sets $G.\gpred(v, X[i])$ over nodes $v \in G.\find(X[i+1, \abs{X}-1])$. We start by mapping the node range $[sp_{i+1}, ep_{i+1}]$ into range
+$$
+[sp_{in}, ep_{in}] = [\bvIN.\select(sp_{i+1}, 1) + 1, \bvIN.\select(ep_{i+1}+1, 1)]
+$$
+of incoming edges (with $sp_{in} = 0$ if $sp_{i+1} = 0$). Then we map that range into the corresponding range of outgoing edges
+$$
+[sp_{out}, ep_{out}] = [\LF(sp_{in}, X[i]), \LF(ep_{in}+1, out) - 1].
+$$
+The lexicographic range containing nodes $G.\find(X[i, \abs{X}-1])$ is
+$$
+[sp_{i}, ep_{i}] = [\bvOUT.\rank(sp_{out}, 1), \bvOUT.\rank(ep_{out}, 1)].
+$$
+
+% FIXME from here
+Samples
+- sampling conditions
+- sample encoding
+- locate()
+
+Two encodings: general and the one for $\abs{G.\gpred(v, c)} \le 1$. Difference: no general LF in the latter one, must go forward for samples.
+
 
 \subsection{Index construction}
 
 \subsection{Extensions}
 
+These are both based on ST, which requires a maximally pruned DBG
+
+count()
+- SadaCount \cite{Sadakane2007a}
+- compressible \cite{Gagie2015}
+
+parent()
+- CST-NPR: \cite{Fischer2009a}
+- CST MEMs: \cite{Ohlebusch2010a}
+- used for MEM mapping: \cite{Li2013}
 
 \section{Experiments}
 
