@@ -186,21 +186,19 @@ In this paper, we work with de~Bruijn graphs and their generalizations. In order
 
 \begin{definition}[\kcollection{k}]
 Let $\mathcal{S}$ be a collection of character sequences over alphabet $\Sigma$, and let $k > 0$ be a parameter value. We say that $\mathcal{S}$ is a \emph{\kcollection{k}}, if the collection contains substrings $\#^{k}$ and $\$^{k}$, and each sequence $S \in \mathcal{S}$
-\begin{enumerate}
-\item is left-infinite or begins with $\#^{k}$;
-\item is right-infinite or ends with $\$^{k}$; and
-\item contains no other occurrences of characters $\#$ and $\$$.
-\end{enumerate}
+(a) is left-infinite or begins with $\#^{k}$;
+(b) is right-infinite or ends with $\$^{k}$; and
+(c) contains no other occurrences of characters $\#$ and $\$$.
 \end{definition}
 
 % FIXME example of strings, DBG, long paths, false positives
 \begin{definition}[de~Bruijn graph]
 Let $\mathcal{S}$ be a \kcollection{k} over alphabet $\Sigma$. The \orderk{k} \emph{de~Bruijn graph} of $\mathcal{S}$ is a graph $G = (V, E)$ such that
-\begin{enumerate}
+\begin{itemize}
 \item each node $v_{X} \in V$ represent a distinct \kmer{k} $X$ occurring in $\mathcal{S}$, with $G.\glabel(v_{X}) = X[0]$;
 \item each node $v_{X} \in V$ has a \emph{key} $G.\gkey(v_{X}) = X$; and
 \item each edge $(v_{X}, v_{Y}) \in E$ represents a \kmer{k+1} $X[0]Y = Xc$ (where $c \in \Sigma$) occurring in $\mathcal{S}$.
-\end{enumerate}
+\end{itemize}
 We use the node corresponding to $\#^{k}$ as the source node $s$ and the node corresponding to $\$^{k}$ as the sink node $t$, adding the technical edge $(t, s)$ in the usual way.
 \end{definition}
 
@@ -246,11 +244,11 @@ De~Bruijn graphs are a special case of path graphs. They represent the paths of 
 
 \begin{definition}[Path graph]
 Let $\mathcal{S}$ be a \kcollection{k} of the labels of maximal paths in graph $G = (V, E)$, and let $\mathcal{K}$ be a prefix-free set of strings of length at most $k$ containing $\#^{k}$ and $\$^{k}$. We assume that each right-maximal substring $S$ in $\mathcal{S}$ prefix-matches a string $K \in \mathcal{K}$, and that each string $K \in \mathcal{K}$ is a substring of $\mathcal{S}$. The \orderk{k} \emph{path graph} of graph $G$ with \emph{key set} $\mathcal{K}$ is a graph $G' = (V', E')$ such that
-\begin{enumerate}
+\begin{itemize}
 \item each node $v_{K} \in V'$ represent a distinct key $K \in \mathcal{K}$, with $G'.\glabel(v_{K}) = K[0]$;
 \item each node has a key $G'.\gkey(v_{K}) = K$ and a value $G'.\gvalue(v_{K}) = V_{K}$, where $V_{K}$ is the set of nodes $\mathcal{S}.\gnode(S, i) \in V$ for $S \in \mathcal{S}$ and positions $i$ such that $S[i, i+\abs{K}-1] = K$; and
 \item each edge $(v_{K}, v_{K'}) \in E'$ represents the occurrence of substring $K[0] K'$ in $\mathcal{S}$ such that strings $K$ and $K[0] K'$ prefix-match.
-\end{enumerate}
+\end{itemize}
 We use the node corresponding to $\#^{k}$ as the source node $s$ and the node corresponding to $\$^{k}$ as the sink node $t$, adding the technical edge $(t, s)$ in the usual way.
 \end{definition}
 
@@ -325,13 +323,18 @@ Let $G'$ be a a pruned de~Bruijn graph of graph $G$ with key set $\mathcal{K}$. 
 \end{definition}
 
 \begin{lemma}[Consequences of maximal pruning]\label{lemma:dbg-maximal}
-Let $G' = (V', E')$ be a maximally pruned \orderk{k} de~Bruijn graph. Then (a) $\abs{G'.\gpred(v', c)} \le 1$ for all nodes $v' \in V'$ and characters $c \in \Sigma$; and (b) the key $G'.\gkey(v')$ prefix-matches pattern $X \in (\Sigma \setminus \set{\#, \$})^{\ast}$ for all nodes $v' \in G'.\find(X)$.
+Let $G' = (V', E')$ be a maximally pruned \orderk{k} de~Bruijn graph. Then
+(a) $\abs{G'.\gpred(v', c)} \le 1$ for all nodes $v' \in V'$ and characters $c \in \Sigma$;
+(b) $\abs{G'.\gkey(u')} \le \abs{G'.\gkey(v')}+1$ for all nodes $v' \in V'$, characters $c \in \Sigma$, and nodes $u' \in G'.\gpred(v', c)$; and
+(c) key $G'.\gkey(v')$ prefix-matches pattern $X \in (\Sigma \setminus \set{\#, \$})^{\ast}$ for all nodes $v' \in G'.\find(X)$.
 \end{lemma}
 
 \begin{proof}
-(a) Let $v' \in V'$ be a node, and let $c \in \Sigma$ be a character. For each node $u' \in G'.\gpred(v', c)$, key $G.\gkey(u')$ prefix-matches string $c \cdot G.\gkey(v')$. If $\abs{G'.\gpred(v', c)} > 1$, the keys must be longer than string $c \cdot G.\gkey(v)$ in order to be distinct. In that case, there cannot be an edge $(u', w')$ to another node $w' \ne v'$, as the keys $G.\gkey(v')$ and $G.\gkey(w')$ would prefix-match. Hence $G'.\gvalue(u')$ must be the union of sets $G.\gpred(v, c)$ over nodes $v \in G'.\gvalue(v')$, and we can merge set $G'.\gpred(v', c)$ into a single node. This contradicts the assumption that graph $G'$ is maximally pruned, so it must be that $\abs{G'.\gpred(v', c)} \le 1$.
+(a) For each node $u' \in G'.\gpred(v', c)$, key $G.\gkey(u')$ prefix-matches string $c \cdot G.\gkey(v')$. If $\abs{G'.\gpred(v', c)} > 1$, the keys must be longer than string $c \cdot G.\gkey(v)$ in order to be distinct. In that case, there cannot be an edge $(u', w')$ to another node $w' \ne v'$, as the keys $G.\gkey(v')$ and $G.\gkey(w')$ would prefix-match. Hence $G'.\gvalue(u')$ must be the union of sets $G.\gpred(v, c)$ over nodes $v \in G'.\gvalue(v')$, and we can merge the set $G'.\gpred(v', c)$ into a single node. Because graph $G'$ is already maximally pruned, it must be that $\abs{G'.\gpred(v', c)} \le 1$.
 
-(b) If $\abs{X} = 0$, every key prefix-matches the pattern. If $\abs{X} = 1$, set $G'.\find(X)$ is the set of nodes $v' \in V'$ with $G'.\glabel(v') = X[0]$. Now assume that $\abs{X} \ge 2$ and that $G'.\gkey(v')$ prefix-matches $X[1, \abs{X}-1]$ for all $v' \in G'.\find(X[1, \abs{X}-1])$. By (a), there is at most one node $u' \in G'.\gpred(v', X[0])$ for each such node $v'$. As the keys are as short as possible, key $G'.\gkey(u')$ must be a prefix of $X[0] \cdot G'.\gkey(v')$. Because $X[1, \abs{X}-1]$ prefix-matches $G'.\gkey(v')$, pattern $X$ prefix-matches string $X[0] \cdot G'.\gkey(v')$, and hence the pattern must prefix-match key $G'.\gkey(u')$.
+(b) Assume that $\abs{G'.\gkey(u')} > \abs{G'.\gkey(v')}+1$. Key $G'.\gkey(u')$ must have $c \cdot G'.\gkey(v')$ as a prefix. If there is a substring $S[i,j] = c \cdot G'.\gkey(v')$ in the \kcollection{k} used for building graph $G'$, the key starting at $S[i]$ must belong to a node in $G'.\gpred(v', c)$. By (a), $u'$ is the only such node, and hence string $c \cdot G'.\gkey(v')$ can also serve as its key.
+
+(c) If $\abs{X} = 0$, every key prefix-matches the pattern. If $\abs{X} = 1$, set $G'.\find(X)$ is the set of nodes $v' \in V'$ with $G'.\glabel(v') = X[0]$. Now assume that $\abs{X} \ge 2$ and that $G'.\gkey(v')$ prefix-matches $X[1, \abs{X}-1]$ for all $v' \in G'.\find(X[1, \abs{X}-1])$. By (a), there is at most one node $u' \in G'.\gpred(v', X[0])$ for each such node $v'$. By (b), key $G'.\gkey(u')$ is a prefix of $X[0] \cdot G'.\gkey(v')$. Because $X[1, \abs{X}-1]$ prefix-matches $G'.\gkey(v')$, pattern $X$ prefix-matches string $X[0] \cdot G'.\gkey(v')$, and hence the pattern must prefix-match key $G'.\gkey(u')$.
 \end{proof}
 
 \section{GCSA2}
