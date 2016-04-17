@@ -132,7 +132,7 @@ In this paper, we primarily consider sequences over the \emph{DNA} alphabet $\se
 
 Given string $S[0, n-1]$, we define $S.\rank(i, c)$ to be the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define $S.\select(i, c) = \arg \max_{j \le n} S.\rank(j, c) < i$ as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions are used in the SDSL library \cite{Gog2014b}. We assume for convenience that $S.\select(0, c) = -1$.} A \emph{bitvector} is a binary sequence supporting efficient $\rank$/$\select$ queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support $\rank$/$\select$ queries on arbitrary strings.
 
-The following definitions are useful when discussing text indexes and path indexes.
+The following definitions are useful when discussing path indexes.
 
 \begin{definition}[Prefix-matching strings]
 Let $S$ and $S'$ be strings over alphabet $\Sigma$. We say that string $S$ and $S'$ \emph{prefix-match}, if $S$ is a prefix of $S'$ or $S'$ is a prefix of $S$.
@@ -286,7 +286,7 @@ Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be an \orderk{k} pruned de~Brui
 Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be the \orderk{k} pruned de~Bruijn graph of $G$ with key set $\mathcal{K}$, let $K \in \Sigma^{\ast}$ be a string of length $\abs{K} > 0$, and let $V'_{K}$ be the set of nodes $v \in V'$ having string $K$ as a prefix of $G'.\gkey(v)$. If $\abs{V'_{K}} > 0$ and $G'.\gvalue(u') = G'.\gvalue(v')$ for all $u, v \in V'_{K}$, the path graph remains an \orderk{k} pruned de~Bruijn graph of $G$, if we remove $G'.\gkey(v)$ for all $v \in V'_{K}$ from the key set and replace them with $K$.
 \end{lemma}
 
-De~Bruijn graphs are a special case of pruned de~Bruijn graphs. Hence we may compress a de~Bruijn graph structurally by repeatedly merging sets of nodes sharing a common prefix of their keys, as long as the conditions of Lemma~\ref{lemma:dbg-prune} hold.
+We can compress a de~Bruijn graph structurally by repeatedly merging sets of nodes sharing a common prefix of their keys, as long as the conditions of Lemma~\ref{lemma:dbg-prune} hold. Let $G_{d} = (V_{d}, E_{d})$ be the \orderk{k} de~Bruijn graph of graph $G$, and let $G' = (V', E')$ be a pruned de~Bruijn graph produced by that process. Each node $v' \in V'$ is an \emph{equivalence class} of nodes $V_{d}(v') \subseteq V_{d}$ corresponding to a shared prefix $G'.\gkey(v')$ of keys. For all $v \in V_{d}(v')$, we have $G_{d}.\gvalue(v) = G'.\gvalue(v')$.
 
 \begin{definition}[Maximally pruned de~Bruijn graph]
 Let $G'$ be a a pruned de~Bruijn graph of graph $G$ with key set $\mathcal{K}$. We say that $G'$ is \emph{maximally pruned}, if we cannot prune it using Lemma~\ref{lemma:dbg-prune}, and the keys in $\mathcal{K}$ cannot be made shorter without changing the graph structure.
@@ -360,7 +360,7 @@ edges and construction: use \LFmapping{} in GCSA of the de~Bruijn graph of the k
 
 \subsection{Extensions}
 
-These are both based on ST, which requires a maximally pruned DBG
+Path graphs; LCP array; compact trie of keys; LCP interval tree
 
 count()
 - SadaCount \cite{Sadakane2007a}
@@ -409,7 +409,7 @@ If (a) holds for de~Bruijn graphs, it also holds for pruned de~Bruijn graphs. Fr
 \end{proof}
 
 \begin{proof}[Proof of Lemma~\ref{lemma:dbg-prune} (Pruning)]
-Let $G_{d} = (V_{d}, E_{d})$ be the \orderk{k} de~Bruijn graph of $G$, let $G'' = (V'', E'')$ be the path graph corresponding to the new key set, and let $\mathcal{S}$ be the \kcollection{k} used for building the path graphs. Each node $v'' \in V''$ is an equivalence class of nodes $V_{d}(v'') \subseteq V_{d}$ corresponding to a shared prefix $G''.\gkey(v'')$ of keys. For all $v \in V_{d}(v'')$, we have $G_{d}.\gvalue(v) = G''.\gvalue(v'')$.
+Let $G_{d} = (V_{d}, E_{d})$ be the \orderk{k} de~Bruijn graph of $G$, let $G'' = (V'', E'')$ be the path graph corresponding to the new key set, and let $\mathcal{S}$ be the \kcollection{k} used for building the path graphs.
 
 Let $X \in \patternset$ be a pattern with $1 \le \abs{X} \le k$, and let $S[i, i+k-1] = G_{d}.\gkey(v_{0})$ be a substring of $\mathcal{S}$, where $v_{0} \in G_{d}.\find(X)$. By Lemma~\ref{lemma:dbg-fp}, $X$ is a prefix of the substring. We extend the substring to length $\abs{X}+k-1$ without changing its starting position. The extended substring $S[i, i+\abs{X}+k-2]$ corresponds to a path $P = v_{0} \dotsm v_{\abs{X}}$ with label $X$ in the de~Bruijn graph, with $G_{d}.\gkey(v_{j}) = S[i+j, i+j+k-1]$. If we change each node $v_{j}$ to the corresponding equivalence class $v''_{j} \in V''$, we get a path with label $X$ in graph $G''$.
 
@@ -424,6 +424,8 @@ Given $v_{0} \in G_{d}.\find(X)$, we can build a path $P'' = v''_{0} \dotsm v''_
 (b) Assume that $\abs{G'.\gkey(u')} > \abs{G'.\gkey(v')}+1$. Key $G'.\gkey(u')$ must have $c \cdot G'.\gkey(v')$ as a prefix. If there is a substring $S[i,j] = c \cdot G'.\gkey(v')$ in the \kcollection{k} used for building graph $G'$, the key starting at $S[i]$ must belong to a node in $G'.\gpred(v', c)$. By (a), $u'$ is the only such node, and hence string $c \cdot G'.\gkey(v')$ can also serve as its key.
 
 (c) If $\abs{X} = 0$, every key prefix-matches the pattern. If $\abs{X} = 1$, set $G'.\find(X)$ is the set of nodes $v' \in V'$ with $G'.\glabel(v') = X[0]$. Now assume that $\abs{X} \ge 2$ and that $G'.\gkey(v')$ prefix-matches $X[1, \abs{X}-1]$ for all $v' \in G'.\find(X[1, \abs{X}-1])$. By (a), there is at most one node $u' \in G'.\gpred(v', X[0])$ for each such node $v'$. By (b), key $G'.\gkey(u')$ is a prefix of $X[0] \cdot G'.\gkey(v')$. Because $X[1, \abs{X}-1]$ prefix-matches $G'.\gkey(v')$, pattern $X$ prefix-matches string $X[0] \cdot G'.\gkey(v')$, and hence the pattern must prefix-match key $G'.\gkey(u')$.
+
+Note that any key set satisfying (a) and (b) also satisfies (c). If $G'' = (V'', E'')$ is a pruned de~Bruijn graph and $v'' \in V''$ is a node, any pattern matching node $v''$ prefix-matches the key of the corresponding equivalence class in graph $G'$.
 \end{proof}
 
 
