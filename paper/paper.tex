@@ -130,7 +130,7 @@ In some cases, we also consider potentially \emph{infinite} character sequences 
 
 In this paper, we primarily consider sequences over the \emph{DNA} alphabet $\set{\$, \baseA, \baseC, \baseG, \baseT, \baseN}$. Characters $\baseA$, $\baseC$, $\baseG$, and $\baseT$ are called \emph{bases}, while character $\baseN$ represents an arbitrary or unknown base. In addition to the endmarker $\$$, the alphabet may also contain other characters for technical purposes. Each character $c$ of the DNA alphabet has a \emph{complement} $\dnacomp{c}$ defined as $\dnacomp{\baseA} = \baseT$, $\dnacomp{\baseC} = \baseG$, $\dnacomp{\baseG} = \baseC$, $\dnacomp{\baseT} = \baseA$, and $\dnacomp{c} = c$ for other characters $c$. Given a DNA sequence $S$, its \emph{reverse complement} is the sequence $\revcomp{S}$ obtained by reversing the non-technical parts of the sequence and replacing each character with its complement. For example, $\revcomp{\dnaseq{GATTACA}\$} = \dnaseq{TGTAATC}\$$.
 
-Given string $S[0, n-1]$, we define $S.\rank(i, c)$ to be the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define $S.\select(i, c) = \arg \max_{j \le n} S.\rank(j, c) < i$ as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions correspond to the ones used in the SDSL library \cite{Gog2014b}.} A \emph{bitvector} is a binary sequence supporting efficient $\rank$/$\select$ queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support $\rank$/$\select$ queries on arbitrary strings.
+Given string $S[0, n-1]$, we define $S.\rank(i, c)$ to be the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define $S.\select(i, c) = \arg \max_{j \le n} S.\rank(j, c) < i$ as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions are used in the SDSL library \cite{Gog2014b}. We assume for convenience that $S.\select(0, c) = -1$.} A \emph{bitvector} is a binary sequence supporting efficient $\rank$/$\select$ queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support $\rank$/$\select$ queries on arbitrary strings.
 
 The following definitions are useful when discussing text indexes and path indexes.
 
@@ -159,7 +159,7 @@ $$
 $$
 Let $X$ be a string. If there are $i$ suffixes $S'$ of text $T$ such that $S' < X$ in lexicographic order, then there are $\LF(i, c)$ suffixes smaller than string $cX$ in lexicographic order.
 
-Given the similarities to the suffix array, we can use the BWT as a space-efficient text index. The \emph{\FMindex} \cite{Ferragina2005a} combines a plain or compressed representation of the BWT supporting rank/select queries, the $\Carray$ array, and a set of \emph{sampled pointers} from the suffix array. It finds the \emph{lexicographic range} of suffixes matching pattern $X$ (having $X$ as a prefix) with a process called \emph{backward searching}. If the lexicographic range matching suffix $X[i+1, \abs{X}-1]$ of the pattern is $\SA[sp, ep]$, then the lexicographic range matching suffix $X[i, \abs{X}-1]$ of the pattern is $\SA[\LF(sp, X[i]), \LF(ep+1, X[i]) - 1]$. Finding the lexicographic range matching the entire pattern requires $\Oh{\abs{X}}$ rank queries.
+Given the similarities to the suffix array, we can use the BWT as a space-efficient text index. The \emph{\FMindex} \cite{Ferragina2005a} combines a plain or compressed representation of the BWT supporting $\rank$/$\select$ queries, the $\Carray$ array, and a set of \emph{sampled pointers} from the suffix array. It finds the \emph{lexicographic range} of suffixes matching pattern $X$ (having $X$ as a prefix) with a process called \emph{backward searching}. If the lexicographic range matching suffix $X[i+1, \abs{X}-1]$ of the pattern is $\SA[sp, ep]$, then the lexicographic range matching suffix $X[i, \abs{X}-1]$ of the pattern is $\SA[\LF(sp, X[i]), \LF(ep+1, X[i]) - 1]$. Finding the lexicographic range matching the entire pattern requires $\Oh{\abs{X}}$ rank queries.
 
 We can use the sampled suffix array pointers to find the text positions containing the occurrences. If $\SA[i]$ is not sampled, we start iterating $\LF(i)$, until we find a sampled pointer. If we find a sample at $\SA[\LF^{k}(i)]$, we know that
 $$
@@ -205,10 +205,10 @@ De~Bruijn graphs have several properties that make them useful for indexing purp
 
 \subsection{Generalized indexes}
 
-Suffix trees, suffix arrays, and \FMindex{} can be generalized to index multiple texts. There are also generalizations for other combinatorial structures. The \emph{XBW transform} \cite{Ferragina2009b} is essentially an \FMindex{} for \emph{labeled trees}. The nodes of the tree are sorted by path labels from the node to the root of the tree. $\BWT$ stores the labels of the children of each node (leaf nodes require special treatment). If a node has $k$ children, we encode that as binary sequence $0^{k-1} 1$. We concatenate these sequences to form bitvector $B$, which is used for mapping lexicographic ranks of nodes to the corresponding BWT ranges. The labels of the children of node $i$ are found in $\BWT[B.\select(i, 1) + 1, B.\select(i + 1, 1)]$ (with $0$ as the lower bound for $i = 0$).
+Suffix trees, suffix arrays, and \FMindex{} can be generalized to index multiple texts. There are also generalizations for other combinatorial structures. The \emph{XBW transform} \cite{Ferragina2009b} is essentially an \FMindex{} for \emph{labeled trees}. The nodes of the tree are sorted by path labels from the node to the root of the tree. $\BWT$ stores the labels of the children of each node (leaf nodes require special treatment). If a node has $k$ children, we encode that as binary sequence $0^{k-1} 1$. We concatenate these sequences to form bitvector $B$, which is used for mapping lexicographic ranks of nodes to the corresponding BWT ranges. The labels of the children of node $i$ are found in $\BWT[B.\select(i, 1) + 1, B.\select(i + 1, 1)]$.
 
 % FIXME LF(i, c) picture from the slides for the earlier DBG example
-The \emph{generalized compressed suffix array} (GCSA) \cite{Siren2014} is a further generalization of the XBW transform for a class of graphs that includes \emph{directed acyclic graphs} and de Bruijn graphs. Before a graph can be indexed, we have to transform it into an equivalent graph, where the nodes can be unambiguously sorted by the labels of the right-maximal paths starting from them. In the worst case, the transformation increases the size of the graph exponentially. After sorting the nodes of the transformed graph in lexicographic order, we encode them using three sequences. $\BWT$ contains the labels of the predecessors, while bitvectors $\bvIN$ and $\bvOUT$ encode the indegrees and outdegrees of each node in the same way as bitvector $B$ of the XBW transform. \LFmapping{} uses select queries on bitvector $\bvIN$ to map nodes to BWT ranges, ordinary \LFmapping{} with $\BWT$ to map incoming edges to the corresponding outgoing edges, and rank queries on bitvector $\bvOUT$ to map the outgoing edges to the predecessor nodes.
+The \emph{generalized compressed suffix array} (GCSA) \cite{Siren2014} is a further generalization of the XBW transform for a class of graphs that includes \emph{directed acyclic graphs} and de Bruijn graphs. Before a graph can be indexed, we have to transform it into an equivalent graph, where the nodes can be unambiguously sorted by the labels of the right-maximal paths starting from them. In the worst case, the transformation increases the size of the graph exponentially. After sorting the nodes of the transformed graph in lexicographic order, we encode them using three sequences. $\BWT$ contains the labels of the predecessors, while bitvectors $\bvIN$ and $\bvOUT$ encode the indegrees and outdegrees of each node in the same way as bitvector $B$ of the XBW transform. \LFmapping{} uses $\select$ queries on bitvector $\bvIN$ to map nodes to BWT ranges, ordinary \LFmapping{} with $\BWT$ to map incoming edges to the corresponding outgoing edges, and $\rank$ queries on bitvector $\bvOUT$ to map the outgoing edges to the predecessor nodes.
 
 
 \section{Path indexes}\label{sect:path-indexes}
@@ -307,33 +307,56 @@ Let $G' = (V', E')$ be a maximally pruned \orderk{k} de~Bruijn graph. Then
 Path graphs are essentially equivalent to the prefix-sorted automata, which were used in the original paper on GCSA \cite{Siren2014}. As our technical details are different from the ones used in that paper, we now describe how the GCSA of a path graph works.
 
 % FIXME refer to the figure in Section 2.4
-Let $G = (V, E)$ be a path graph. We sort the nodes $V$ by their keys in lexicographic order and then process the nodes in that order to generate the sequences $\BWT$, $\bvIN$, and $\bvOUT$. For each node $v \in V$, we append
+Let $G' = (V', E')$ be a path graph. We sort the nodes $V'$ by their keys in lexicographic order and then process the nodes in that order to generate the sequences $\BWT$, $\bvIN$, and $\bvOUT$. For each node $v' \in V'$, we append
 \begin{itemize}
-\item $\BWT$ with the predecessor labels $G.\glabel(u)$ for all edges $(u, v) \in E$;
-\item $\bvIN$ with the indegree $x = G.\gindegree(v)$ encoded as a binary sequence $0^{x-1} 1$; and
-\item $\bvOUT$ with the outdegree $x = G.\goutdegree(v)$ encoded as a binary sequence $0^{x-1} 1$.
+\item $\BWT$ with the predecessor labels $G.\glabel(u')$ for all edges $(u', v') \in E'$;
+\item $\bvIN$ with the indegree $x = G.\gindegree(v')$ encoded as a binary sequence $0^{x-1} 1$; and
+\item $\bvOUT$ with the outdegree $x = G.\goutdegree(v')$ encoded as a binary sequence $0^{x-1} 1$.
 \end{itemize}
-If node $v \in V$ has lexicographic rank $i$, the range of incoming edges $(u, v) \in E$ to the node is $[sp_{in}, ep_{in}] = [\bvIN.\select(i, 1) + 1, \bvIN.\select(i+1, 1)]$, with $sp_{in} = 0$ if $i = 0$. The labels of predecessor nodes $u$ are encoded in $\BWT[sp_{in}, ep_{in}]$. Sorting the incoming edges by pairs $(\BWT[j], i)$, where $\BWT[j]$ corresponds to edge $(u, v)$, is equivalent to sorting them by strings $G.\glabel(u) \cdot G.\gkey(v)$. As multiple edges may have the same sort keys, our sorting algorithm must be stable. We can achieve the desired sorting order by using \LFmapping: $j \mapsto \LF(j)$.
+If node $v' \in V'$ has lexicographic rank $i$, the range of incoming edges $(u', v') \in E'$ to the node is $[sp_{in}, ep_{in}] = [\bvIN.\select(i, 1) + 1, \bvIN.\select(i+1, 1)]$. The labels of predecessor nodes $u'$ are encoded in $\BWT[sp_{in}, ep_{in}]$. Sorting the incoming edges by pairs $(\BWT[j], i)$, where $\BWT[j]$ corresponds to edge $(u', v')$, is equivalent to sorting them by strings $G'.\glabel(u') \cdot G'.\gkey(v')$. As multiple edges may have the same sort keys, our sorting algorithm must be stable. We get the desired sorting order by using \LFmapping: $j \mapsto \LF(j)$.
 
-Consider now the outgoing edges. If the lexicographic rank of node $u \in V$ is $i'$, the range of outgoing edges $(u, v) \in E$ is $[sp_{out}, ep_{out}] = [\bvOUT.\select(i', 1) + 1, \bvOUT.\select(i'+1, 1)]$, with $sp_{out} = 0$ if $i' = 0$. The edges are already sorted by keys $G.\gkey(u)$. All outgoing edges from the same node have the same sort key, as there is nothing to distinguish them from one another. Because graph $G$ is a path graph, we know that key $G.\gkey(u)$ prefix-matches string $G.\glabel(u) \cdot G.\gkey(v)$. The sorting orders are therefore compatible. For every $j \in [sp_{in}, ep_{in}]$ for node $v \in V$, having $\LF(j) \in [sp_{out}, ep_{out}]$ for node $u \in V$ implies an edge $(u, v) \in E$. If we sort the incoming edges $(u, v) \in E$ stably by strings $G.\glabel(u) \cdot G.\gkey(v)$, we have $(u, v) < (u', v')$ in that order, if $G.\gkey(u) < G.\gkey(u')$.
+Consider now the outgoing edges. If the lexicographic rank of node $u' \in V'$ is $i'$, the range of outgoing edges $(u', v') \in E'$ is $[sp_{out}, ep_{out}] = [\bvOUT.\select(i', 1) + 1, \bvOUT.\select(i'+1, 1)]$. The edges are already sorted by keys $G'.\gkey(u')$. All outgoing edges from the same node have the same sort key, as there is nothing to distinguish them from one another. Because graph $G'$ is a path graph, we know that key $G'.\gkey(u')$ prefix-matches string $G'.\glabel(u') \cdot G'.\gkey(v')$. The sorting orders are therefore compatible. For every $j \in [sp_{in}, ep_{in}]$ for node $v' \in V'$, having $\LF(j) \in [sp_{out}, ep_{out}]$ for node $u' \in V'$ implies an edge $(u', v') \in E'$. If we sort the incoming edges $(u', v') \in E'$ stably by strings $G'.\glabel(u') \cdot G'.\gkey(v')$, we have $(u'_{1}, v'_{1}) < (u'_{2}, v'_{2})$ in that order, if $G'.\gkey(u'_{1}) < G'.\gkey(u'_{2})$.
 
-We implement query $G.\find(X)$ with backward searching. Let $X \in \patternset$ be a pattern. If $\abs{X} = 0$, query $G.\find(X)$ returns the lexicographic range $[0, \abs{V}-1]$ containing all nodes of the path graph. Now assume that $\abs{X} \ge 1$ and that query $G.\find(X[i+1, \abs{X}-1])$ has returned range $[sp_{i+1}, ep_{i+1}]$. We want to find the lexicographic range corresponding to the union of sets $G.\gpred(v, X[i])$ over nodes $v \in G.\find(X[i+1, \abs{X}-1])$. We map the node range $[sp_{i+1}, ep_{i+1}]$ to range $[sp_{in}, ep_{in}]$ of incoming edges (with $sp_{in} = 0$ if $sp_{i+1} = 0$); the incoming edges to the corresponding range of outgoing edges $[sp_{out}, ep_{out}]$; and the outgoing edges to the range $[sp_{i}, ep_{i}]$ of nodes $G.\find(X[i, \abs{X}-1])$:
+We implement query $G'.\find(X)$ with \emph{backward searching}. Let $X \in \patternset$ be a pattern. If $\abs{X} = 0$, query $G'.\find(X)$ returns the lexicographic range $[0, \abs{V'}-1]$ containing all nodes of the path graph. Now assume that $\abs{X} \ge 1$ and that query $G'.\find(X[i+1, \abs{X}-1])$ has returned range $[sp_{i+1}, ep_{i+1}]$. We want to find the lexicographic range corresponding to the union of sets $G'.\gpred(v', X[i])$ over nodes $v' \in G'.\find(X[i+1, \abs{X}-1])$. We map the node range $[sp_{i+1}, ep_{i+1}]$ to range $[sp_{in}, ep_{in}]$ of incoming edges (with $sp_{in} = 0$ if $sp_{i+1} = 0$); the incoming edges to the corresponding range of outgoing edges $[sp_{out}, ep_{out}]$; and the outgoing edges to the range $[sp_{i}, ep_{i}]$ of nodes $G'.\find(X[i, \abs{X}-1])$:
 \begin{align*}
 [sp_{in}, ep_{in}] & = [\bvIN.\select(sp_{i+1}, 1) + 1, \bvIN.\select(ep_{i+1}+1, 1)]; \\
 [sp_{out}, ep_{out}] & = [\LF(sp_{in}, X[i]), \LF(ep_{in}+1, out) - 1];\ \textrm{and} \\
 [sp_{i}, ep_{i}] & = [\bvOUT.\rank(sp_{out}, 1), \bvOUT.\rank(ep_{out}, 1)].
 \end{align*}
+We can think this as a generalization of \LFmapping: $[sp_{i}, ep_{i}] = G'.\LF([sp_{i+1}, ep_{i}], X[i])$.
 
-% FIXME from here
-Samples
-- sampling conditions
-- sample encoding
-- locate()
+Query $G'.\locate(X)$ requires retrieving the values $G'.\gvalue(v')$ for nodes $v' \in V'$ in the lexicographic range returned by query $G'.\find(X)$. Storing the values explicitly for all nodes would make the path index several times larger than the graph structure described above. To avoid that, GCSA uses a similar \emph{sampling} scheme to the one used in FM-indexes. We assume that the nodes $v \in V$ of the input graph $G = (V, E)$ are integers, and that the node numbering has been chosen with our sampling scheme in mind. If $(u, v) \in E$ is the only outgoing edge from node $u$ and the only incoming edge to node $v$, it should be that $v = u+1$.
 
-Two encodings: general and the one for $\abs{G.\gpred(v, c)} \le 1$. Difference: no general LF in the latter one, must go forward for samples.
+Let $v' \in V'$ be a node of the path graph. We sample the values $G'.\gvalue(v')$, (a) if there are multiple incoming edges to node $v'$; (b) if $v'$ is the source node $s$; or (c) if $(u', v') \in E'$ is the only incoming edge to node $v'$, and $G'.\gvalue(v') \ne \set{u+1 \mid u \in G'.\gvalue(u')}$. We may also sample the values for some nodes on long unary paths for performance reasons. If the values $G'.\gvalue(v')$ has not been sampled, we can derive them from sampled values by following the incoming edges backwards.
 
+Following edges backwards is based on a similar generalization of \LFmapping{} as backward searching. If node $v' \in V'$ has lexicographic rank $i$, the lexicographic rank of its only predecessor is
+$G'.\LF(i) = \bvOUT.\rank(\LF(\bvIN.\select(i, 1) + 1), 1)$. If lexicographic rank $G'.\LF^{k}(i)$ corresponding to node $w' \in V'$ is the first sampled node we encounter, we know that $G'.\gvalue(v') = \set{w+k \mid w \in G'.\gvalue(w')}$.
+
+Let $B_{S}[0, \abs{V'}-1]$ be a bitvector marking the sampled nodes. If we have sampled the values for the node $v' \in V'$ with lexicographic rank $i$, we mark that as $B_{S} = 1$. We can then determine the rank of node $v'$ among the sampled nodes as $j = B_{S}.\rank(i, 1)$. For each sampled node $v' \in V$, we store the size of the value set $\abs{G'.\gvalue(v')}$ in another bitvector $B_{V}$, using the same encoding as in bitvectors $\bvIN$ and $\bvOUT$. We then store the samples in array $V_{S}$ in the same order, using $\log \abs{V}$ bits each. The sampled values for node $v'$ with rank $j$ among the sampled nodes can be found at $V_{S}[B_{V}.\select(j, 1) + 1, B_{V}.\select(j+1, 1)]$.
+
+If $G'.\gpred(v', c) \le 1$ for all nodes $v' \in V'$ and characters $c \in \Sigma$, such as in de~Bruijn graphs and maximally pruned de~Bruijn graphs, we can use a simplified encoding for the graph \cite{Siren2014}. We replace sequences $\BWT$ and $\bvIN$ with \emph{indicator bitvectors} $B_{c}[0, \abs{V'}-1]$ for all $c \in \Sigma$. If node $v' \in V$ has a predecessor with label $c \in \Sigma$, we set$B_{c}[i] = 1$. Backward searching is now simpler: $[sp_{i}, ep_{i}] = [G'.\LF(sp_{i+1}, c), G'.\LF(ep_{i+1}+1, c) - 1]$, where
+$$
+G'.\LF(i, c) = \bvOUT.\rank(C[c] + B_{c}.\rank(i, 1), 1).
+$$
+We replace two expensive queries ($\bvIN.\select()$ and $\BWT.\rank()$) with a single $\rank$ query on a bitvector. On the other hand, computing $G'.\LF()$ is now more expensive, as we have to look at $B_{c}[i]$ for all $c \in \Sigma$ to determine $\BWT[i]$. The alternative is to follow outgoing edges when searching for samples; this requires two $\select$ queries per edge.
 
 \subsection{Index construction}
+
+Prefix-doubling; k to 2k, 4k, 8k. original GCSA did not have to store labels, as it built an unlimited order graph
+
+prune, extend, full prune, merge
+
+paths: start, extension, predecessors, key; encode key as a sequence of kmer ranks
+
+prune: only if start node is the same; full prune as before
+
+extend: join when extension matches start; do not extend if already pruned; if right side is pruned, the extended path is also pruned
+
+merge: invariant: path labels are the key set of a pruned de Bruijn graph; full pruning produces a maximally pruned graph
+
+disk-based: each chromosome in a separate file sorted by keys; extend by file; prune/merge essentially merge sorted lists
+
+edges and construction: use \LFmapping{} in GCSA of the de~Bruijn graph of the kmers to determine the rank sequence of $c \cdot G'.\gkey(v')$; need $\sigma + 1$ sequential pointers in each file
 
 \subsection{Extensions}
 
