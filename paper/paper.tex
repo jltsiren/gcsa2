@@ -117,7 +117,7 @@ This paper contains several lemmas describing the properties of generalizations 
 
 \subsection{Strings}\label{sect:strings}
 
-A \emph{string} $S[0, n-1] = s_{0} \dotsm s_{n-1}$ of length $\abs{S} = n$ is a sequence of \emph{characters} over an \emph{alphabet} $\Sigma = \set{0, \dotsc, \sigma - 1}$. For indexing purposes, we often consider \emph{text} strings $T[0, n-1]$ terminated by an \emph{endmarker} $T[n-1] = \$ = 0$ not found anywhere else in the text. \emph{Binary} sequences are strings over the alphabet $\set{0, 1}$. A \emph{substring} of string $S$ is a sequence of the form $S[i, j] = s_{i} \dotsm s_{j}$. We call substrings of the type $S[0, j]$ and $S[i, n-1]$ \emph{prefixes} and \emph{suffixes}, respectively, and substrings of length $k$ as \kmer{k}s. We say that string $S'$ is a substring of string collection $\mathcal{S}$, if there is a string $S \in \mathcal{S}$ such that $S'$ is a substring of $S$.
+A \emph{string} $S[0, n-1] = s_{0} \dotsm s_{n-1}$ of length $\abs{S} = n$ is a sequence of \emph{characters} over an \emph{alphabet} $\Sigma = \set{0, \dotsc, \sigma - 1}$. For indexing purposes, we often consider \emph{text} strings $T[0, n-1]$ terminated by an \emph{endmarker} $T[n-1] = \$ = 0$ not found anywhere else in the text. \emph{Binary} sequences are strings over the alphabet $\set{0, 1}$. A \emph{substring} of string $S$ is a sequence of the form $S[i, j] = s_{i} \dotsm s_{j}$. We call substrings of the type $S[0, j]$ and $S[i, n-1]$ \emph{prefixes} and \emph{suffixes}, respectively, and substrings of length $k$ as \kmer{k}s. Substring $S[i, j]$ is a \emph{proper} substring of string $S$, if $S \ne S[i, j]$. We say that string $S'$ is a substring of string collection $\mathcal{S}$, if there is a string $S \in \mathcal{S}$ such that $S'$ is a substring of $S$.
 
 In some cases, we also consider potentially \emph{infinite} character sequences $S = (s_{i})_{i \in Z}$, where set $Z$ is a contiguous infinite subset of $\mathbb{Z}$. The notion of substrings generalizes for such infinite sequences in a natural way. We say that a substring of an infinite sequence $S$ is \emph{left-infinite} if it extends infinitely to the left, and \emph{right-infinite} if it extends infinitely to the right. A substring of a finite or infinite sequence $S$ is \emph{left-maximal} if it is left-infinite or a prefix; \emph{right-maximal} if it is right-infinite or a suffix; and \emph{maximal} if it is both left-maximal and right-maximal.
 
@@ -245,7 +245,13 @@ Let $G' = (V', E')$ be a path graph of graph $G = (V, E)$, and let $X \in \patte
 \end{lemma}
 
 \begin{lemma}[Context length]\label{lemma:pg-context}
-Let $G' = (V', E')$ be a path graph, and let $X \in \patternset$ be a pattern. The set $G'.find(X)$ consists of all nodes $v' \in V'$ such that $X[0, m-1]$ is a prefix of $G'.\gkey(v')$, for a context length $m$.
+Let $G' = (V', E')$ be a path graph, and let $X \in \patternset$ be a pattern. The set $G'.find(X)$ consists of all nodes $v' \in V'$ such that $X[0, m-1]$ is a prefix of $G'.\gkey(v')$, for a context length $m$, which depends on the graph and the pattern.
+\end{lemma}
+
+\begin{lemma}[Short keys]\label{lemma:pg-keys}
+Let $G' = (V', E')$ be a path graph, where $\abs{G'.\gkey(u')} \le \abs{G'.\gkey(v')}$ for all edges $(u', v') \in E'$. Then
+(a) $\abs{G'.\gpred(v', c)} \le 1$ for all nodes $v' \in V'$ and characters $c \in \Sigma$; and
+(b) key $G'.\gkey(v')$ prefix-matches pattern $X \in \patternset$ for all nodes $v' \in G'.\find(X)$.
 \end{lemma}
 
 When used as an index, a path graph will not produce false negatives. On the other hand, we may encounter false positives already at path length $k'+1$, where $k'$ is the length of the shortest key in the key set. This is not very convenient for a path index. In the next section, we consider a class of path graphs that can be proven to be equivalent to de~Bruijn graphs.
@@ -263,33 +269,28 @@ Let $G$ be a graph, and let $G'$ be an \orderk{k} path graph of $G$. Path graph 
 \end{definition}
 
 \begin{lemma}[No short false positives]\label{lemma:dbg-fp}
-Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph of $G$, and let $X \in \patternset$ be a pattern with $1 \le \abs{X} \le k$. Then
-(a) $G'.\locate(X)$ is a set of start nodes $v_{0} \in V$ of paths $P$ matching the pattern in graph $G$; and
-(b) if $G'$ is a de~Bruijn graph, $X$ is prefix of $G'.\gkey(v'_{0})$ for all $v'_{0} \in G'.\find(X)$.
+Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph of $G$, and let $X \in \patternset$ be a pattern with $1 \le \abs{X} \le k$. Then $G'.\locate(X)$ is a set of start nodes $v\in V$ of paths $P$ matching the pattern in graph $G$.
 \end{lemma}
 
 \begin{lemma}[Pruning]\label{lemma:dbg-prune}
-Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be the \orderk{k} pruned de~Bruijn graph of $G$ with key set $\mathcal{K}$, let $K \in \Sigma^{\ast}$ be a string of length $\abs{K} > 0$, and let $V'_{K}$ be the set of nodes $v \in V'$ having string $K$ as a prefix of $G'.\gkey(v)$.
-If $\abs{V'_{K}} > 1$ and $G'.\gvalue(u') = G'.\gvalue(v')$ for all $u, v \in V'_{K}$, the path graph with key set $(\mathcal{K} \cup \set{K}) \setminus V'_{K}$ is an \orderk{k} pruned de~Bruijn graph of $G$.
+Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be the \orderk{k} pruned de~Bruijn graph of $G$ with key set $\mathcal{K}$, let $K \in \Sigma^{\ast}$ be a string of length $\abs{K} > 0$, and let $V'_{K}$ be the set of nodes $v \in V'$ having string $K$ as a proper prefix of $G'.\gkey(v)$.
+If $\abs{V'_{K}} > 0$ and $G'.\gvalue(u') = G'.\gvalue(v')$ for all $u, v \in V'_{K}$, the path graph with key set $(\mathcal{K} \setminus V'_{K}) \cup \set{K}$ is an \orderk{k} pruned de~Bruijn graph of $G$.
 \end{lemma}
 
 We can compress a de~Bruijn graph structurally by repeatedly merging sets of nodes sharing a common prefix of their keys, as long as the conditions of Lemma~\ref{lemma:dbg-prune} hold. Let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph, and let $G'' = (V'', E'')$ be the same graph after further pruning. Each node $v'' \in V''$ is an \emph{equivalence class} of nodes $V'(v'') \subseteq V'$ corresponding to a shared prefix $G''.\gkey(v'')$ of keys. For all $v' \in V'(v'')$, we have $G'.\gvalue(v') = G''.\gvalue(v'')$.
 
 \begin{definition}[Maximally pruned de~Bruijn graph]
-Let $G'$ be a a pruned de~Bruijn graph of graph $G$ with key set $\mathcal{K}$. We say that $G'$ is \emph{maximally pruned}, if we cannot prune it using Lemma~\ref{lemma:dbg-prune}, and the keys in $\mathcal{K}$ cannot be made shorter without changing the graph structure.
+Let $G'$ be a a pruned de~Bruijn graph of graph $G$ with key set $\mathcal{K}$. We say that $G'$ is \emph{maximally pruned}, if we cannot prune it using Lemma~\ref{lemma:dbg-prune} any further.
 \end{definition}
 
 \begin{lemma}[Maximal pruning]\label{lemma:dbg-maximal}
-Let $G' = (V', E')$ be a maximally pruned de~Bruijn graph of graph $G = (V, E)$. Then
-(a) $\abs{G'.\gpred(v', c)} \le 1$ for all nodes $v' \in V'$ and characters $c \in \Sigma$;
-(b) $\abs{G'.\gkey(u')} \le \abs{G'.\gkey(v')}+1$ for all edges $(u', v') \in E'$; and
-(c) key $G'.\gkey(v')$ prefix-matches pattern $X \in \patternset$ for all nodes $v' \in G'.\find(X)$.
+Let $G' = (V', E')$ be a maximally pruned de~Bruijn graph of graph $G = (V, E)$. Then $\abs{G'.\gkey(u')} \le \abs{G'.\gkey(v')}+1$ for all edges $(u', v') \in E'$.
 \end{lemma}
 
 
 \section{GCSA2}
 
-The path graphs are essentially equivalent to the prefix-sorted automata, which were used in the original paper on GCSA \cite{Siren2014}. As many of the technical details are different, we now take a look at how a GCSA of a path graph works. We also extend GCSA with techniques based on suffix trees. Appendix~\ref{appendix:construction} describes the construction algorithm used with GCSA2. While the algorithm is a similar prefix-doubling algorithm as in the original GCSA, it keeps the paths and graphs on disk to avoid excessive memory usage.
+Path graphs are essentially equivalent to the prefix-sorted automata used in the original paper on GCSA \cite{Siren2014}. As many of the technical details are different, we now take a look at how a GCSA of a path graph works. We also extend GCSA with techniques based on suffix trees. Appendix~\ref{appendix:construction} describes a construction algorithm that builds a GCSA for a maximally pruned \orderk{2k}, \orderk{4k}, or \orderk{8k} de~Bruijn graph from a set of paths of length $k$. While the algorithm is a similar prefix-doubling algorithm as in the original GCSA, it keeps the paths and graphs on disk to avoid excessive memory usage.
 
 \subsection{GCSA for path graphs}
 
@@ -325,7 +326,7 @@ If $G'.\gpred(v', c) \le 1$ for all nodes $v' \in V'$ and characters $c \in \Sig
 $$
 G'.\LF(i, c) = \bvOUT.\rank(C[c] + B_{c}.\rank(i, 1), 1).
 $$
-We replace two expensive queries ($\bvIN.\select()$ and $\BWT.\rank()$) with a single $\rank$ query on a bitvector. On the other hand, computing $G'.\LF()$ is now more expensive, as we have to look at $B_{c}[i]$ for all $c \in \Sigma$ to determine $\BWT[i]$. The alternative is to follow outgoing edges when searching for samples; this requires two $\select$ queries per edge.
+We replace two expensive queries ($\bvIN.\select()$ and $\BWT.\rank()$) with a single $\rank$ query on a bitvector. On the other hand, computing $G'.\LF(i)$ is now more expensive, as we have to look at $B_{c}[i]$ for all $c \in \Sigma$ to determine $\BWT[i]$. The alternative is to follow outgoing edges when searching for samples; this requires two $\select$ queries per edge.
 
 \subsection{Extensions}
 
@@ -439,12 +440,16 @@ If $\abs{X} \le 1$, the statement is true by definition for $m = \abs{X}$. Now a
 Consider the set $M_{i} = \bigcup_{v' \in M_{i+1}} G'.\gpred(v', X[i])$, and assume that it is nonempty. Edge $(u', v') \in E'$ exists if and only if key $G'.\gkey(u')$ prefix-matches string $G'.\glabel(u') \cdot G'.\gkey(v')$. Hence $u' \in M_{i}$ if and only if key $G'.\gkey(u')$ prefix-matches string $X[i, i+m]$. If $\abs{M_{i}} > 1$, string $X[i, i+m]$ is a proper prefix of key $G'.\gkey(u')$ for all nodes $u' \in M_{i}$ due to the prefix-free property, and we can continue with context length $m+1$. Otherwise the context length becomes $\min(m+1, \abs{G'.\gkey(u')})$ for the only node $u' \in M_{i}$.
 \end{proof}
 
+\begin{proof}[Proof of Lemma~\ref{lemma:pg-keys} (Short keys)]
+(a) If node $v'$ has multiple predecessors with label $c$, the keys of the predecessors must be longer than string $c \cdot G'.\gkey(v')$, as the key set is prefix-free.
+
+(b) By the construction in the proof of Lemma~\ref{lemma:pg-context}, the context length for pattern $X$ in graph $G'$ is $\min(\abs{X}, \abs{G'.\gkey(v')})$.
+\end{proof}
+
 \begin{proof}[Proof of Lemma~\ref{lemma:dbg-fp} (No short false positives)]
-If (a) holds for de~Bruijn graphs, it also holds for pruned de~Bruijn graphs. From now on, let $G'$ be a de~Bruijn graph, and let $\mathcal(S)$ be the \kcollection{k} used for building graph $G'$.
+We may assume without loss of generality that graph $G'$ is a de~Bruijn graph.
 
-(b) If $\abs{X} = 1$, the statement is true by definition. Now let $\abs{X} \ge 2$, and let $P' = v'_{0} \dotsm v'_{\abs{X}}$ be a path matching $X$ in graph $G'$. Every edge $(v'_{i}, v'_{i+1}) \in E'$ corresponds to a substring $S_{i}[j, j+k] = X[i] \cdot G'.\gkey(v'_{i+1})$ in $\mathcal{S}$, and the substring has $G'.\gkey(v'_{i})$ as a prefix. By induction from $\abs{X}-2$ to $0$, substring $S_{i}[j, j+k]$ has $X[i, \abs{X}-1]$ as a prefix.
-
-(a) Now let $S[i, i+k-1] = G'.\gkey(v'_{0})$ be a substring of $\mathcal{S}$, where $v'_{0} \in G'.\find(X)$. Every node $v \in G'.\gvalue(v'_{0})$ is the node $\mathcal{S}.\gnode(S, i)$ for one of such substrings. By (b), $S[i, i+\abs{X}-1] = X$, which corresponds to a path $P$ matching $X$ in graph $G$, with $\mathcal{S}.\gnode(S, i)$ as the start node.
+Let $v' \in G'.\find(X)$ be a node. By Lemma~\ref{lemma:pg-keys}, pattern $X$ prefix-matches key $G'.\gkey(v')$. For every node $v \in G'.\gvalue(v')$, there is a substring $S[i, i+k-1] = G'.\gkey(v'_{0})$ in the \kcollection{k} $\mathcal{S}$ used for building graph $G'$, with $\mathcal{S}.\gnode(S, i) = v$. Prefix $S[i, i+\abs{X}-1] = X$ of the substring corresponds to a path with label $X$ starting from node $v$ in graph $G$.
 \end{proof}
 
 \begin{proof}[Proof of Lemma~\ref{lemma:dbg-prune} (Pruning)]
@@ -458,11 +463,13 @@ Given $v_{0} \in G_{d}.\find(X)$, we can build a path $P'' = v''_{0} \dotsm v''_
 \end{proof}
 
 \begin{proof}[Proof of Lemma~\ref{lemma:dbg-maximal} (Maximal pruning)]
-(a) For each node $u' \in G'.\gpred(v', c)$, the key $G'.\gkey(u')$ prefix-matches string $c \cdot G.\gkey(v')$. If $\abs{G'.\gpred(v', c)} > 1$, the keys must be longer than string $c \cdot G'.\gkey(v')$ or they will prefix-match one another. In that case, there cannot be an edge $(u', w')$ to another node $w' \ne v'$, as the keys $G'.\gkey(v')$ and $G'.\gkey(w')$ would prefix-match. Hence $G'.\gvalue(u')$ must be the union of sets $G.\gpred(v, c)$ over nodes $v \in G'.\gvalue(v')$, and we can merge the set $G'.\gpred(v', c)$ into a single node. Because graph $G'$ is already maximally pruned, it must be that $\abs{G'.\gpred(v', c)} \le 1$.
+Let $G_{d} = (V_{d}, E_{d})$ the de~Bruijn graph of graph $G$ with the same order $k$ as graph $G'$, and let $\mathcal{S}$ be the \kcollection{k} used for building the path graphs. If $v' \in V'$ is a node, then $G_{d}.\gvalue(v) = G'.\gvalue(v')$ for all nodes $v \in V_{d}(v')$.
 
-(b) Assume that $\abs{G'.\gkey(u')} > \abs{G'.\gkey(v')}+1$. Then key $G'.\gkey(u')$ must have string $G'.\glabel(u') \cdot G'.\gkey(v')$ as a prefix. If there is a substring $S[i,j] = G'.\glabel(u') \cdot G'.\gkey(v')$ in the \kcollection{k} used for building graph $G'$, the key starting at $S[i]$ must belong to a node in $G'.\gpred(v', G'.\glabel(u'))$. By (a), $u'$ is the only such node, and there cannot be an edge $(u', w') \in E'$ to a node $w' \ne v'$. Hence string $G'.\glabel(u') \cdot G'.\gkey(v')$ can also serve as the key of node $u' \in V'$.
+Assume that $\abs{G'.\gkey(u')} > \abs{G'.\gkey(v')}+1$ for an edge $(u', v') \in E'$. Then string $G'.\glabel(u') \cdot G'.\gkey(v')$ must then be a prefix of key $G'.\gkey(u')$. There cannot be edges $(u', w')$ to other nodes $w' \ne v'$, as keys $G'.\gkey(v')$ and $G'.\gkey(w')$ would prefix-match.
 
-(c) If $\abs{X} = 0$, every key prefix-matches the pattern. If $\abs{X} = 1$, set $G'.\find(X)$ is the set of nodes $v' \in V'$ with $G'.\glabel(v') = X[0]$. Now assume that $\abs{X} \ge 2$ and that $G'.\gkey(v')$ prefix-matches $X[1, \abs{X}-1]$ for all $v' \in G'.\find(X[1, \abs{X}-1])$. By (a), there is at most one node $u' \in G'.\gpred(v', X[0])$ for each such node $v'$. By (b), key $G'.\gkey(u')$ is a prefix of $X[0] \cdot G'.\gkey(v')$. Because $X[1, \abs{X}-1]$ prefix-matches $G'.\gkey(v')$, pattern $X$ prefix-matches string $X[0] \cdot G'.\gkey(v')$, and hence the pattern must prefix-match key $G'.\gkey(u')$.
+Let $S[i, i+\abs{G'.\gkey(u')}-1] = G'.\gkey(u')$ be a substring in the \kcollection{k}. Because graph $G'$ is a pruned de~Bruijn graph, the set of nodes $\mathcal{S}.\gnode(S, i+1)$ over all occurrences of substring $G'.\gkey(u')$ in the \kcollection{k} is $G'.\gvalue(v')$. As node $u'$ has no other successors, set $G'.\gvalue(u')$ is the union of sets $G.\gpred(v, G'.\glabel(u'))$ for all nodes $v \in G'.\gvalue(v')$.
+
+The above is true for all nodes $x' \in G'.\gpred(v', G'.\glabel(u'))$. Hence we can prune graph $G'$ further using string $G'.\glabel(u') \cdot G'.\gkey(v')$ as the new key in Lemma~\ref{lemma:dbg-prune}.
 \end{proof}
 
 
