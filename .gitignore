@@ -1,11 +1,16 @@
 *.o
 *.a
+
 build_gcsa
-convert_gcsa
 convert_graph
 count_kmers
 gcsa_format
 query_gcsa
+
+csa_builder
+csa_query
+
+convert_gcsa
 
 paper.pdf
 gcsa2_text_indexes.pdf

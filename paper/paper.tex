@@ -189,7 +189,7 @@ Let $\mathcal{S}$ be a \kcollection{k} over alphabet $\Sigma$. The \orderk{k} \e
 We use the node corresponding to $\#^{k}$ as the source node $s$ and the node corresponding to $\$^{k}$ as the sink node $t$, adding the technical edge $(t, s)$ in the usual way.
 \end{definition}
 
-De~Bruijn graphs have several properties that make them useful for indexing purposes. Node keys are prefixes of the labels of all paths of length at least $k$ starting from the node. This makes it possible to sort the nodes unambiguosly by path labels. Every substring of the \kcollection{k} is the label of a path in the de~Bruijn graph, and every path label of length at most $k+1$ is a substring of the collection. In Section~\ref{sect:path-indexes}, we develop an index structure based on a generalization of de~Bruijn graphs.
+De~Bruijn graphs have several properties that make them useful for indexing purposes. Node keys are prefixes of the labels of all paths of length at least $k$ starting from the node. This makes it possible to sort the nodes unambiguously by path labels. Every substring of the \kcollection{k} is the label of a path in the de~Bruijn graph, and every path label of length at most $k+1$ is a substring of the collection. In Section~\ref{sect:path-indexes}, we develop an index structure based on a generalization of de~Bruijn graphs.
 
 \subsection{Generalized indexes}
 
@@ -351,7 +351,7 @@ The \emph{LCP interval tree} \cite{Abouelhoda2004} is an alternate representatio
 
 If we build an $x$\nobreakdash-ary tree over the LCP array of graph $G'$, with each internal node storing the minimum LCP value in the corresponding range of the LCP array, we can support the required queries in $\Oh{x + \log_{x} \abs{V'}}$ time using $\frac{x}{x-1} \abs{V'} \log k$ bits of space. Because nodes of a path graph may match patterns that do not prefix-match their keys, we have to be careful with the suffix tree operations we use. By Lemma~\ref{lemma:pg-context}, the ranges returned by $\find$ queries always correspond to prefixes of the pattern. Hence we can safely use $\parent$ queries with such ranges.
 
-BWA-MEM \cite{Li2013} aligns reads to reference genomes by finding \emph{maximal exact matches} between the read and the reference. It stores both the reference and its reverse complement are stored in the same index, which allows it to extend the pattern in both directions. GCSA cannot use similar techniques, as we cannot guarantee that the length of the lexicographic range matching pattern $X$ is the same as the length of the range matching its reverse complement $\revcomp{X}$ (that the key set contains key $K$ if and only if it contains the reverse complement $\revcomp{K}$). Instead of using bidirectional BWT, we search for maximal exact matches using \LFmapping{} and the $\parent$ operation \cite{Ohlebusch2010a}. We have implemented a GCSA-based read aligner using that algoritm in vg \cite{Garrison2014-2016}.
+BWA-MEM \cite{Li2013} aligns reads to reference genomes by finding \emph{maximal exact matches} between the read and the reference. It stores both the reference and its reverse complement are stored in the same index, which allows it to extend the pattern in both directions. GCSA cannot use similar techniques, as we cannot guarantee that the length of the lexicographic range matching pattern $X$ is the same as the length of the range matching its reverse complement $\revcomp{X}$ (that the key set contains key $K$ if and only if it contains the reverse complement $\revcomp{K}$). Instead of using bidirectional BWT, we search for maximal exact matches using \LFmapping{} and the $\parent$ operation \cite{Ohlebusch2010a}. We have implemented a GCSA-based read aligner using that algorithm in vg \cite{Garrison2014-2016}.
 
 In an ordinary FM\nobreakdash-index, the length of a lexicographic range tells the number of distinct pointers in the range. In GCSA, each node $v' \in V'$ may have multiple values (pointers), and each value may occur in multiple nodes. Determining the  number of distinct start nodes with a $\locate$ query can be slow. Hence we need additional structures to support efficient \emph{counting queries}. The problem is similar to determining the \emph{document frequency} of a pattern. Given a collection of documents, the document frequency of pattern $X$ is the number of distinct documents that contain occurrences of the pattern. We can augment an FM\nobreakdash-index with a bitvector of length $2n-d$, where $n$ is the total size of the document collection and $d$ is the number of documents, to compute document frequencies efficiently \cite{Sadakane2007a}.
 
@@ -405,7 +405,7 @@ We extracted \kmer{16}s, \kmer{32}s, and \kmer{64}s from the vg graphs using \te
 \hline
 16 & 351584 & 347453 & 1829M &  872M & 18.1 \textmu{}s & 0.40 \textmu{}s & 0.94 \textmu{}s & 26.2 ms \\
 32 & 351555 & 333258 & 52.6M & 34.3M & 37.9 \textmu{}s & 0.28 \textmu{}s & 0.43 \textmu{}s & 468 \textmu{}s \\
-64 & 351567 & 326101 & 0.33M & 1.35M &  142 \textmu{}s & 0.34 \textmu{}s & 0.57 \textmu{}s & 12.4 \textmu{}s \\
+64 & 351567 & 326101 & 0.33M & 1.35M & 88.9 \textmu{}s & 0.36 \textmu{}s & 0.42 \textmu{}s & 10.3 \textmu{}s \\
 \hline
 \end{tabular}
 \end{center}

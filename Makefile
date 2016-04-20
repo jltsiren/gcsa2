@@ -21,9 +21,11 @@ OBJS=$(SOURCES:.cpp=.o)
 LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
 LIBRARY=libgcsa2.a
 PROGRAMS=build_gcsa convert_graph count_kmers gcsa_format query_gcsa
+CSA_BENCHMARK=csa_builder csa_query
 OBSOLETE=convert_gcsa
 
 all: $(LIBRARY) $(PROGRAMS)
+csa: $(CSA_BENCHMARK)
 
 %.o:%.cpp $(HEADERS)
 	$(MY_CXX) $(CXX_FLAGS) -c $<
@@ -46,5 +48,11 @@ count_kmers:count_kmers.o $(LIBRARY)
 query_gcsa:query_gcsa.o $(LIBRARY)
 	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
+csa_builder:csa_builder.o $(LIBRARY)
+	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
+
+csa_query:csa_query.o $(LIBRARY)
+	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
+
 clean:
-	rm -f $(PROGRAMS) $(OBJS) $(LIBRARY) $(OBSOLETE)
+	rm -f $(PROGRAMS) $(OBJS) $(LIBRARY) $(CSA_BENCHMARK) $(OBSOLETE)
