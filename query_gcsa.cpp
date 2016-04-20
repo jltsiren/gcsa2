@@ -146,7 +146,7 @@ main(int argc, char** argv)
     printTime("locate()", ranges.size(), seconds);
     printHeader("locate()");
     std::cout << total << " occurrences (" <<
-              (total / seconds) << " / second)" << std::endl;
+              inMicroseconds(seconds / total) << " µs/occurrence)" << std::endl;
     std::cout << std::endl;
   }
 
