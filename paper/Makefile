@@ -1,23 +1,33 @@
 SOURCES=$(wildcard *.tex)
+FIGURES=gcsa2_text_indexes.pdf gcsa2_graph_dbg.pdf gcsa2_pruned_index.pdf
 
 all: paper.pdf
 
-paper.pdf: cc-by.pdf lipics-logo-bw.pdf paper.bbl $(SOURCES)
+paper.pdf: cc-by.pdf lipics-logo-bw.pdf paper.bbl $(FIGURES) $(SOURCES)
 	pdflatex paper
 	pdflatex paper
 
-force: cc-by.pdf lipics-logo-bw.pdf paper.bbl $(SOURCES)
+force: cc-by.pdf lipics-logo-bw.pdf paper.bbl $(FIGURES) $(SOURCES)
 	rm -f paper.pdf
 	pdflatex paper
 	pdflatex paper
 
-bib:
+bib: $(FIGURES)
 	pdflatex paper
 	bibtex paper
 
-paper.bbl: paper.bib
+paper.bbl: $(FIGURES) paper.bib
 	pdflatex paper
 	bibtex paper
+
+gcsa2_text_indexes.pdf: gcsa2_text_indexes.ipe
+	ipetoipe -pdf $<
+
+gcsa2_graph_dbg.pdf: gcsa2_graph_dbg.ipe
+	ipetoipe -pdf $<
+
+gcsa2_pruned_index.pdf: gcsa2_pruned_index.ipe
+	ipetoipe -pdf $<
 
 clean:
-	rm -f *.aux *.bak *.bbl *.blg *.log *.out *.vtc paper.pdf
+	rm -f *.aux *.bak *.bbl *.blg *.log *.out *.vtc paper.pdf $(FIGURES)

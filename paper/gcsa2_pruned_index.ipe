@@ -1,0 +1,1082 @@
+<?xml version="1.0"?>
+<!DOCTYPE ipe SYSTEM "ipe.dtd">
+<ipe version="70107" creator="Ipe 7.1.8">
+<info created="D:20160420105900" modified="D:20160420161547"/>
+<preamble>\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{amssymb}
+\usepackage{microtype}
+
+% DNA
+\newcommand{\dnaseq}[1]{\ensuremath{\mathtt{#1}}}
+\newcommand{\baseA}{\dnaseq{A}}
+\newcommand{\baseC}{\dnaseq{C}}
+\newcommand{\baseG}{\dnaseq{G}}
+\newcommand{\baseT}{\dnaseq{T}}
+\newcommand{\baseN}{\dnaseq{N}}
+\newcommand{\dnacomp}[1]{\ensuremath{\overline{#1}}}
+\newcommand{\revcomp}[1]{\ensuremath{\overleftarrow{#1}}}
+
+% Queries
+\newcommand{\rank}{\ensuremath{\mathsf{rank}}}
+\newcommand{\select}{\ensuremath{\mathsf{select}}}
+\newcommand{\LF}{\ensuremath{\mathsf{LF}}}
+\newcommand{\find}{\ensuremath{\mathsf{find}}}
+\newcommand{\locate}{\ensuremath{\mathsf{locate}}}
+\newcommand{\parent}{\ensuremath{\mathsf{parent}}}
+\newcommand{\countq}{\ensuremath{\mathsf{count}}}
+
+% Graphs
+\newcommand{\gindegree}{\ensuremath{\mathsf{in}}}
+\newcommand{\goutdegree}{\ensuremath{\mathsf{out}}}
+\newcommand{\glabel}{\ensuremath{\mathsf{label}}}
+\newcommand{\gpred}{\ensuremath{\mathsf{pred}}}
+\newcommand{\gkey}{\ensuremath{\mathsf{key}}}
+\newcommand{\gvalue}{\ensuremath{\mathsf{value}}}
+\newcommand{\gnode}{\ensuremath{\mathsf{node}}}
+\newcommand{\gext}{\ensuremath{\mathsf{ext}}}
+
+% Structures
+\newcommand{\SA}{\ensuremath{\mathsf{SA}}}
+\newcommand{\BWT}{\ensuremath{\mathsf{BWT}}}
+\newcommand{\Carray}{\ensuremath{\mathsf{C}}}
+\newcommand{\LCP}{\ensuremath{\mathsf{LCP}}}
+\newcommand{\bvIN}{\ensuremath{\mathsf{IN}}}
+\newcommand{\bvOUT}{\ensuremath{\mathsf{OUT}}}</preamble>
+<ipestyle name="basic">
+<symbol name="arrow/arc(spx)">
+<path stroke="sym-stroke" fill="sym-stroke" pen="sym-pen">
+0 0 m
+-1 0.333 l
+-1 -0.333 l
+h
+</path>
+</symbol>
+<symbol name="arrow/farc(spx)">
+<path stroke="sym-stroke" fill="white" pen="sym-pen">
+0 0 m
+-1 0.333 l
+-1 -0.333 l
+h
+</path>
+</symbol>
+<symbol name="arrow/ptarc(spx)">
+<path stroke="sym-stroke" fill="sym-stroke" pen="sym-pen">
+0 0 m
+-1 0.333 l
+-0.8 0 l
+-1 -0.333 l
+h
+</path>
+</symbol>
+<symbol name="arrow/fptarc(spx)">
+<path stroke="sym-stroke" fill="white" pen="sym-pen">
+0 0 m
+-1 0.333 l
+-0.8 0 l
+-1 -0.333 l
+h
+</path>
+</symbol>
+<symbol name="mark/circle(sx)" transformations="translations">
+<path fill="sym-stroke">
+0.6 0 0 0.6 0 0 e
+0.4 0 0 0.4 0 0 e
+</path>
+</symbol>
+<symbol name="mark/disk(sx)" transformations="translations">
+<path fill="sym-stroke">
+0.6 0 0 0.6 0 0 e
+</path>
+</symbol>
+<symbol name="mark/fdisk(sfx)" transformations="translations">
+<group>
+<path fill="sym-fill">
+0.5 0 0 0.5 0 0 e
+</path>
+<path fill="sym-stroke" fillrule="eofill">
+0.6 0 0 0.6 0 0 e
+0.4 0 0 0.4 0 0 e
+</path>
+</group>
+</symbol>
+<symbol name="mark/box(sx)" transformations="translations">
+<path fill="sym-stroke" fillrule="eofill">
+-0.6 -0.6 m
+0.6 -0.6 l
+0.6 0.6 l
+-0.6 0.6 l
+h
+-0.4 -0.4 m
+0.4 -0.4 l
+0.4 0.4 l
+-0.4 0.4 l
+h
+</path>
+</symbol>
+<symbol name="mark/square(sx)" transformations="translations">
+<path fill="sym-stroke">
+-0.6 -0.6 m
+0.6 -0.6 l
+0.6 0.6 l
+-0.6 0.6 l
+h
+</path>
+</symbol>
+<symbol name="mark/fsquare(sfx)" transformations="translations">
+<group>
+<path fill="sym-fill">
+-0.5 -0.5 m
+0.5 -0.5 l
+0.5 0.5 l
+-0.5 0.5 l
+h
+</path>
+<path fill="sym-stroke" fillrule="eofill">
+-0.6 -0.6 m
+0.6 -0.6 l
+0.6 0.6 l
+-0.6 0.6 l
+h
+-0.4 -0.4 m
+0.4 -0.4 l
+0.4 0.4 l
+-0.4 0.4 l
+h
+</path>
+</group>
+</symbol>
+<symbol name="mark/cross(sx)" transformations="translations">
+<group>
+<path fill="sym-stroke">
+-0.43 -0.57 m
+0.57 0.43 l
+0.43 0.57 l
+-0.57 -0.43 l
+h
+</path>
+<path fill="sym-stroke">
+-0.43 0.57 m
+0.57 -0.43 l
+0.43 -0.57 l
+-0.57 0.43 l
+h
+</path>
+</group>
+</symbol>
+<symbol name="arrow/fnormal(spx)">
+<path stroke="sym-stroke" fill="white" pen="sym-pen">
+0 0 m
+-1 0.333 l
+-1 -0.333 l
+h
+</path>
+</symbol>
+<symbol name="arrow/pointed(spx)">
+<path stroke="sym-stroke" fill="sym-stroke" pen="sym-pen">
+0 0 m
+-1 0.333 l
+-0.8 0 l
+-1 -0.333 l
+h
+</path>
+</symbol>
+<symbol name="arrow/fpointed(spx)">
+<path stroke="sym-stroke" fill="white" pen="sym-pen">
+0 0 m
+-1 0.333 l
+-0.8 0 l
+-1 -0.333 l
+h
+</path>
+</symbol>
+<symbol name="arrow/linear(spx)">
+<path stroke="sym-stroke" pen="sym-pen">
+-1 0.333 m
+0 0 l
+-1 -0.333 l
+</path>
+</symbol>
+<symbol name="arrow/fdouble(spx)">
+<path stroke="sym-stroke" fill="white" pen="sym-pen">
+0 0 m
+-1 0.333 l
+-1 -0.333 l
+h
+-1 0 m
+-2 0.333 l
+-2 -0.333 l
+h
+</path>
+</symbol>
+<symbol name="arrow/double(spx)">
+<path stroke="sym-stroke" fill="sym-stroke" pen="sym-pen">
+0 0 m
+-1 0.333 l
+-1 -0.333 l
+h
+-1 0 m
+-2 0.333 l
+-2 -0.333 l
+h
+</path>
+</symbol>
+<pen name="heavier" value="0.8"/>
+<pen name="fat" value="1.2"/>
+<pen name="ultrafat" value="2"/>
+<symbolsize name="large" value="5"/>
+<symbolsize name="small" value="2"/>
+<symbolsize name="tiny" value="1.1"/>
+<arrowsize name="large" value="10"/>
+<arrowsize name="small" value="5"/>
+<arrowsize name="tiny" value="3"/>
+<color name="red" value="1 0 0"/>
+<color name="green" value="0 1 0"/>
+<color name="blue" value="0 0 1"/>
+<color name="yellow" value="1 1 0"/>
+<color name="orange" value="1 0.647 0"/>
+<color name="gold" value="1 0.843 0"/>
+<color name="purple" value="0.627 0.125 0.941"/>
+<color name="gray" value="0.745"/>
+<color name="brown" value="0.647 0.165 0.165"/>
+<color name="navy" value="0 0 0.502"/>
+<color name="pink" value="1 0.753 0.796"/>
+<color name="seagreen" value="0.18 0.545 0.341"/>
+<color name="turquoise" value="0.251 0.878 0.816"/>
+<color name="violet" value="0.933 0.51 0.933"/>
+<color name="darkblue" value="0 0 0.545"/>
+<color name="darkcyan" value="0 0.545 0.545"/>
+<color name="darkgray" value="0.663"/>
+<color name="darkgreen" value="0 0.392 0"/>
+<color name="darkmagenta" value="0.545 0 0.545"/>
+<color name="darkorange" value="1 0.549 0"/>
+<color name="darkred" value="0.545 0 0"/>
+<color name="lightblue" value="0.678 0.847 0.902"/>
+<color name="lightcyan" value="0.878 1 1"/>
+<color name="lightgray" value="0.827"/>
+<color name="lightgreen" value="0.565 0.933 0.565"/>
+<color name="lightyellow" value="1 1 0.878"/>
+<dashstyle name="dashed" value="[4] 0"/>
+<dashstyle name="dotted" value="[1 3] 0"/>
+<dashstyle name="dash dotted" value="[4 2 1 2] 0"/>
+<dashstyle name="dash dot dotted" value="[4 2 1 2 1 2] 0"/>
+<textsize name="large" value="\large"/>
+<textsize name="small" value="\small"/>
+<textsize name="tiny" value="\tiny"/>
+<textsize name="Large" value="\Large"/>
+<textsize name="LARGE" value="\LARGE"/>
+<textsize name="huge" value="\huge"/>
+<textsize name="Huge" value="\Huge"/>
+<textsize name="footnote" value="\footnotesize"/>
+<textstyle name="center" begin="\begin{center}" end="\end{center}"/>
+<textstyle name="itemize" begin="\begin{itemize}" end="\end{itemize}"/>
+<textstyle name="item" begin="\begin{itemize}\item{}" end="\end{itemize}"/>
+<gridsize name="4 pts" value="4"/>
+<gridsize name="8 pts (~3 mm)" value="8"/>
+<gridsize name="16 pts (~6 mm)" value="16"/>
+<gridsize name="32 pts (~12 mm)" value="32"/>
+<gridsize name="10 pts (~3.5 mm)" value="10"/>
+<gridsize name="20 pts (~7 mm)" value="20"/>
+<gridsize name="14 pts (~5 mm)" value="14"/>
+<gridsize name="28 pts (~10 mm)" value="28"/>
+<gridsize name="56 pts (~20 mm)" value="56"/>
+<anglesize name="90 deg" value="90"/>
+<anglesize name="60 deg" value="60"/>
+<anglesize name="45 deg" value="45"/>
+<anglesize name="30 deg" value="30"/>
+<anglesize name="22.5 deg" value="22.5"/>
+<tiling name="falling" angle="-60" step="4" width="1"/>
+<tiling name="rising" angle="30" step="4" width="1"/>
+</ipestyle>
+<ipestyle name="gcsa2_pruned_index">
+<layout paper="704 192" origin="0 0" frame="704 192" crop="no"/>
+</ipestyle>
+<page>
+<layer name="alpha"/>
+<view layers="alpha" active="alpha"/>
+<text layer="alpha" matrix="1 0 0 1 -16 24" transformations="translations" pos="36 68" stroke="black" type="label" width="19.635" height="4.81" depth="1.35" halign="center" valign="center">{\scriptsize $\#\#\#$}</text>
+<text matrix="1 0 0 1 -16 16" transformations="translations" pos="36 68" stroke="black" type="label" width="14.733" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $0:2$}</text>
+<text matrix="1 0 0 1 24 24" transformations="translations" pos="36 68" stroke="black" type="label" width="16.795" height="4.81" depth="1.35" halign="center" valign="center">{\scriptsize $\#\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 24 16" transformations="translations" pos="36 68" stroke="black" type="label" width="14.733" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $0:1$}</text>
+<text matrix="1 0 0 1 60 24" transformations="translations" pos="36 68" stroke="black" type="label" width="10.25" height="4.81" depth="1.35" halign="center" valign="center">{\scriptsize $\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 60 16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 124 56" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{CAT}$}</text>
+<text matrix="1 0 0 1 124 48" transformations="translations" pos="36 68" stroke="black" type="label" width="11.669" height="4.5" depth="1.35" halign="center" valign="center">{\scriptsize $2,6$}</text>
+<text matrix="1 0 0 1 124 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{CT}$}</text>
+<text matrix="1 0 0 1 124 -16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $2$}</text>
+<text matrix="1 0 0 1 156 72" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{ATC}$}</text>
+<text matrix="1 0 0 1 156 64" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $3$}</text>
+<text matrix="1 0 0 1 156 40" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{ATG}$}</text>
+<text matrix="1 0 0 1 156 32" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $3$}</text>
+<text matrix="1 0 0 1 156 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TT}$}</text>
+<text matrix="1 0 0 1 156 -16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $4$}</text>
+<text matrix="1 0 0 1 188 56" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TC}$}</text>
+<text matrix="1 0 0 1 188 48" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $5$}</text>
+<text matrix="1 0 0 1 188 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TG}$}</text>
+<text matrix="1 0 0 1 188 -16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $5$}</text>
+<text matrix="1 0 0 1 220 56" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{ATA}$}</text>
+<text matrix="1 0 0 1 220 48" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $7$}</text>
+<text matrix="1 0 0 1 220 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{GT}$}</text>
+<text matrix="1 0 0 1 220 -16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $8$}</text>
+<text matrix="1 0 0 1 252 24" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TA}$}</text>
+<text matrix="1 0 0 1 252 16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $9$}</text>
+<text matrix="1 0 0 1 284 24" transformations="translations" pos="36 68" stroke="black" type="label" width="7.676" height="5.231" depth="0.39" halign="center" valign="center">{\scriptsize $\dnaseq{A}\$$}</text>
+<text matrix="1 0 0 1 284 16" transformations="translations" pos="36 68" stroke="black" type="label" width="7.942" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $10$}</text>
+<text matrix="1 0 0 1 316 24" transformations="translations" pos="36 68" stroke="black" type="label" width="11.913" height="5.231" depth="0.39" halign="center" valign="center">{\scriptsize $\$\$\$$}</text>
+<text matrix="1 0 0 1 316 16" transformations="translations" pos="36 68" stroke="black" type="label" width="7.942" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $11$}</text>
+<path matrix="1 0 0 1 -344 16" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -356 16" stroke="black">
+388 64 m
+388 64 l
+388 64 l
+388 64 l
+h
+</path>
+<path matrix="1 0 0 1 -356 16" stroke="black">
+388 64 m
+388 64 l
+388 64 l
+388 64 l
+h
+</path>
+<path matrix="1 0 0 1 -356 16" stroke="black">
+364 80 m
+364 64 l
+388 64 l
+388 80 l
+h
+</path>
+<path matrix="1 0 0 1 -316 16" stroke="black">
+364 80 m
+364 64 l
+388 64 l
+388 80 l
+h
+</path>
+<path matrix="1 0 0 1 -280 48" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -248 64" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -248 32" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -216 48" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -184 48" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -280 -16" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -248 -16" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -216 -16" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -184 -16" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -152 16" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -120 16" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 -88 16" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 200 -16" stroke="black" arrow="pointed/normal">
+32 72 m
+48 72 l
+</path>
+<path matrix="1 0 0 1 264 16" stroke="black" arrow="pointed/normal">
+32 72 m
+48 72 l
+</path>
+<path matrix="1 0 0 1 296 16" stroke="black" arrow="pointed/normal">
+32 72 m
+48 72 l
+</path>
+<path matrix="1 0 0 1 72 48" stroke="black" arrow="pointed/normal">
+96 76 m
+112 84 l
+</path>
+<path matrix="1 0 0 1 72 48" stroke="black" arrow="pointed/normal">
+96 68 m
+112 60 l
+</path>
+<path matrix="1 0 0 1 104 64" stroke="black" arrow="pointed/normal">
+96 68 m
+112 60 l
+</path>
+<path matrix="1 0 0 1 40 16" stroke="black" arrow="pointed/normal">
+32 72 m
+48 72 l
+</path>
+<path matrix="1 0 0 1 0 16" stroke="black" arrow="pointed/normal">
+32 72 m
+48 72 l
+</path>
+<path matrix="1 0 0 1 -312 16" stroke="black" arrow="pointed/normal">
+448 80 m
+464 96 l
+</path>
+<path matrix="1 0 0 1 -312 16" stroke="black" arrow="pointed/normal">
+448 64 m
+464 48 l
+</path>
+<path matrix="1 0 0 1 0 24" stroke="black" arrow="pointed/normal">
+200 40 m
+216 88 l
+</path>
+<path matrix="1 0 0 1 -344 16" stroke="black" arrow="pointed/normal">
+544 80 m
+560 48 l
+</path>
+<path matrix="1 0 0 1 -344 16" stroke="black" arrow="pointed/normal">
+568 96 m
+33.3333 0 0 -33.3333 536 105.333 504 96 a
+</path>
+<path matrix="1 0 0 1 -344 16" stroke="black" arrow="pointed/normal">
+504 112 m
+60 0 0 -60 552 76 600 112 a
+</path>
+<path matrix="1 0 0 1 -184 -16" stroke="black" arrow="pointed/normal">
+448 80 m
+464 96 l
+</path>
+<path matrix="1 0 0 1 -184 48" stroke="black" arrow="pointed/normal">
+448 64 m
+464 48 l
+</path>
+<text matrix="1 0 0 1 92 24" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{GC}$}</text>
+<text matrix="1 0 0 1 92 16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $1$}</text>
+<path matrix="1 0 0 1 -312 16" stroke="black">
+432 80 m
+432 64 l
+448 64 l
+448 80 l
+h
+</path>
+<path matrix="1 0 0 1 72 16" stroke="black" arrow="pointed/normal">
+32 72 m
+48 72 l
+</path>
+<path matrix="1 0 0 1 168 -16" stroke="black" arrow="pointed/normal">
+32 72 m
+48 72 l
+</path>
+<path matrix="1 0 0 1 136 -16" stroke="black" arrow="pointed/normal">
+32 72 m
+48 72 l
+</path>
+<text matrix="1 0 0 1 -8 60" transformations="translations" pos="392 116" stroke="black" type="label" width="13.742" height="6.926" depth="1.93" halign="center" valign="baseline">$\gkey$</text>
+<text matrix="1 0 0 1 0 64" transformations="translations" pos="432 112" stroke="black" type="label" width="20.963" height="6.919" depth="0" halign="center" valign="baseline">$\bvOUT$</text>
+<text matrix="1 0 0 1 32 64" transformations="translations" pos="464 112" stroke="black" type="label" width="22.831" height="6.919" depth="0" halign="center" valign="baseline">$\BWT$</text>
+<text matrix="1 0 0 1 32 64" transformations="translations" pos="496 112" stroke="black" type="label" width="9.824" height="6.919" depth="0" halign="center" valign="baseline">$\bvIN$</text>
+<text matrix="1 0 0 1 48 64" transformations="translations" pos="528 112" stroke="black" type="label" width="13.742" height="6.926" depth="1.93" halign="center" valign="baseline">$\gkey$</text>
+<text matrix="1 0 0 1 48 64" transformations="translations" pos="560 112" stroke="black" type="label" width="13.328" height="6.812" depth="1.49" halign="center" valign="baseline">$B_{S}$</text>
+<text matrix="1 0 0 1 64 64" transformations="translations" pos="592 112" stroke="black" type="label" width="14.475" height="6.812" depth="1.49" halign="center" valign="baseline">$B_{V}$</text>
+<text matrix="1 0 0 1 64 64" transformations="translations" pos="624 112" stroke="black" type="label" width="11.583" height="6.812" depth="1.49" halign="center" valign="baseline">$V_{S}$</text>
+<text matrix="1 0 0 1 -16 -64" transformations="translations" pos="400 208" stroke="black" type="label" width="11.913" height="5.231" depth="0.39" halign="center" valign="baseline">{\scriptsize $\$\$\$$}</text>
+<text matrix="1 0 0 1 -16 -72" transformations="translations" pos="400 208" stroke="black" type="label" width="7.676" height="5.231" depth="0.39" halign="center" valign="baseline">{\scriptsize $\dnaseq{A}\$$}</text>
+<text matrix="1 0 0 1 -16 -80" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATA}$}</text>
+<text matrix="1 0 0 1 -16 -88" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATC}$}</text>
+<text matrix="1 0 0 1 -16 -96" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATG}$}</text>
+<text matrix="1 0 0 1 -16 -104" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CAT}$}</text>
+<text matrix="1 0 0 1 -16 -112" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CT}$}</text>
+<text matrix="1 0 0 1 -16 -120" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GC}$}</text>
+<text matrix="1 0 0 1 -16 -128" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GT}$}</text>
+<text matrix="1 0 0 1 -16 -136" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TA}$}</text>
+<text matrix="1 0 0 1 -16 -144" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TC}$}</text>
+<text matrix="1 0 0 1 -16 -152" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TG}$}</text>
+<text matrix="1 0 0 1 -16 -160" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TT}$}</text>
+<text matrix="1 0 0 1 -16 -168" transformations="translations" pos="400 208" stroke="black" type="label" width="10.25" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 -16 -176" transformations="translations" pos="400 208" stroke="black" type="label" width="16.795" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 -16 -184" transformations="translations" pos="400 208" stroke="black" type="label" width="19.635" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\#$}</text>
+<text matrix="1 0 0 1 96 -48" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -88" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 96 -56" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -64" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -72" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -80" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -96" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -104" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -112" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -120" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -128" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 96 -136" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -144" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 96 -152" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -160" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 96 -168" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -176" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -184" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -192" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 96 -200" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 176 -64" transformations="translations" pos="400 208" stroke="black" type="label" width="11.913" height="5.231" depth="0.39" halign="center" valign="baseline">{\scriptsize $\$\$\$$}</text>
+<text matrix="1 0 0 1 176 -72" transformations="translations" pos="400 208" stroke="black" type="label" width="7.676" height="5.231" depth="0.39" halign="center" valign="baseline">{\scriptsize $\dnaseq{A}\$$}</text>
+<text matrix="1 0 0 1 176 -80" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATA}$}</text>
+<text matrix="1 0 0 1 176 -88" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATC}$}</text>
+<text matrix="1 0 0 1 176 -96" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATG}$}</text>
+<text matrix="1 0 0 1 176 -104" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CAT}$}</text>
+<text matrix="1 0 0 1 176 -112" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CT}$}</text>
+<text matrix="1 0 0 1 176 -120" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GC}$}</text>
+<text matrix="1 0 0 1 176 -128" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GT}$}</text>
+<text matrix="1 0 0 1 176 -136" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TA}$}</text>
+<text matrix="1 0 0 1 176 -144" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TC}$}</text>
+<text matrix="1 0 0 1 176 -152" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TG}$}</text>
+<text matrix="1 0 0 1 176 -160" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TT}$}</text>
+<text matrix="1 0 0 1 176 -168" transformations="translations" pos="400 208" stroke="black" type="label" width="10.25" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 176 -176" transformations="translations" pos="400 208" stroke="black" type="label" width="16.795" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 176 -184" transformations="translations" pos="400 208" stroke="black" type="label" width="19.635" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\#$}</text>
+<text matrix="1 0 0 1 0 -48" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -56" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -64" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -72" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -80" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -88" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 0 -96" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 0 -104" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -112" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -120" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 0 -128" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -144" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -152" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -160" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -136" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -168" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 0 -176" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -184" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -192" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 0 -200" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 64 -48" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
+<text matrix="1 0 0 1 64 -56" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
+<text matrix="1 0 0 1 64 -64" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
+<text matrix="1 0 0 1 64 -72" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
+<text matrix="1 0 0 1 64 -80" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
+<text matrix="1 0 0 1 64 -88" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseG$}</text>
+<text matrix="1 0 0 1 64 -120" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
+<text matrix="1 0 0 1 64 -112" transformations="translations" pos="432 208" stroke="black" type="label" width="6.545" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#$}</text>
+<text matrix="1 0 0 1 64 -128" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
+<text matrix="1 0 0 1 64 -144" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
+<text matrix="1 0 0 1 64 -160" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
+<text matrix="1 0 0 1 64 -136" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseG$}</text>
+<text matrix="1 0 0 1 64 -152" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
+<text matrix="1 0 0 1 64 -104" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseG$}</text>
+<text matrix="1 0 0 1 64 -96" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
+<text matrix="1 0 0 1 64 -168" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
+<text matrix="1 0 0 1 64 -176" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
+<text matrix="1 0 0 1 64 -184" transformations="translations" pos="432 208" stroke="black" type="label" width="6.545" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#$}</text>
+<text matrix="1 0 0 1 64 -192" transformations="translations" pos="432 208" stroke="black" type="label" width="6.545" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#$}</text>
+<text matrix="1 0 0 1 64 -200" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="5.231" depth="0.39" halign="center" valign="baseline">{\scriptsize $\$$}</text>
+<path matrix="1 0 0 1 0 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -14" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -22" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -30" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -38" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -46" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -54" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -62" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -70" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -78" stroke="darkred" pen="fat" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -86" stroke="darkred" pen="fat" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -94" stroke="darkred" pen="fat" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -102" stroke="darkred" pen="fat" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -110" stroke="darkred" pen="fat" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -118" stroke="darkred" pen="fat" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -126" stroke="darkred" pen="fat" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -134" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -142" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 -150" stroke="black" dash="dashed" arrow="fpointed/normal">
+524 160 m
+500 160 l
+</path>
+<path matrix="1 0 0 1 0 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 144 m
+532 160 l
+</path>
+<path matrix="1 0 0 1 0 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 144 m
+532 160 l
+</path>
+<path matrix="1 0 0 1 0 -14" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 144 m
+532 160 l
+</path>
+<path matrix="1 0 0 1 0 -22" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 144 m
+532 160 l
+</path>
+<path matrix="1 0 0 1 0 -30" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 144 m
+532 160 l
+</path>
+<path matrix="1 0 0 1 0 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 104 m
+532 112 l
+</path>
+<path matrix="1 0 0 1 0 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 104 m
+532 112 l
+</path>
+<path matrix="1 0 0 1 0 -14" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 104 m
+532 112 l
+</path>
+<path matrix="1 0 0 1 0 -22" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 104 m
+532 112 l
+</path>
+<path matrix="1 0 0 1 0 2" stroke="darkred" pen="fat" arrow="fpointed/normal">
+564 72 m
+532 72 l
+</path>
+<path matrix="1 0 0 1 0 2" stroke="darkred" pen="fat" arrow="fpointed/normal">
+564 64 m
+532 56 l
+</path>
+<path matrix="1 0 0 1 0 2" stroke="darkred" pen="fat" arrow="fpointed/normal">
+564 56 m
+532 40 l
+</path>
+<path matrix="1 0 0 1 0 -6" stroke="darkred" pen="fat" arrow="fpointed/normal">
+564 56 m
+532 40 l
+</path>
+<path matrix="1 0 0 1 0 -14" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 56 m
+532 40 l
+</path>
+<path matrix="1 0 0 1 0 -22" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 56 m
+532 40 l
+</path>
+<path matrix="1 0 0 1 0 -30" stroke="black" dash="dashed" arrow="fpointed/normal">
+564 56 m
+532 40 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 160 m
+412 144 l
+</path>
+<path matrix="1 0 0 1 -16 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 160 m
+412 144 l
+</path>
+<path matrix="1 0 0 1 -16 -14" stroke="darkred" pen="fat" arrow="fpointed/normal">
+444 160 m
+412 144 l
+</path>
+<path matrix="1 0 0 1 -16 -22" stroke="darkred" pen="fat" arrow="fpointed/normal">
+444 160 m
+412 144 l
+</path>
+<path matrix="1 0 0 1 -16 -30" stroke="darkred" pen="fat" arrow="fpointed/normal">
+444 160 m
+412 144 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 104 m
+412 104 l
+</path>
+<path matrix="1 0 0 1 -16 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 104 m
+412 104 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 80 m
+412 88 l
+</path>
+<path matrix="1 0 0 1 -16 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 80 m
+412 88 l
+</path>
+<path matrix="1 0 0 1 -16 -14" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 80 m
+412 88 l
+</path>
+<path matrix="1 0 0 1 -16 -22" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 80 m
+412 88 l
+</path>
+<path matrix="1 0 0 1 -16 -30" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 80 m
+412 88 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 32 m
+412 48 l
+</path>
+<path matrix="1 0 0 1 -16 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 32 m
+412 48 l
+</path>
+<path matrix="1 0 0 1 -16 -14" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 32 m
+412 48 l
+</path>
+<path matrix="1 0 0 1 -16 -22" stroke="black" dash="dashed" arrow="fpointed/normal">
+444 32 m
+412 48 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 8 m
+452 160 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 160 m
+452 152 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="darkred" pen="fat" arrow="fpointed/normal">
+508 80 m
+452 144 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="darkred" pen="fat" arrow="fpointed/normal">
+508 64 m
+452 136 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="darkred" pen="fat" arrow="fpointed/normal">
+508 48 m
+452 128 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 144 m
+452 120 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 136 m
+452 112 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 128 m
+452 104 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 32 m
+452 96 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 120 m
+452 88 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 104 m
+452 80 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 72 m
+452 72 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 152 m
+452 64 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 56 m
+452 40 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 88 m
+452 48 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 40 m
+452 32 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 112 m
+452 56 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 96 m
+452 24 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 24 m
+452 16 l
+</path>
+<path matrix="1 0 0 1 -16 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+508 24 m
+452 16 l
+</path>
+<text matrix="1 0 0 1 176 -64" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 176 -72" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 176 -80" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 176 -88" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 176 -96" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 176 -104" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 176 -112" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 176 -120" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 176 -128" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 176 -136" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 176 -144" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 176 -152" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 176 -160" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 176 -168" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 176 -176" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 176 -184" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 224 -96" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 224 -88" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 224 -80" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 224 -120" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 224 -128" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 224 -136" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 224 -144" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 224 -152" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 224 -160" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 224 -104" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
+<text matrix="1 0 0 1 256 -80" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $7$}</text>
+<text matrix="1 0 0 1 256 -88" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $3$}</text>
+<text matrix="1 0 0 1 256 -96" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $3$}</text>
+<text matrix="1 0 0 1 256 -104" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $2$}</text>
+<text matrix="1 0 0 1 256 -120" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $8$}</text>
+<text matrix="1 0 0 1 256 -128" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $9$}</text>
+<text matrix="1 0 0 1 256 -136" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $5$}</text>
+<text matrix="1 0 0 1 256 -144" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $5$}</text>
+<text matrix="1 0 0 1 256 -152" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $4$}</text>
+<text matrix="1 0 0 1 256 -160" transformations="translations" pos="432 208" stroke="black" type="label" width="14.733" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0:2$}</text>
+<path matrix="1 0 0 1 0 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+588 24 m
+604 24 l
+</path>
+<path matrix="1 0 0 1 0 26" stroke="black" dash="dashed" arrow="fpointed/normal">
+588 24 m
+604 24 l
+</path>
+<path matrix="1 0 0 1 0 34" stroke="black" dash="dashed" arrow="fpointed/normal">
+588 24 m
+604 24 l
+</path>
+<path matrix="1 0 0 1 0 42" stroke="black" dash="dashed" arrow="fpointed/normal">
+588 24 m
+604 24 l
+</path>
+<path matrix="1 0 0 1 0 50" stroke="black" dash="dashed" arrow="fpointed/normal">
+588 24 m
+604 24 l
+</path>
+<path matrix="1 0 0 1 0 58" stroke="black" dash="dashed" arrow="fpointed/normal">
+588 24 m
+604 24 l
+</path>
+<path matrix="1 0 0 1 0 82" stroke="darkred" pen="fat" arrow="fpointed/normal">
+588 24 m
+604 24 l
+</path>
+<path matrix="1 0 0 1 0 90" stroke="black" dash="dashed" arrow="fpointed/normal">
+588 24 m
+604 24 l
+</path>
+<path matrix="1 0 0 1 0 98" stroke="black" dash="dashed" arrow="fpointed/normal">
+588 24 m
+604 24 l
+</path>
+<path matrix="1 0 0 1 0 106" stroke="black" dash="dashed" arrow="fpointed/normal">
+588 24 m
+604 24 l
+</path>
+<text matrix="1 0 0 1 224 -112" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
+<text matrix="1 0 0 1 256 -112" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $6$}</text>
+<path matrix="1 0 0 1 0 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 -14" stroke="black" dash="dashed" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 -22" stroke="darkred" pen="fat" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 -30" stroke="darkred" pen="fat" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 -38" stroke="black" dash="dashed" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 -46" stroke="black" dash="dashed" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 -54" stroke="black" dash="dashed" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 -62" stroke="black" dash="dashed" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 -70" stroke="black" dash="dashed" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 -78" stroke="black" dash="dashed" arrow="fpointed/normal">
+660 128 m
+680 128 l
+</path>
+<path matrix="1 0 0 1 0 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+612 128 m
+652 128 l
+</path>
+<path matrix="1 0 0 1 0 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+612 128 m
+652 128 l
+</path>
+<path matrix="1 0 0 1 0 -14" stroke="black" dash="dashed" arrow="fpointed/normal">
+612 128 m
+652 128 l
+</path>
+<path matrix="1 0 0 1 0 2" stroke="darkred" pen="fat" arrow="fpointed/normal">
+612 104 m
+652 96 l
+</path>
+<path matrix="1 0 0 1 0 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+612 80 m
+652 88 l
+</path>
+<path matrix="1 0 0 1 0 -6" stroke="black" dash="dashed" arrow="fpointed/normal">
+612 80 m
+652 88 l
+</path>
+<path matrix="1 0 0 1 0 -14" stroke="black" dash="dashed" arrow="fpointed/normal">
+612 80 m
+652 88 l
+</path>
+<path matrix="1 0 0 1 0 -22" stroke="black" dash="dashed" arrow="fpointed/normal">
+612 80 m
+652 88 l
+</path>
+<path matrix="1 0 0 1 0 -30" stroke="black" dash="dashed" arrow="fpointed/normal">
+612 80 m
+652 88 l
+</path>
+<path matrix="1 0 0 1 0 2" stroke="black" dash="dashed" arrow="fpointed/normal">
+612 24 m
+652 48 l
+</path>
+</page>
+</ipe>

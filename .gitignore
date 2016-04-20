@@ -8,6 +8,10 @@ gcsa_format
 query_gcsa
 
 paper.pdf
+gcsa2_text_indexes.pdf
+gcsa2_graph_dbg.pdf
+gcsa2_pruned_index.pdf
+
 *.aux
 *.bak
 *.bbl
