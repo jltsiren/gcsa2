@@ -110,7 +110,7 @@ Other approaches to indexing variation graphs include BWBBLE \cite{Huang2013}, w
 
 GCSA2 combines ideas from the original GCSA and from succinct de~Bruijn graphs. Conceptually it uses a de~Bruijn graph as a path index of a variation graph. The \orderk{k} de~Bruijn graph is \emph{pruned} (compressed structurally) by using strings shorter than $k$ characters as nodes, if the shorter strings identify the start nodes of the corresponding paths uniquely. The pruned graph is then encoded with a generalization of the FM\nobreakdash-index. GCSA2 includes novel extensions based on what is essentially a suffix tree of the pruned de~Bruijn graph. These extensions are used for e.g.~finding maximal exact matches in the vg read aligner.
 
-The proofs of lemmas describing the properties of generalizations of de~Bruijn graphs are included in Appendix~\ref{appendix:proofs}. The other appendices contain material from the full paper.
+The proofs of lemmas describing the properties of generalizations of de~Bruijn graphs are included in Appendix~\ref{appendix:proofs}.
 
 
 \section{Background}
@@ -131,7 +131,7 @@ Let $S$ be a string and $S'$ be be a string or an infinite character sequence ov
 
 The \emph{suffix tree} \cite{Weiner1973} is the most fundamental full-text index supporting substring queries. It is formed by taking the suffixes of the text, storing them in a trie, and compacting unary paths in the trie into single edges. If $v$ is a node of a suffix tree, we write $\ell(v)$ to denote the label of the path from the root to node $v$. Although fast and versatile, suffix trees are impractical with large texts, as they require much more space than the text itself.
 
-\emph{Suffix arrays} \cite{Manber1993} were introduced as a space-efficient alternative to the suffix tree. The suffix array of text $T[0, n-1]$ is an array of pointers $\SA[0, n-1]$ to the suffixes of the text in \emph{lexicographic order}. We can find the occurrences of \emph{pattern} string $X$ in the text in $\Oh{\abs{X} \log n}$ time by using \emph{binary search} in the suffix array. The suffix array requires $n \log n$ bits of space in addition to the $n \log \sigma$ bits used by the text, while its functionality is more limited than that of the suffix tree. See Figure~\ref{figure:indexes} for an example of the suffix array and related structures.
+\emph{Suffix arrays} (SA) \cite{Manber1993} were introduced as a space-efficient alternative to the suffix tree. The suffix array of text $T[0, n-1]$ is an array of pointers $\SA[0, n-1]$ to the suffixes of the text in \emph{lexicographic order}. We find the occurrences of \emph{pattern} string $X$ in the text in $\Oh{\abs{X} \log n}$ time by using \emph{binary search} in the suffix array. The suffix array requires $n \log n$ bits of space in addition to the $n \log \sigma$ bits used by the text, while its functionality is more limited than that of the suffix tree. See Figure~\ref{figure:indexes} for an example of the suffix array and related structures.
 
 \begin{figure}[t!]
 \includegraphics{gcsa2_text_indexes.pdf}
@@ -356,11 +356,9 @@ The bitvectors are often highly compressible \cite{Gagie2015}, but GCSA already 
 
 \section{Implementation and Experiments}
 
-GCSA2 has been developed as the path index library of vg \cite{Garrison2014-2016}. The implementation is written in C++, and the source code is available on GitHub (\url{https://github.com/jltsiren/gcsa2}). As the implementation uses \emph{SDSL} \cite{Gog2014b} and \emph{libstdc++ parallel mode}, it requires g++ version~4.9 or later to compile. As a general design principle, fast succinct data structures have been chosen over the smaller but slower compressed data structures.
+GCSA2 has been developed as the path index library of vg \cite{Garrison2014-2016}. The implementation is written in C++, and the source code is available on GitHub (\url{https://github.com/jltsiren/gcsa2}). As the implementation uses \emph{SDSL} \cite{Gog2014b} and \emph{libstdc++ parallel mode}, it requires g++ version~4.9 or later to compile. We chose fast succinct data structures over the smaller but slower compressed data structures for most index components. The experiments were done on a system with two 16\nobreakdash-core AMD Opteron 6378 processors and 256~gigabytes of memory running Ubuntu~12.04 on Linux kernel~3.2.0 for the experiments. All files were stored on a distributed Lustre file system. We used vg version~1.3.0 for processing the graphs, GCSA2 version~0.6 for building the indexes, and GCSA2 version~0.6.1 for the queries.
 
-The \emph{variation graphs} used in vg have strings as node labels. Each node can be traversed in both forward and reverse complement orientations, and edges may cross from the forward strand of one node to the reverse complement strand of another node, or the other way around. When extracting paths from a variation graph, the graph is implicitly converted into an input graph with single-character labels. Input graph nodes corresponding to the initial offsets of variation graph node labels are always selected as samples for performance reasons.
-
-The following experiments were done on a system with two 16\nobreakdash-core AMD Opteron 6378 processors and 256~gigabytes of memory running Ubuntu~12.04 on Linux kernel~3.2.0. Input files, final indexes, and temporary files were all stored on a distributed Lustre file system. We used vg version~1.3.0 for processing the graphs, GCSA2 version~0.6 for building the indexes, and GCSA2 version~0.6.1 for the query benchmarks.
+The vg \emph{variation graphs} have strings as node labels. Each node can be traversed in both forward and reverse complement orientations, and edges may cross between the orientations. When extracting paths from a variation graph, the graph is implicitly converted into an input graph with single-character labels. Input graph nodes corresponding to the initial offsets of variation graph node labels are always selected as samples.
 
 We built vg graphs from the human reference genome (GRCh37) and the 1000~Genomes Project phase~3 variation \cite{1000GP2015}. To avoid excessive growth, we removed paths where \kmer{16}s crossed more than $4$ nontrivial with \texttt{vg mod -p -l -e 4} and subgraphs shorter than $100$ bases with \texttt{vg mod -S -l 100}. We extracted paths of length $16$ from the forward strands of all chromosomes. There were a total of 4.80~billion paths with 1.53~billion distinct labels. We built GCSA with 1\nobreakdash--3 doubling steps, producing \orderk{32}, \orderk{64}, and \orderk{128} indexes. The results are summarized in Table~\ref{table:construction}.  We could build whole-genome indexes overnight using less than 96~gigabytes of memory, including disk cache. The de~Bruijn graph had roughly $1.031^{k} \cdot 2.38$~billion nodes, but pruning reduced the size to 4.4\nobreakdash--5.8~billion nodes. The index grew more slowly with $k$, as we sampled the values more often in lower order graphs.
 
@@ -379,18 +377,22 @@ We built vg graphs from the human reference genome (GRCh37) and the 1000~Genomes
 \end{center}
 \end{table}
 
-We extracted \kmer{16}s, \kmer{32}s, and \kmer{64}s from the (non-pruned) vg graphs using \texttt{vg sim}, and queried for them in the \orderk{64} index using a single thread. The results can be seen in Table~\ref{table:benchmark}. The $\find$ and $\locate$ queries are several times slower than in a fast whole-genome FM\nobreakdash-index. We have to use $\select$ queries, which are slower than $\rank$ queries on plain bitvectors \cite{Gog2014}, while our $\locate$ queries have to filter out duplicates. A simplified encoding (see Appendix~\ref{appendix:encoding}) would make $\find$ queries faster and $\locate$ queries slower.
+We extracted \kmer{16}s, \kmer{32}s, and \kmer{64}s from the (non-pruned) vg graphs using \texttt{vg sim}, and queried for them in the \orderk{64} index using a single thread. We also ran the same queries in an FM\nobreakdash-index (\texttt{csa\_wt<>} from SDSL with SA sample density 17) of the reference. The results can be seen in Table~\ref{table:benchmark}. The $\find$ and $\locate$ queries are several times slower than in the FM\nobreakdash-index, which uses the same SDSL components. A simplified encoding (see Appendix~\ref{appendix:encoding}) would make $\find$ queries faster and $\locate$ queries slower.
 
 \begin{table}[t!]
 \begin{center}
-\caption{Query benchmarks using an \orderk{64} index. Pattern length; number of patterns; number of matching patterns; number of matching nodes; number of distinct values; average time for $[sp, ep] = \find(X)$, $\parent(sp, ep)$, and $\countq(sp, ep)$ queries in microseconds; and average time for $\locate(sp, ep)$ queries in microseconds or milliseconds.}\label{table:benchmark}
-\begin{tabular}{c|cc|cc|cccc}
+\caption{Query benchmarks using an \orderk{64} GCSA and an FM\nobreakdash-index. Index type and pattern length; number of patterns, matching patterns, matching nodes, and distinct values; average time for $[sp, ep] = \find(X)$, $\parent(sp, ep)$, and $\countq(sp, ep)$ queries in microseconds; and average time per value for $\locate(sp, ep)$ queries in microseconds.}\label{table:benchmark}
+\begin{tabular}{c|cccc|cccc}
 \hline
-\textbf{Length} & \textbf{Patterns} & \textbf{Occs} & \textbf{Nodes} & \textbf{Values} & $\find()$ & $\parent()$ & $\countq()$ & $\locate()$ \\
+ & \textbf{Patterns} & \textbf{Found} & \textbf{Nodes} & \textbf{Values} & $\find()$ & $\parent()$ & $\countq()$ & $\locate()$ \\
 \hline
-16 & 351584 & 347453 & 1829M &  872M & 18.1 \textmu{}s & 0.40 \textmu{}s & 0.94 \textmu{}s & 26.2 ms \\
-32 & 351555 & 333258 & 52.6M & 34.3M & 37.9 \textmu{}s & 0.28 \textmu{}s & 0.43 \textmu{}s & 468 \textmu{}s \\
-64 & 351567 & 326101 & 0.33M & 1.35M & 88.9 \textmu{}s & 0.36 \textmu{}s & 0.42 \textmu{}s & 10.3 \textmu{}s \\
+GCSA: 16 & 351584 & 347453 & 1829M &  872M & 17.9 \textmu{}s & 0.51 \textmu{}s & 0.93 \textmu{}s & 10.3 \textmu{}s \\
+GCSA: 32 & 351555 & 333258 & 52.6M & 34.3M & 37.6 \textmu{}s & 0.27 \textmu{}s & 0.44 \textmu{}s & 4.52 \textmu{}s \\
+GCSA: 64 & 351567 & 326101 & 0.33M & 1.35M & 74.6 \textmu{}s & 0.25 \textmu{}s & 0.32 \textmu{}s & 1.65 \textmu{}s \\
+\hline
+FM:   16 & 351584 & 301538 &    -- &  782M & 7.83 \textmu{}s &              -- &              -- & 3.10 \textmu{}s \\
+FM:   32 & 351555 & 153957 &    -- & 26.6M & 10.9 \textmu{}s &              -- &              -- & 2.16 \textmu{}s \\
+FM:   64 & 351567 &  88184 &    -- & 0.84M & 17.1 \textmu{}s &              -- &              -- & 1.89 \textmu{}s \\
 \hline
 \end{tabular}
 \end{center}
@@ -401,7 +403,7 @@ We extracted \kmer{16}s, \kmer{32}s, and \kmer{64}s from the (non-pruned) vg gra
 
 GCSA2 is a path index for variation graphs. It uses a pruned de~Bruijn graph as an index of the variation graph, and encodes that with a generalization of the FM\nobreakdash-index. The index includes extensions based on suffix trees; other extensions have also been considered but not implemented yet (see Appendix~\ref{appendix:hypertext}). GCSA2 has been integrated in the variation graph toolkit vg, where it is used for e.g.~read alignment based on maximal exact matches.
 
-We can build a whole-genome index overnight on a system with 96~gigabytes of memory and a few hundred gigabytes of fast disk space. The resulting index takes less than 16~gigabytes. Query performance is several times slower than with a fast FM\nobreakdash-index for sequences. GCSA2 can search for patterns at roughly 0.8\nobreakdash--1.0~MB/s and locate 100,000\nobreakdash--300,000 occurrences per second using a single CPU core.
+We can build a whole-genome index overnight on a system with 96~gigabytes of memory and a few hundred gigabytes of fast disk space. The resulting index takes less than 16~gigabytes. Query performance is several times slower than with a fast FM\nobreakdash-index for sequences.
 
 The compressed suffix tree used in GCSA2 may also be useful as a text index, as it is both easy to implement and fast in practice. As long as the average LCP value is low, we can generalize the byte array encoding of the LCP array \cite{Abouelhoda2004} to implement it space-efficiently. We use an array of $m$\nobreakdash-bit integers for the LCP array and the $x$\nobreakdash-ary tree, mark the values that are too large for $m$~bits with the largest possible value, and store them separately.
 
