@@ -69,11 +69,9 @@ public:
     This is the main constructor. We build GCSA from the graph according to the parameters,
     using a given number of doubling steps. The construction is mostly disk-based. There
     are at most two graphs on disk at once, and the size of each graph is bounded by the
-    size limit. If the graph was encoded using non-default Alphabet, an alphabet object
-    must also be supplied.
+    size limit.
   */
-  GCSA(InputGraph& graph, const ConstructionParameters& parameters = ConstructionParameters(),
-    const Alphabet& _alpha = Alphabet());
+  GCSA(InputGraph& graph, const ConstructionParameters& parameters = ConstructionParameters());
 
 //------------------------------------------------------------------------------
 

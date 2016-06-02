@@ -55,7 +55,7 @@ struct GraphFileHeader
   return value is kmer length.
 */
 size_type readBinary(std::istream& in, std::vector<KMer>& kmers, bool append = false);
-size_type readText(std::istream& in, std::vector<KMer>& kmers, bool append = false);
+size_type readText(std::istream& in, std::vector<KMer>& kmers, const Alphabet& alpha, bool append = false);
 
 // FIXME Later: writeText()
 void writeBinary(std::ostream& out, std::vector<KMer>& kmers, size_type kmer_length);
@@ -73,6 +73,8 @@ struct InputGraph
   std::string              lcp_name; // Used to pass the LCP array from GCSA construction.
   std::vector<size_type>   sizes;
 
+  Alphabet                 alpha;
+
   bool binary;
   size_type kmer_count, kmer_length;
 
@@ -81,8 +83,8 @@ struct InputGraph
   const static std::string BINARY_EXTENSION;  // .graph
   const static std::string TEXT_EXTENSION;    // .gcsa2
 
-  InputGraph(const std::vector<std::string>& files, bool binary_format);
-  InputGraph(size_type file_count, char** base_names, bool binary_format);
+  InputGraph(const std::vector<std::string>& files, bool binary_format, const Alphabet& alphabet = Alphabet());
+  InputGraph(size_type file_count, char** base_names, bool binary_format, const Alphabet& alphabet = Alphabet());
   ~InputGraph();
 
   void open(std::ifstream& input, size_type file) const;

@@ -71,7 +71,7 @@ public:
     The input vector must be sorted and contain only unique kmers of length 16 or less.
     Each kmer must have at least one predecessor and one successor.
   */
-  DeBruijnGraph(const std::vector<key_type>& keys, size_type kmer_length, const Alphabet& _alpha = Alphabet());
+  DeBruijnGraph(const std::vector<key_type>& keys, size_type kmer_length, const Alphabet& alphabet);
 
 //------------------------------------------------------------------------------
 

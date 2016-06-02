@@ -412,7 +412,7 @@ MergedGraphReader::fromNodes(std::vector<node_type>& results)
 
 //------------------------------------------------------------------------------
 
-GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Alphabet& _alpha)
+GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
 {
   double start = readTimer();
 
@@ -429,7 +429,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   // FIXME Later: Write the structures to disk until needed?
   std::vector<key_type> keys;
   graph.readKeys(keys);
-  DeBruijnGraph mapper(keys, graph.k(), _alpha);
+  DeBruijnGraph mapper(keys, graph.k(), graph.alpha);
   LCP lcp(keys, graph.k());
   sdsl::int_vector<0> last_char;
   Key::lastChars(keys, last_char);
@@ -494,7 +494,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   {
     std::cerr << "GCSA::GCSA(): Building the index" << std::endl;
   }
-  sdsl::int_vector<64> counts(mapper.alpha.sigma, 0); // alpha
+  sdsl::int_vector<64> counts(graph.alpha.sigma, 0); // alpha
   sdsl::int_vector<8> bwt_buffer(merged_graph.size() + merged_graph.size() / 2, 0); // bwt
   this->path_nodes = bit_vector(bwt_buffer.size(), 0);
   CounterArray outdegrees(merged_graph.size(), 4); // edges
@@ -509,9 +509,9 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   std::vector<size_type> node_lcp, first_time, last_time;
 
   // Read pointers to the MergedGraph files.
-  std::vector<MergedGraphReader> reader(mapper.alpha.sigma + 1);
+  std::vector<MergedGraphReader> reader(graph.alpha.sigma + 1);
   reader[0].init(merged_graph, &mapper, &last_char);
-  for(size_type comp = 0; comp < mapper.alpha.sigma; comp++)
+  for(size_type comp = 0; comp < graph.alpha.sigma; comp++)
   {
     reader[comp + 1].init(merged_graph, comp);
   }
@@ -526,7 +526,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
     // Find the predecessors.
     size_type indegree = 0, pred_comp = 0;
     bool sample_this = false;
-    for(size_type comp = 0; comp < mapper.alpha.sigma; comp++)
+    for(size_type comp = 0; comp < graph.alpha.sigma; comp++)
     {
       if(!(reader[0].paths[reader[0].path].hasPredecessor(comp))) { continue; }
 
@@ -631,7 +631,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters, const Al
   this->header.edges = total_edges;
 
   // Initialize alpha.
-  this->alpha = Alphabet(counts, mapper.alpha.char2comp, mapper.alpha.comp2char);
+  this->alpha = Alphabet(counts, graph.alpha.char2comp, graph.alpha.comp2char);
   sdsl::util::clear(mapper);
 
   // Initialize extra_pointers and redundant_pointers.

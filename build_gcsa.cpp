@@ -202,13 +202,12 @@ verifyGraph(const InputGraph& input_graph)
   std::vector<KMer> kmers;
   input_graph.read(kmers);
 
-  Alphabet alpha;
   std::map<std::string, std::pair<byte_type, byte_type>> graph;
   bool ok = true;
   for(size_type i = 0; i < kmers.size(); i++)
   {
     // We don't verify the edge from the sink to the source.
-    std::string kmer = Key::decode(kmers[i].key, input_graph.k(), alpha);
+    std::string kmer = Key::decode(kmers[i].key, input_graph.k(), input_graph.alpha);
     byte_type pred = (kmer[input_graph.k() - 1] == '#' ? 0 : Key::predecessors(kmers[i].key));
     byte_type succ = (kmer[0] == '$' ? 0 : Key::successors(kmers[i].key));
     if(graph.find(kmer) == graph.end())
@@ -224,26 +223,26 @@ verifyGraph(const InputGraph& input_graph)
 
   for(auto iter = graph.begin(); iter != graph.end(); ++iter)
   {
-    for(size_type i = 1; i < alpha.sigma; i++)
+    for(size_type i = 1; i < input_graph.alpha.sigma; i++)
     {
       if(iter->second.first & (1 << i))
       {
         std::string backward_pattern =
-          std::string(1, (char)(alpha.comp2char[i])) + iter->first.substr(0, input_graph.k() - 1);
+          std::string(1, (char)(input_graph.alpha.comp2char[i])) + iter->first.substr(0, input_graph.k() - 1);
         if(graph.find(backward_pattern) == graph.end())
         {
           std::cerr << "build_gcsa: verifyGraph(): Node " << iter->first << " is missing predecessor("
-                    << (char)(alpha.comp2char[i]) << "): "
+                    << (char)(input_graph.alpha.comp2char[i]) << "): "
                     << backward_pattern << std::endl;
           ok = false;
         }
         else
         {
-          comp_type last = alpha.char2comp[iter->first[input_graph.k() - 1]];
+          comp_type last = input_graph.alpha.char2comp[iter->first[input_graph.k() - 1]];
           if((graph[backward_pattern].second & (1 << last)) == 0)
           {
             std::cerr << "build_gcsa: verifyGraph(): Reverse: Node " << backward_pattern << " is missing successor("
-                      << (char)(alpha.comp2char[last]) << "): "
+                      << (char)(input_graph.alpha.comp2char[last]) << "): "
                       << iter->first << std::endl;
             ok = false;
           }
@@ -251,21 +250,21 @@ verifyGraph(const InputGraph& input_graph)
       }
       if(iter->second.second & (1 << i))
       {
-        std::string forward_pattern = iter->first.substr(1) + (char)(alpha.comp2char[i]);
+        std::string forward_pattern = iter->first.substr(1) + (char)(input_graph.alpha.comp2char[i]);
         if(graph.find(forward_pattern) == graph.end())
         {
           std::cerr << "build_gcsa: verifyGraph(): Node " << iter->first << " is missing successor("
-                    << (char)(alpha.comp2char[i]) << "): "
+                    << (char)(input_graph.alpha.comp2char[i]) << "): "
                     << forward_pattern << std::endl;
           ok = false;
         }
         else
         {
-          comp_type first = alpha.char2comp[iter->first[0]];
+          comp_type first = input_graph.alpha.char2comp[iter->first[0]];
           if((graph[forward_pattern].first & (1 << first)) == 0)
           {
             std::cerr << "build_gcsa: verifyGraph(): Reverse: Node " << forward_pattern << " is missing predecessor("
-                      << (char)(alpha.comp2char[first]) << "): "
+                      << (char)(input_graph.alpha.comp2char[first]) << "): "
                       << iter->first << std::endl;
             ok = false;
           }
@@ -286,7 +285,7 @@ void
 verifyMapper(const InputGraph& graph)
 {
   std::vector<key_type> keys; graph.read(keys);
-  DeBruijnGraph mapper(keys, graph.k());
+  DeBruijnGraph mapper(keys, graph.k(), graph.alpha);
   if(Verbosity::level >= Verbosity::EXTENDED)
   {
     std::cerr << "build_gcsa: verifyMapper(): Mapper has " << mapper.size() << " nodes, "
@@ -297,7 +296,7 @@ verifyMapper(const InputGraph& graph)
   bool ok = true;
   for(size_type i = 0; i < keys.size(); i++)
   {
-    std::string kmer = Key::decode(keys[i], graph.k(), mapper.alpha);
+    std::string kmer = Key::decode(keys[i], graph.k(), graph.alpha);
     size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
     if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
     range_type range = mapper.find(kmer);
@@ -312,12 +311,11 @@ verifyMapper(const InputGraph& graph)
 
 
   ok = true;
-  Alphabet alpha;
   LCP lcp(keys, graph.k());
   for(size_type i = 1; i < keys.size(); i++)
   {
-    std::string left = Key::decode(keys[i - 1], graph.k(), alpha);
-    std::string right = Key::decode(keys[i], graph.k(), alpha);
+    std::string left = Key::decode(keys[i - 1], graph.k(), graph.alpha);
+    std::string right = Key::decode(keys[i], graph.k(), graph.alpha);
     size_type real_lcp = 0;
     while(real_lcp < graph.k() && left[real_lcp] == right[real_lcp]) { real_lcp++; }
     if(lcp.kmer_lcp[i] != real_lcp)
