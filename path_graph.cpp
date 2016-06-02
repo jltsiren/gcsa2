@@ -581,7 +581,7 @@ struct PathGraphMerger
 {
   const PathGraph&                             graph;
   const LCP&                                   lcp;
-  ReadBuffer<PriorityNode, PriorityNodeReader> buffer;
+  OldReadBuffer<PriorityNode, PriorityNodeReader> buffer;
   std::deque<PathRange>                        ranges;
   bool                                         need_range_lcp;
 

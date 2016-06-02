@@ -248,86 +248,6 @@ PriorityQueue<Element>::heapify()
 //------------------------------------------------------------------------------
 
 /*
-  A simple wrapper for reading a file of Elements. Use with ReadBuffer.
-*/
-
-template<class Element>
-struct ElementReader
-{
-  ElementReader() { this->elements = 0; }
-  ~ElementReader() { this->close(); }
-
-  void init(const std::string& filename);
-  void close() { this->file.close(); this->elements = 0; }
-
-  inline size_type size() const { return this->elements; }
-  void append(std::deque<Element>& buffer, size_type n, std::vector<Element>& read_buffer);
-  void read(std::vector<Element>& read_buffer);
-  void seek(size_type i);
-  void finish() { this->offset = this->size(); }
-  bool finished() { return (this->offset >= this->size()); }
-
-  std::ifstream file;
-  size_type elements, offset;
-
-  ElementReader(const ElementReader&) = delete;
-  ElementReader& operator= (const ElementReader&) = delete;
-};
-
-template<class Element>
-void
-ElementReader<Element>::init(const std::string& filename)
-{
-  if(this->file.is_open())
-  {
-    std::cerr << "ElementReader::init(): The file is already open" << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-
-  this->file.open(filename.c_str(), std::ios_base::binary);
-  if(!(this->file))
-  {
-    std::cerr << "ElementReader::init(): Cannot open input file " << filename << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  this->elements = fileSize(this->file) / sizeof(Element);
-  this->offset = 0;
-}
-
-template<class Element>
-void
-ElementReader<Element>::append(std::deque<Element>& buffer, size_type n, std::vector<Element>& read_buffer)
-{
-  n = std::min(this->size() - this->offset, n);
-  size_type block_size = std::min(n, (size_type)(read_buffer.capacity()));
-
-  read_buffer.resize(block_size);
-  this->read(read_buffer);
-  buffer.insert(buffer.end(), read_buffer.begin(), read_buffer.end());
-  read_buffer.clear();
-}
-
-template<class Element>
-void
-ElementReader<Element>::read(std::vector<Element>& read_buffer)
-{
-  if(read_buffer.size() > this->size() - this->offset) { read_buffer.resize(this->size() - this->offset); }
-  DiskIO::read(this->file, read_buffer.data(), read_buffer.size());
-  this->offset += read_buffer.size();
-}
-
-template<class Element>
-void
-ElementReader<Element>::seek(size_type i)
-{
-  i = std::min(i, this->size());
-  this->file.seekg(i * sizeof(Element), std::ios_base::beg);
-  this->offset = i;
-}
-
-//------------------------------------------------------------------------------
-
-/*
   A buffer for reading a file of Elements sequentially. The buffer contains Elements
   offset to offset + buffer.size() - 1. The offset is moved by calling seek() or when
   accessing an element before the current offset.
@@ -348,8 +268,8 @@ ElementReader<Element>::seek(size_type i)
   finished()                      Has reading finished (at end or by calling finish())?
 */
 
-template<class Element, class Reader = ElementReader<Element>>
-struct ReadBuffer
+template<class Element, class Reader>
+struct OldReadBuffer
 {
   // Main thread.
   size_type               offset;
@@ -371,8 +291,8 @@ struct ReadBuffer
   // Read this many elements at once.
   const static size_type READ_BUFFER_SIZE = BUFFER_SIZE;
 
-  ReadBuffer();
-  ~ReadBuffer();
+  OldReadBuffer();
+  ~OldReadBuffer();
 
   template<class... ReaderParameters> void init(ReaderParameters... parameters);
   void close();
@@ -399,26 +319,26 @@ struct ReadBuffer
   void read(size_type i); // Read i into buffer, possibly seeking backwards.
   void addBlock();        // Add a block into buffer, assuming that this read holds mtx.
 
-  ReadBuffer(const ReadBuffer&) = delete;
-  ReadBuffer& operator= (const ReadBuffer&) = delete;
+  OldReadBuffer(const OldReadBuffer&) = delete;
+  OldReadBuffer& operator= (const OldReadBuffer&) = delete;
 };
 
 template<class Element, class Reader>
-ReadBuffer<Element, Reader>::ReadBuffer()
+OldReadBuffer<Element, Reader>::OldReadBuffer()
 {
   this->offset = 0;
   this->read_buffer.reserve(READ_BUFFER_SIZE);
 }
 
 template<class Element, class Reader>
-ReadBuffer<Element, Reader>::~ReadBuffer()
+OldReadBuffer<Element, Reader>::~OldReadBuffer()
 {
   this->close();
 }
 
 template<class Element, class Reader>
 void
-readerThread(ReadBuffer<Element, Reader>* buffer)
+readerThread(OldReadBuffer<Element, Reader>* buffer)
 {
   while(!(buffer->fill()));
 }
@@ -426,7 +346,7 @@ readerThread(ReadBuffer<Element, Reader>* buffer)
 template<class Element, class Reader>
 template<class... ReaderParameters>
 void
-ReadBuffer<Element, Reader>::init(ReaderParameters... parameters)
+OldReadBuffer<Element, Reader>::init(ReaderParameters... parameters)
 {
   this->reader.init(parameters...);
   this->reader_thread = std::thread(readerThread<Element, Reader>, this);
@@ -434,7 +354,7 @@ ReadBuffer<Element, Reader>::init(ReaderParameters... parameters)
 
 template<class Element, class Reader>
 void
-ReadBuffer<Element, Reader>::close()
+OldReadBuffer<Element, Reader>::close()
 {
   // We need to stop the reader thread.
   this->mtx.lock();
@@ -451,7 +371,7 @@ ReadBuffer<Element, Reader>::close()
 
 template<class Element, class Reader>
 void
-ReadBuffer<Element, Reader>::seek(size_type i)
+OldReadBuffer<Element, Reader>::seek(size_type i)
 {
   if(i >= this->size()) { return; }
 
@@ -475,7 +395,7 @@ ReadBuffer<Element, Reader>::seek(size_type i)
 
 template<class Element, class Reader>
 bool
-ReadBuffer<Element, Reader>::fill()
+OldReadBuffer<Element, Reader>::fill()
 {
   std::unique_lock<std::mutex> lock(this->mtx);
   this->empty.wait(lock, [this]() { return read_buffer.empty(); } );
@@ -488,7 +408,7 @@ ReadBuffer<Element, Reader>::fill()
 
 template<class Element, class Reader>
 void
-ReadBuffer<Element, Reader>::read(size_type i)
+OldReadBuffer<Element, Reader>::read(size_type i)
 {
   if(i >= this->size()) { return; }
   if(i < this->offset) { this->seek(i); return; }
@@ -500,7 +420,7 @@ ReadBuffer<Element, Reader>::read(size_type i)
 
 template<class Element, class Reader>
 void
-ReadBuffer<Element, Reader>::addBlock()
+OldReadBuffer<Element, Reader>::addBlock()
 {
   if(this->read_buffer.empty())
   {
@@ -511,6 +431,201 @@ ReadBuffer<Element, Reader>::addBlock()
     this->buffer.insert(this->buffer.end(), this->read_buffer.begin(), this->read_buffer.end());
     this->read_buffer.clear();
   }
+}
+
+//------------------------------------------------------------------------------
+
+
+/*
+  A buffer for reading a file of Elements sequentially. The buffer contains Elements
+  offset to offset + buffer.size() - 1. The offset is moved by calling seek() or when
+  accessing an element before the current offset.
+
+  A separate thread is spawned for reading in the background. The reader thread stops
+  when it reaches the end of the file.
+*/
+
+template<class Element>
+struct ReadBuffer
+{
+  // Main thread.
+  size_type               offset;
+  std::deque<Element>     buffer;
+
+  // File
+  std::ifstream           file;
+  size_type               elements, file_offset;
+
+  // Reader thread.
+  std::vector<Element>    read_buffer;
+  std::mutex              mtx;
+  std::condition_variable empty;  // Is read_buffer empty?
+  std::thread             reader_thread;
+
+  // Read this many elements at once.
+  const static size_type READ_BUFFER_SIZE = MEGABYTE;
+
+  // Refill the buffer if its size falls below this threshold.
+  const static size_type MINIMUM_SIZE = READ_BUFFER_SIZE / 2;
+
+  ReadBuffer();
+  ~ReadBuffer();
+
+  void init(const std::string& filename);
+  void close();
+
+  inline size_type size() const { return this->elements; }
+  inline bool buffered(size_type i) const
+  {
+    return (i >= this->offset && i < this->offset + this->buffer.size());
+  }
+
+  /*
+    Beware: Calling seek() may invalidate the reference. The same may also happen when
+    calling operator[] with a non-buffered position.
+  */
+  inline Element& operator[] (size_type i)
+  {
+    if(!(this->buffered(i))) { this->read(i); }
+    return this->buffer[i - this->offset];
+  }
+
+  void seek(size_type i); // Set offset to i.
+
+  // Internal functions.
+  bool fill();            // Fill the read buffer.
+  void read(size_type i); // Read i into buffer, possibly seeking backwards.
+  void forceRead();       // Add elements into buffer, assuming that the current thread holds the mutex.
+
+  ReadBuffer(const ReadBuffer&) = delete;
+  ReadBuffer& operator= (const ReadBuffer&) = delete;
+};
+
+template<class Element>
+ReadBuffer<Element>::ReadBuffer()
+{
+  this->offset = 0;
+  this->elements = 0; this->file_offset = 0;
+  this->read_buffer.reserve(READ_BUFFER_SIZE);
+}
+
+template<class Element>
+ReadBuffer<Element>::~ReadBuffer()
+{
+  this->close();
+}
+
+template<class Element>
+void
+readerThread(ReadBuffer<Element>* buffer)
+{
+  while(!(buffer->fill()));
+}
+
+template<class Element>
+void
+ReadBuffer<Element>::init(const std::string& filename)
+{
+  if(this->file.is_open())
+  {
+    std::cerr << "ReadBuffer::init(): The file is already open" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  this->file.open(filename.c_str(), std::ios_base::binary);
+  if(!(this->file))
+  {
+    std::cerr << "ReadBuffer::init(): Cannot open input file " << filename << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  this->elements = fileSize(this->file) / sizeof(Element);
+  this->file_offset = 0;
+
+  this->reader_thread = std::thread(readerThread<Element>, this);
+}
+
+template<class Element>
+void
+ReadBuffer<Element>::close()
+{
+  // We need to stop the reader thread.
+  this->mtx.lock();
+  this->file_offset = this->size();
+  this->read_buffer.clear();
+  this->empty.notify_one();
+  this->mtx.unlock();
+  if(this->reader_thread.joinable()) { this->reader_thread.join(); }
+
+  this->file.close();
+  this->elements = 0;
+
+  sdsl::util::clear(this->buffer);
+}
+
+template<class Element>
+void
+ReadBuffer<Element>::seek(size_type i)
+{
+  if(i >= this->size()) { return; }
+
+  if(this->buffered(i))
+  {
+    while(this->offset < i) { this->buffer.pop_front(); this->offset++; }
+  }
+  else
+  {
+    std::unique_lock<std::mutex> lock(this->mtx);
+    this->buffer.clear(); this->read_buffer.clear();
+    this->file.seekg(i * sizeof(Element), std::ios_base::beg);
+    this->offset = this->file_offset = i;
+  }
+  if(this->buffer.size() < MINIMUM_SIZE)
+  {
+    std::unique_lock<std::mutex> lock(this->mtx);
+    this->forceRead();
+    this->empty.notify_one();
+  }
+}
+
+template<class Element>
+bool
+ReadBuffer<Element>::fill()
+{
+  std::unique_lock<std::mutex> lock(this->mtx);
+  this->empty.wait(lock, [this]() { return read_buffer.empty(); } );
+
+  this->read_buffer.resize(std::min(READ_BUFFER_SIZE, this->size() - this->file_offset));
+  DiskIO::read(this->file, this->read_buffer.data(), this->read_buffer.size());
+  this->file_offset += this->read_buffer.size();
+
+  return (this->file_offset >= this->size());
+}
+
+template<class Element>
+void
+ReadBuffer<Element>::read(size_type i)
+{
+  if(i >= this->size()) { return; }
+  if(i < this->offset) { this->seek(i); return; }
+
+  std::unique_lock<std::mutex> lock(this->mtx);
+  while(!(this->buffered(i))) { this->forceRead(); }
+  this->empty.notify_one();
+}
+
+template<class Element>
+void
+ReadBuffer<Element>::forceRead()
+{
+  if(this->read_buffer.empty())
+  {
+    this->read_buffer.resize(std::min(READ_BUFFER_SIZE, this->size() - this->file_offset));
+    DiskIO::read(this->file, this->read_buffer.data(), this->read_buffer.size());
+    this->file_offset += this->read_buffer.size();
+  }
+
+  this->buffer.insert(this->buffer.end(), this->read_buffer.begin(), this->read_buffer.end());
+  this->read_buffer.clear();
 }
 
 //------------------------------------------------------------------------------
