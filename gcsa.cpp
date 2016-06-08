@@ -268,9 +268,9 @@ void
 MergedGraphReader::init(const MergedGraph& graph,
   const DeBruijnGraph* _mapper, const sdsl::int_vector<0>* _last_char)
 {
-  this->paths.init(graph.path_name);
-  this->labels.init(graph.rank_name);
-  this->from_nodes.init(graph.from_name);
+  this->paths.open(graph.path_name);
+  this->labels.open(graph.rank_name);
+  this->from_nodes.open(graph.from_name);
 
   this->path = this->rank = this->from = 0;
   this->seek();
@@ -282,9 +282,9 @@ MergedGraphReader::init(const MergedGraph& graph,
 void
 MergedGraphReader::init(const MergedGraph& graph, size_type comp)
 {
-  this->paths.init(graph.path_name);
-  this->labels.init(graph.rank_name);
-  this->from_nodes.init(graph.from_name);
+  this->paths.open(graph.path_name);
+  this->labels.open(graph.rank_name);
+  this->from_nodes.open(graph.from_name);
 
   this->path = graph.next[comp];
   this->from = graph.next_from[comp];
@@ -515,7 +515,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   {
     reader[comp + 1].init(merged_graph, comp);
   }
-  ReadBuffer<uint8_t> lcp_array; lcp_array.init(merged_graph.lcp_name);
+  ReadBuffer<uint8_t> lcp_array; lcp_array.open(merged_graph.lcp_name);
 
   // The actual construction.
   PathLabel first, last;
