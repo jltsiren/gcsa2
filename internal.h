@@ -320,8 +320,11 @@ template<class Element>
 void
 BufferWindow<Element>::swap(BufferWindow<Element>& another)
 {
-  this->data.swap(another.data);
-  std::swap(this->offset, another.offset);
+  if(this != &another)
+  {
+    this->data.swap(another.data);
+    std::swap(this->offset, another.offset);
+  }
 }
 
 //------------------------------------------------------------------------------
