@@ -58,7 +58,7 @@ CounterArray::clear()
 void
 CounterArray::swap(CounterArray& another)
 {
-  if(this != another)
+  if(this != &another)
   {
     this->data.swap(another.data);
     this->large_values.swap(another.large_values);
