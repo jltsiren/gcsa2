@@ -61,11 +61,10 @@ tokenize(const std::string& line, std::vector<std::string>& tokens)
 }
 
 size_type
-readText(std::istream& in, std::vector<KMer>& kmers, bool append)
+readText(std::istream& in, std::vector<KMer>& kmers, const Alphabet& alpha, bool append)
 {
   if(!append) { sdsl::util::clear(kmers); }
 
-  Alphabet alpha;
   size_type kmer_length = ~(size_type)0;
   while(true)
   {
@@ -254,14 +253,14 @@ markSourceSinkNodes(std::vector<KMer>& kmers)
 const std::string InputGraph::BINARY_EXTENSION = ".graph";
 const std::string InputGraph::TEXT_EXTENSION = ".gcsa2";
 
-InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format) :
-  filenames(files), lcp_name(), binary(binary_format)
+InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format, const Alphabet& alphabet) :
+  filenames(files), lcp_name(), alpha(alphabet), binary(binary_format)
 {
   this->build();
 }
 
-InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format) :
-  lcp_name(), binary(binary_format)
+InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format, const Alphabet& alphabet) :
+  lcp_name(), alpha(alphabet), binary(binary_format)
 {
   for(size_type file = 0; file < file_count; file++)
   {
@@ -384,7 +383,7 @@ InputGraph::read(std::vector<KMer>& kmers, size_type file, bool append) const
 
   std::ifstream input; this->open(input, file);
   if(!append) { kmers.reserve(this->sizes[file]); }
-  size_type new_k = (this->binary ? readBinary(input, kmers, append) : readText(input, kmers, append));
+  size_type new_k = (this->binary ? readBinary(input, kmers, append) : readText(input, kmers, this->alpha, append));
   this->checkK(new_k, file);
   input.close();
 
@@ -504,12 +503,15 @@ GCSAHeader::checkNew() const
 void
 GCSAHeader::swap(GCSAHeader& another)
 {
-  std::swap(this->tag, another.tag);
-  std::swap(this->version, another.version);
-  std::swap(this->path_nodes, another.path_nodes);
-  std::swap(this->edges, another.edges);
-  std::swap(this->order, another.order);
-  std::swap(this->flags, another.flags);
+  if(this != &another)
+  {
+    std::swap(this->tag, another.tag);
+    std::swap(this->version, another.version);
+    std::swap(this->path_nodes, another.path_nodes);
+    std::swap(this->edges, another.edges);
+    std::swap(this->order, another.order);
+    std::swap(this->flags, another.flags);
+  }
 }
 
 std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header)

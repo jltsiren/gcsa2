@@ -58,11 +58,14 @@ CounterArray::clear()
 void
 CounterArray::swap(CounterArray& another)
 {
-  this->data.swap(another.data);
-  this->large_values.swap(another.large_values);
-  std::swap(this->width, another.width);
-  std::swap(this->large_value, another.large_value);
-  std::swap(this->total, another.total);
+  if(this != &another)
+  {
+    this->data.swap(another.data);
+    this->large_values.swap(another.large_values);
+    std::swap(this->width, another.width);
+    std::swap(this->large_value, another.large_value);
+    std::swap(this->total, another.total);
+  }
 }
 
 //------------------------------------------------------------------------------

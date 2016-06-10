@@ -32,15 +32,7 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
-std::vector<PathNode::rank_type>
-PathNode::dummyRankVector()
-{
-  std::vector<rank_type> temp;
-  temp.reserve(LABEL_LENGTH + 1);
-  return temp;
-}
-
-PathNode::PathNode(const KMer& kmer, std::vector<PathNode::rank_type>& labels)
+PathNode::PathNode(const KMer& kmer, WriteBuffer<PathNode::rank_type>& labels)
 {
   this->from = kmer.from; this->to = kmer.to;
   this->fields = 0;
@@ -91,56 +83,10 @@ PathNode::PathNode(const PathNode& left, const PathNode& right,
   }
 }
 
-PathNode::PathNode(std::istream& in, std::vector<PathNode::rank_type>& labels)
-{
-  DiskIO::read(in, this);
-  this->setPointer(labels.size());
-
-  size_type old_size = labels.size();
-  labels.resize(old_size + this->ranks());
-  DiskIO::read(in, labels.data() + old_size, this->ranks());
-}
-
-PathNode::PathNode(std::istream& in, rank_type* labels)
-{
-  DiskIO::read(in, this);
-  this->setPointer(0);
-  DiskIO::read(in, labels, this->ranks());
-}
-
-void
-PathNode::serialize(std::ostream& out, const std::vector<rank_type>& labels) const
-{
-  DiskIO::write(out, this);
-  DiskIO::write(out, labels.data() + this->pointer(), this->ranks());
-}
-
-void
-PathNode::serialize(std::ostream& out, const rank_type* labels) const
-{
-  DiskIO::write(out, this);
-  DiskIO::write(out, labels + this->pointer(), this->ranks());
-}
-
-void
-PathNode::serialize(std::ostream& node_stream, std::ostream& label_stream, const rank_type* labels, size_type ptr)
-{
-  DiskIO::write(label_stream, labels + this->pointer(), this->ranks());
-  this->setPointer(ptr);
-  DiskIO::write(node_stream, this);
-}
-
 PathNode::PathNode()
 {
   this->from = 0; this->to = 0;
   this->fields = 0;
-}
-
-PathNode::PathNode(std::vector<rank_type>& labels)
-{
-  this->from = 0; this->to = 0;
-  this->fields = 0;
-  this->setPointer(labels.size());
 }
 
 PathNode::PathNode(const PathNode& source)
@@ -317,33 +263,7 @@ struct PriorityNode
     return (this->node.order() < another.node.order());
   }
 
-  inline void load(std::vector<std::ifstream>& files)
-  {
-    this->node = PathNode(files[this->file], this->label);
-    if(files[this->file].eof())
-    {
-      this->node.setOrder(1);
-      this->node.setLCP(1);
-      this->label[0] = NO_RANK;
-    }
-  }
-
   inline rank_type firstLabel(size_type i) const { return this->label[i]; }
-
-  inline void serialize(std::ostream& out) const
-  {
-    this->node.serialize(out, this->label);
-  }
-
-  inline void serialize(std::ostream& path_file, std::ostream& label_file, size_type ptr)
-  {
-    this->node.serialize(path_file, label_file, this->label, ptr);
-  }
-
-  inline void serialize(std::vector<std::ofstream>& files) const
-  {
-    this->node.serialize(files[this->file], this->label);
-  }
 
   inline size_type bytes() const { return this->node.bytes(); }
 };
@@ -358,7 +278,8 @@ struct PriorityNode
 struct PathGraphBuilder
 {
   PathGraph graph;
-  std::vector<std::ofstream> files;
+  std::vector<WriteBuffer<PathNode>> path_files;
+  std::vector<WriteBuffer<PathNode::rank_type>> rank_files;
   size_type limit;  // Bytes of disk space.
 
   const static size_type WRITE_BUFFER_SIZE = MEGABYTE;  // PathNodes per thread.
@@ -367,50 +288,61 @@ struct PathGraphBuilder
   void close();
 
   /*
-    The single write is not thread safe, while the batch write is. The file number is
-    assumed to be valid.
+    The file number is assumed to be valid.
+    The first call is not thread safe, while the bulk write() is.
   */
-  void write(const PriorityNode& path);
+  void write(PriorityNode& path);
   void write(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type file);
 
   void sort(size_type file);
 };
 
 PathGraphBuilder::PathGraphBuilder(size_type file_count, size_type path_order, size_type step, size_type size_limit) :
-  graph(file_count, path_order, step), files(file_count), limit(size_limit)
+  graph(file_count, path_order, step),
+  path_files(file_count), rank_files(file_count),
+  limit(size_limit)
 {
-  for(size_type file = 0; file < this->files.size(); file++)
+  for(size_type file = 0; file < file_count; file++)
   {
-    this->files[file].open(this->graph.filenames[file].c_str(), std::ios_base::binary);
-    if(!(this->files[file]))
-    {
-      std::cerr << "PathGraphBuilder::PathGraphBuilder(): Cannot open output file "
-                << this->graph.filenames[file] << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
+    this->path_files[file].open(this->graph.path_names[file]);
+    this->rank_files[file].open(this->graph.rank_names[file]);
   }
 }
 
 void
 PathGraphBuilder::close()
 {
-  for(size_type file = 0; file < this->files.size(); file++)
+  for(size_type file = 0; file < this->path_files.size(); file++)
   {
-    this->files[file].close();
+    this->path_files[file].close();
+    this->rank_files[file].close();
   }
 }
 
-void
-PathGraphBuilder::write(const PriorityNode& path)
+inline void
+writePath(PathNode& path, const PathNode::rank_type* labels,
+  WriteBuffer<PathNode>& path_file, WriteBuffer<PathNode::rank_type>& rank_file)
 {
-  if(this->graph.bytes() + path.bytes() > limit)
+  size_type old_ptr = path.pointer();
+  size_type limit = old_ptr + path.ranks();
+
+  path.setPointer(rank_file.size());
+  path_file.push_back(path);
+
+  for(size_type i = old_ptr; i < limit; i++) { rank_file.push_back(labels[i]); }
+}
+
+void
+PathGraphBuilder::write(PriorityNode& path)
+{
+  if(this->graph.bytes() + path.bytes() > this->limit)
   {
     std::cerr << "PathGraphBuilder::write(): Size limit exceeded, construction aborted" << std::endl;
     std::exit(EXIT_FAILURE);
   }
+  writePath(path.node, path.label, this->path_files[path.file], this->rank_files[path.file]);
 
-  path.serialize(this->files);
-  this->graph.sizes[path.file]++; this->graph.path_count++;
+  this->graph.path_counts[path.file]++; this->graph.path_count++;
   this->graph.rank_counts[path.file] += path.node.ranks();
   this->graph.rank_count += path.node.ranks();
 }
@@ -421,13 +353,16 @@ PathGraphBuilder::write(std::vector<PathNode>& paths, std::vector<PathNode::rank
   size_type bytes_required = paths.size() * sizeof(PathNode) + labels.size() * sizeof(PathNode::rank_type);
   #pragma omp critical
   {
-    if(bytes_required + this->graph.bytes() > limit)
+    if(bytes_required + this->graph.bytes() > this->limit)
     {
       std::cerr << "PathGraphBuilder::write(): Size limit exceeded, construction aborted" << std::endl;
       std::exit(EXIT_FAILURE);
     }
-    for(auto& path : paths) { path.serialize(this->files[file], labels); }
-    this->graph.sizes[file] += paths.size(); this->graph.path_count += paths.size();
+    for(size_type i = 0; i < paths.size(); i++)
+    {
+      writePath(paths[i], labels.data(), this->path_files[file], this->rank_files[file]);
+    }
+    this->graph.path_counts[file] += paths.size(); this->graph.path_count += paths.size();
     this->graph.rank_counts[file] += labels.size(); this->graph.rank_count += labels.size();
   }
   paths.clear(); labels.clear();
@@ -436,7 +371,8 @@ PathGraphBuilder::write(std::vector<PathNode>& paths, std::vector<PathNode::rank
 void
 PathGraphBuilder::sort(size_type file)
 {
-  this->files[file].close();
+  this->path_files[file].close();
+  this->rank_files[file].close();
 
   std::vector<PathNode> paths;
   std::vector<PathNode::rank_type> labels;
@@ -445,116 +381,18 @@ PathGraphBuilder::sort(size_type file)
   PathFirstComparator first_c(labels);
   parallelQuickSort(paths.begin(), paths.end(), first_c);
 
-  this->files[file].open(this->graph.filenames[file].c_str(), std::ios_base::binary);
-  for(auto& path : paths) { path.serialize(this->files[file], labels); }
+  this->path_files[file].open(this->graph.path_names[file]);
+  this->rank_files[file].open(this->graph.rank_names[file]);
+  for(size_type i = 0; i < paths.size(); i++)
+  {
+    writePath(paths[i], labels.data(), this->path_files[file], this->rank_files[file]);
+  }
 
   if(Verbosity::level >= Verbosity::FULL)
   {
     std::cerr << "PathGraphBuilder::sort(): File " << file << ": Sorted "
-              << this->graph.sizes[file] << " paths" << std::endl;
+              << this->graph.path_counts[file] << " paths" << std::endl;
   }
-}
-
-//------------------------------------------------------------------------------
-
-/*
-  This Reader reads PathNodes and their labels from a PathGraph, merging them into a
-  single sorted stream of PriorityNodes.
-*/
-
-struct PriorityNodeReader
-{
-  PriorityNodeReader() : files(0), inputs(0), elements(0) { }
-  ~PriorityNodeReader() { this->close(); }
-
-  void init(const PathGraph& graph);
-  void close();
-
-  inline size_type size() const { return this->elements; }
-  void append(std::deque<PriorityNode>& buffer, size_type n, std::vector<PriorityNode>& read_buffer);
-  void read(std::vector<PriorityNode>& read_buffer);
-  void seek(size_type i);
-  void finish() { this->offset = this->size(); }
-  bool finished() { return (this->offset >= this->size()); }
-
-  inline void next()
-  {
-    this->inputs[0].load(this->files);
-    this->inputs.down(0);
-  }
-
-  std::vector<std::ifstream>  files;
-  PriorityQueue<PriorityNode> inputs;
-  size_type                   elements, offset;
-
-  PriorityNodeReader(const PriorityNodeReader&) = delete;
-  PriorityNodeReader& operator= (const PriorityNodeReader&) = delete;
-};
-
-void
-PriorityNodeReader::init(const PathGraph& graph)
-{
-  if(this->files.size() != 0)
-  {
-    std::cerr << "PriorityNodeReader::init(): The reader is already initialized" << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-
-  this->elements = graph.size(); this->offset = 0;
-  this->files = std::vector<std::ifstream>(graph.files());
-  this->inputs.resize(graph.files());
-  for(size_type file = 0; file < this->files.size(); file++)
-  {
-    graph.open(this->files[file], file);
-    this->inputs[file].file = file;
-    this->inputs[file].load(this->files);
-  }
-  this->inputs.heapify();
-}
-
-void
-PriorityNodeReader::close()
-{
-  for(size_type file = 0; file < this->files.size(); file++)
-  {
-    this->files[file].close();
-  }
-  this->elements = 0;
-}
-
-void
-PriorityNodeReader::append(std::deque<PriorityNode>& buffer, size_type n, std::vector<PriorityNode>&)
-{
-  n = std::min(this->size() - this->offset, n);
-  while(n > 0)
-  {
-    buffer.push_back(this->inputs[0]); n--;
-    this->next(); this->offset++;
-  }
-}
-
-void
-PriorityNodeReader::read(std::vector<PriorityNode>& read_buffer)
-{
-  if(read_buffer.size() > this->size() - this->offset) { read_buffer.resize(this->size() - this->offset); }
-  for(size_type i = 0; i < read_buffer.size(); i++)
-  {
-    read_buffer[i] = this->inputs[0];
-    this->next(); this->offset++;
-  }
-}
-
-void
-PriorityNodeReader::seek(size_type i)
-{
-  if(i > this->size()) { i = this->size(); }
-  if(i < this->offset)
-  {
-    std::cerr << "PriorityNodeReader::seek(): Cannot seek backwards" << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-
-  while(this->offset < i) { this->next(); this->offset++; }
 }
 
 //------------------------------------------------------------------------------
@@ -579,11 +417,19 @@ struct PathRange
 
 struct PathGraphMerger
 {
-  const PathGraph&                             graph;
-  const LCP&                                   lcp;
-  ReadBuffer<PriorityNode, PriorityNodeReader> buffer;
-  std::deque<PathRange>                        ranges;
-  bool                                         need_range_lcp;
+  const PathGraph&                              graph;
+  const LCP&                                    lcp;
+  bool                                          need_range_lcp;
+
+  // Buffers.
+  std::deque<PathRange>                         ranges;
+  BufferWindow<PriorityNode>                    buffer;
+
+  // Priority queue.
+  std::vector<ReadBuffer<PathNode>>             path_files;
+  std::vector<ReadBuffer<PathNode::rank_type>>  rank_files;
+  std::vector<size_type>                        offsets;
+  PriorityQueue<PriorityNode>                   inputs;
 
   PathGraphMerger(const PathGraph& path_graph, const LCP& _lcp, bool set_range_lcp);
   void close();
@@ -591,25 +437,17 @@ struct PathGraphMerger
   inline size_type size() const { return this->graph.size(); }
 
   /*
-    Iterates through ranges of paths with the same label. The ranges are buffered in
-    a deque.
+    Iterates through ranges of paths with the same label.
   */
   range_type first();
   range_type next();
   inline bool atEnd(range_type range) const { return (range.first >= this->size()); }
 
-  inline size_type rangeEnd(size_type start)
-  {
-    size_type stop = start;
-    while(stop + 1 < this->size() && !(this->buffer[start] < this->buffer[stop + 1])) { stop++; }
-    return stop;
-  }
-
   /*
     Each file must have its own source/sink nodes, even though they might share their
     labels. Hence we check for the file number here.
   */
-  inline bool sameFrom(size_type i, size_type j)
+  inline bool sameFrom(size_type i, size_type j) const
   {
     return (this->buffer[i].node.from == this->buffer[j].node.from &&
             this->buffer[i].file == this->buffer[j].file);
@@ -618,13 +456,13 @@ struct PathGraphMerger
   bool sameFrom(range_type range);
   inline bool sameFrom(const PathRange& range) { return this->sameFrom(range.range()); }
 
-  inline range_type range_lcp(size_type i, size_type j) // i < j
+  inline range_type range_lcp(size_type i, size_type j) const // i < j
   {
     return this->lcp.min_lcp(this->buffer[i].node, this->buffer[j].node,
       this->buffer[i].label, this->buffer[j].label);
   }
 
-  inline range_type border_lcp(size_type i, size_type j) // i < j
+  inline range_type border_lcp(size_type i, size_type j) const // i < j
   {
     return this->lcp.max_lcp(this->buffer[i].node, this->buffer[j].node,
       this->buffer[i].label, this->buffer[j].label);
@@ -649,19 +487,47 @@ struct PathGraphMerger
   */
   void mergePathNodes();
   void mergePathNodes(range_type range, std::vector<range_type>& from_nodes, size_type path_id);
+
+  // Find the rightmost path with the same label.
+  size_type rangeEnd(size_type start);
+
+  // Add the next PriorityNode to buffer.
+  void bufferNext();
+
+  // Read the next PriorityNode from the file.
+  void read(PriorityNode& path);
 };
 
 PathGraphMerger::PathGraphMerger(const PathGraph& path_graph, const LCP& _lcp, bool set_range_lcp) :
-  graph(path_graph), lcp(_lcp), need_range_lcp(set_range_lcp)
+  graph(path_graph), lcp(_lcp), need_range_lcp(set_range_lcp),
+  path_files(path_graph.files()), rank_files(path_graph.files()),
+  offsets(path_graph.files()), inputs(path_graph.files())
 {
-  this->buffer.init(std::ref(this->graph));
+  for(size_type file = 0; file < path_graph.files(); file++)
+  {
+    this->path_files[file].open(path_graph.path_names[file]);
+    this->rank_files[file].open(path_graph.rank_names[file]);
+    this->offsets[file] = 0;
+    this->inputs[file].file = file; this->read(this->inputs[file]);
+  }
+  this->inputs.heapify();
 }
 
 void
 PathGraphMerger::close()
 {
-  this->buffer.close();
-  this->ranges.clear();
+  sdsl::util::clear(this->ranges);
+  sdsl::util::clear(this->buffer);
+
+  for(size_type file = 0; file < this->graph.files(); file++)
+  {
+    this->path_files[file].close();
+    this->rank_files[file].close();
+  }
+  this->path_files.clear();
+  this->rank_files.clear();
+  this->offsets.clear();
+  this->inputs.clear();
 }
 
 range_type
@@ -782,6 +648,52 @@ PathGraphMerger::mergePathNodes(range_type range, std::vector<range_type>& from_
   removeDuplicates(from_nodes, false);
 }
 
+size_type
+PathGraphMerger::rangeEnd(size_type start)
+{
+  if(!(this->buffer.buffered(start))) { this->bufferNext(); }
+
+  size_type stop = start;
+  while(stop + 1 < this->size())
+  {
+    if(!(this->buffer.buffered(stop + 1))) { this->bufferNext(); }
+    if(this->buffer[start] < this->buffer[stop + 1]) { break; }
+    stop++;
+  }
+  return stop;
+}
+
+void
+PathGraphMerger::bufferNext()
+{
+  this->buffer.push_back(this->inputs[0]);  // Add to the buffer.
+  this->read(this->inputs[0]);  // Read the next.
+  this->inputs.down(0); // Restore heap order.
+}
+
+void
+PathGraphMerger::read(PriorityNode& path)
+{
+  if(this->offsets[path.file] >= this->graph.path_counts[path.file])
+  {
+    path.node.setOrder(1);
+    path.node.setLCP(1);
+    path.label[0] = PriorityNode::NO_RANK;
+  }
+  else
+  {
+    this->path_files[path.file].seek(this->offsets[path.file]);
+    path.node = this->path_files[path.file][this->offsets[path.file]];
+    this->rank_files[path.file].seek(path.node.pointer());
+    for(size_type i = 0; i < path.node.ranks(); i++)
+    {
+      path.label[i] = this->rank_files[path.file][path.node.pointer() + i];
+    }
+    path.node.setPointer(0);  // Label is now stored in the PriorityNode.
+    this->offsets[path.file]++;
+  }
+}
+
 PathRange::PathRange(size_type start, size_type stop, range_type _left_lcp, PathGraphMerger& merger) :
   from(start), to(stop),
   left_lcp(_left_lcp),
@@ -805,17 +717,10 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
   sdsl::sd_vector<>::rank_1_type key_rank(&key_exists);
   for(size_type file = 0; file < source.files(); file++)
   {
-    std::string temp_file = TempFile::getName(PREFIX);
-    this->filenames.push_back(temp_file);
-    this->sizes.push_back(source.sizes[file]); this->path_count += source.sizes[file];
-    this->rank_counts.push_back(2 * source.sizes[file]); this->rank_count += 2 * source.sizes[file];
-
-    std::ofstream out(temp_file.c_str(), std::ios_base::binary);
-    if(!out)
-    {
-      std::cerr << "PathGraph::PathGraph(): Cannot open output file " << temp_file << std::endl;
-      std::exit(EXIT_FAILURE);
-    }
+    std::string path_name = TempFile::getName(PREFIX);
+    this->path_names.push_back(path_name);
+    std::string rank_name = TempFile::getName(PREFIX);
+    this->rank_names.push_back(rank_name);
 
     // Read KMers, sort them, and convert the keys labels to the ranks of those labels.
     std::vector<KMer> kmers;
@@ -828,14 +733,15 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
     }
 
     // Convert the KMers to PathNodes.
-    std::vector<PathNode::rank_type> temp_labels = PathNode::dummyRankVector();
+    WriteBuffer<PathNode> path_buffer(path_name);
+    WriteBuffer<PathNode::rank_type> rank_buffer(rank_name);
     for(size_type i = 0; i < kmers.size(); i++)
     {
-      PathNode temp(kmers[i], temp_labels);
-      temp.serialize(out, temp_labels);
-      temp_labels.resize(0);
+      path_buffer.push_back(PathNode(kmers[i], rank_buffer));
     }
-    out.close();
+    this->path_counts.push_back(path_buffer.size()); this->path_count += path_buffer.size();
+    this->rank_counts.push_back(rank_buffer.size()); this->rank_count += rank_buffer.size();
+    path_buffer.close(); rank_buffer.close();
   }
 
   if(Verbosity::level >= Verbosity::EXTENDED)
@@ -848,13 +754,14 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 }
 
 PathGraph::PathGraph(size_type file_count, size_type path_order, size_type steps) :
-  filenames(file_count), sizes(file_count, 0), rank_counts(file_count, 0),
+  path_names(file_count), rank_names(file_count), path_counts(file_count, 0), rank_counts(file_count, 0),
   path_count(0), rank_count(0), range_count(0), order(path_order), doubling_steps(steps),
   unique(0), unsorted(0), nondeterministic(0)
 {
   for(size_type file = 0; file < this->files(); file++)
   {
-    this->filenames[file] = TempFile::getName(PREFIX);
+    this->path_names[file] = TempFile::getName(PREFIX);
+    this->rank_names[file] = TempFile::getName(PREFIX);
   }
 }
 
@@ -868,10 +775,12 @@ PathGraph::clear()
 {
   for(size_type file = 0; file < this->files(); file++)
   {
-    TempFile::remove(this->filenames[file]);
+    TempFile::remove(this->path_names[file]);
+    TempFile::remove(this->rank_names[file]);
   }
-  this->filenames.clear();
-  this->sizes.clear();
+  this->path_names.clear();
+  this->rank_names.clear();
+  this->path_counts.clear();
   this->rank_counts.clear();
 
   this->path_count = 0; this->rank_count = 0;
@@ -882,8 +791,9 @@ PathGraph::clear()
 void
 PathGraph::swap(PathGraph& another)
 {
-  this->filenames.swap(another.filenames);
-  this->sizes.swap(another.sizes);
+  this->path_names.swap(another.path_names);
+  this->rank_names.swap(another.rank_names);
+  this->path_counts.swap(another.path_counts);
   this->rank_counts.swap(another.rank_counts);
 
   std::swap(this->path_count, another.path_count);
@@ -898,7 +808,7 @@ PathGraph::swap(PathGraph& another)
 }
 
 void
-PathGraph::open(std::ifstream& input, size_type file) const
+PathGraph::open(std::ifstream& path_file, std::ifstream& rank_file, size_type file) const
 {
   if(file >= this->files())
   {
@@ -906,10 +816,17 @@ PathGraph::open(std::ifstream& input, size_type file) const
     std::exit(EXIT_FAILURE);
   }
 
-  input.open(this->filenames[file].c_str(), std::ios_base::binary);
-  if(!input)
+  path_file.open(this->path_names[file].c_str(), std::ios_base::binary);
+  if(!path_file)
   {
-    std::cerr << "PathGraph::open(): Cannot open graph file " << this->filenames[file] << std::endl;
+    std::cerr << "PathGraph::open(): Cannot open path file " << this->path_names[file] << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  rank_file.open(this->rank_names[file].c_str(), std::ios_base::binary);
+  if(!rank_file)
+  {
+    std::cerr << "PathGraph::open(): Cannot open rank file " << this->rank_names[file] << std::endl;
     std::exit(EXIT_FAILURE);
   }
 }
@@ -1021,7 +938,7 @@ PathGraph::extend(size_type size_limit)
 
     if(Verbosity::level >= Verbosity::FULL)
     {
-      std::cerr << "PathGraph::extend(): File " << file << ": Created " << builder.graph.sizes[file]
+      std::cerr << "PathGraph::extend(): File " << file << ": Created " << builder.graph.path_counts[file]
                 << " order-" << builder.graph.k() << " paths" << std::endl;
     }
 
@@ -1045,12 +962,14 @@ PathGraph::extend(size_type size_limit)
 void
 PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type file) const
 {
-  sdsl::util::clear(paths); sdsl::util::clear(labels);
+  paths.resize(this->path_counts[file]);
+  labels.resize(this->rank_counts[file]);
 
-  std::ifstream input; this->open(input, file);
-  paths.reserve(this->sizes[file]); labels.reserve(this->rank_counts[file]);
-  for(size_type i = 0; i < this->sizes[file]; i++) { paths.push_back(PathNode(input, labels)); }
-  input.close();
+  std::ifstream path_file, rank_file;
+  this->open(path_file, rank_file, file);
+  DiskIO::read(path_file, paths.data(), this->path_counts[file]);
+  DiskIO::read(rank_file, labels.data(), this->rank_counts[file]);
+  path_file.close(); rank_file.close();
 
   if(Verbosity::level >= Verbosity::FULL)
   {
@@ -1070,25 +989,10 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
   order(source.k()),
   next(mapper.alpha.sigma + 1, 0), next_from(mapper.alpha.sigma + 1, 0)
 {
-  std::ofstream path_file(this->path_name.c_str(), std::ios_base::binary);
-  if(!path_file)
-  {
-    std::cerr << "MergedGraph::MergedGraph(): Cannot open output file " << this->path_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  std::ofstream rank_file(this->rank_name.c_str(), std::ios_base::binary);
-  if(!rank_file)
-  {
-    std::cerr << "MergedGraph::MergedGraph(): Cannot open output file " << this->rank_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  std::ofstream from_file(this->from_name.c_str(), std::ios_base::binary);
-  if(!from_file)
-  {
-    std::cerr << "MergedGraph::MergedGraph(): Cannot open output file " << this->from_name << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  WriteBuffer<uint8_t> lcp_array(this->lcp_name);
+  WriteBuffer<PathNode>            path_file(this->path_name);
+  WriteBuffer<PathNode::rank_type> rank_file(this->rank_name);
+  WriteBuffer<range_type>          from_file(this->from_name);
+  WriteBuffer<uint8_t>             lcp_file(this->lcp_name);
 
   /*
      Initialize next[comp] to be the the rank of the first kmer starting with
@@ -1108,12 +1012,12 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
   for(range_type range = merger.first(); !(merger.atEnd(range)); range = merger.next())
   {
     range_type path_lcp = merger.ranges.front().left_lcp;
-    lcp_array.push_back(path_lcp.first * mapper.order() + path_lcp.second);
+    lcp_file.push_back(path_lcp.first * mapper.order() + path_lcp.second);
     merger.mergePathNodes(range, curr_from, this->path_count);
-    merger.buffer[range.second].serialize(path_file, rank_file, this->rank_count);
+    writePath(merger.buffer[range.second].node, merger.buffer[range.second].label, path_file, rank_file);
     if(curr_from.size() > 0)
     {
-      DiskIO::write(from_file, curr_from.data(), curr_from.size());
+      for(size_type i = 0; i < curr_from.size(); i++) { from_file.push_back(curr_from[i]); }
     }
     while(merger.buffer[range.second].firstLabel(0) >= this->next[curr_comp])
     {
@@ -1126,7 +1030,7 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
     this->from_count += curr_from.size();
   }
   merger.close();
-  path_file.close(); rank_file.close(); from_file.close(); lcp_array.close();
+  path_file.close(); rank_file.close(); from_file.close(); lcp_file.close();
 
   if(Verbosity::level >= Verbosity::EXTENDED)
   {

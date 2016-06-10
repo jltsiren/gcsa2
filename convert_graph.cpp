@@ -35,7 +35,7 @@ main(int argc, char** argv)
   if(argc < 2)  // From stdin to stdout.
   {
     std::vector<KMer> kmers;
-    size_type kmer_length = readText(std::cin, kmers);
+    size_type kmer_length = readText(std::cin, kmers, Alphabet());
     writeBinary(std::cout, kmers, kmer_length);
   }
   else

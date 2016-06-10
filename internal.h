@@ -200,7 +200,8 @@ struct PriorityQueue
   PriorityQueue();
   explicit PriorityQueue(size_type n) : data(n) { }
 
-  void resize(size_type n) { this->data.resize(n); }
+  inline void clear() { this->data.clear(); }
+  inline void resize(size_type n) { this->data.resize(n); }
 
   inline size_type size() const { return this->data.size(); }
   inline static size_type parent(size_type i) { return (i - 1) / 2; }
@@ -248,140 +249,124 @@ PriorityQueue<Element>::heapify()
 //------------------------------------------------------------------------------
 
 /*
-  A simple wrapper for reading a file of Elements. Use with ReadBuffer.
+  A buffer that keeps Elements [offset, offset + size - 1] in memory. It supports
+  seeking to a new position and adding Elements to the end.
 */
 
 template<class Element>
-struct ElementReader
+struct BufferWindow
 {
-  ElementReader() { this->elements = 0; }
-  ~ElementReader() { this->close(); }
+  std::deque<Element> data;
+  size_type           offset;
 
-  void init(const std::string& filename);
-  void close() { this->file.close(); this->elements = 0; }
+  BufferWindow();
+  ~BufferWindow();
 
-  inline size_type size() const { return this->elements; }
-  void append(std::deque<Element>& buffer, size_type n, std::vector<Element>& read_buffer);
-  void read(std::vector<Element>& read_buffer);
+  inline size_type size() const { return this->data.size(); }
+  inline bool buffered(size_type i) const
+  {
+    return (i >= this->offset && i < this->offset + this->size());
+  }
+
+  /*
+    Beware: Calling seek() may invalidate the reference. The same may also happen when
+    calling operator[] with a non-buffered position.
+  */
+  inline Element& operator[] (size_type i) { return this->data[i - this->offset]; }
+  inline const Element& operator[] (size_type i) const { return this->data[i - this->offset]; }
+
+  void clear();
   void seek(size_type i);
-  void finish() { this->offset = this->size(); }
-  bool finished() { return (this->offset >= this->size()); }
+  void swap(BufferWindow<Element>& another);
 
-  std::ifstream file;
-  size_type elements, offset;
+  inline void push_back(const Element& element) { this->data.push_back(element); }
 
-  ElementReader(const ElementReader&) = delete;
-  ElementReader& operator= (const ElementReader&) = delete;
+  template<class Iterator>
+  void insert(Iterator from, Iterator to) { this->data.insert(this->data.end(), from, to); }
 };
 
 template<class Element>
-void
-ElementReader<Element>::init(const std::string& filename)
+BufferWindow<Element>::BufferWindow() :
+  offset(0)
 {
-  if(this->file.is_open())
-  {
-    std::cerr << "ElementReader::init(): The file is already open" << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
+}
 
-  this->file.open(filename.c_str(), std::ios_base::binary);
-  if(!(this->file))
-  {
-    std::cerr << "ElementReader::init(): Cannot open input file " << filename << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  this->elements = fileSize(this->file) / sizeof(Element);
+template<class Element>
+BufferWindow<Element>::~BufferWindow()
+{
+}
+
+template<class Element>
+void
+BufferWindow<Element>::clear()
+{
+  sdsl::util::clear(this->data);
   this->offset = 0;
 }
 
 template<class Element>
 void
-ElementReader<Element>::append(std::deque<Element>& buffer, size_type n, std::vector<Element>& read_buffer)
+BufferWindow<Element>::seek(size_type i)
 {
-  n = std::min(this->size() - this->offset, n);
-  size_type block_size = std::min(n, (size_type)(read_buffer.capacity()));
-
-  read_buffer.resize(block_size);
-  this->read(read_buffer);
-  buffer.insert(buffer.end(), read_buffer.begin(), read_buffer.end());
-  read_buffer.clear();
-}
-
-template<class Element>
-void
-ElementReader<Element>::read(std::vector<Element>& read_buffer)
-{
-  if(read_buffer.size() > this->size() - this->offset) { read_buffer.resize(this->size() - this->offset); }
-  DiskIO::read(this->file, read_buffer.data(), read_buffer.size());
-  this->offset += read_buffer.size();
-}
-
-template<class Element>
-void
-ElementReader<Element>::seek(size_type i)
-{
-  i = std::min(i, this->size());
-  this->file.seekg(i * sizeof(Element), std::ios_base::beg);
+  if(this->buffered(i))
+  {
+    for(size_type j = this->offset; j < i; j++) { this->data.pop_front(); }
+  }
+  else { this->data.clear(); }
   this->offset = i;
+}
+
+template<class Element>
+void
+BufferWindow<Element>::swap(BufferWindow<Element>& another)
+{
+  if(this != &another)
+  {
+    this->data.swap(another.data);
+    std::swap(this->offset, another.offset);
+  }
 }
 
 //------------------------------------------------------------------------------
 
 /*
-  A buffer for reading a file of Elements sequentially. The buffer contains Elements
-  offset to offset + buffer.size() - 1. The offset is moved by calling seek() or when
-  accessing an element before the current offset.
+  A buffer for reading a file of Elements sequentially. Function seek() moves the start
+  of the buffer to the new position. Accesses before the current start call seek(), while
+  accesses after it expand the buffer until the requested position is contained in it.
 
-  A separate thread is spawned for reading in the background.
-
-  The Reader must implement the following interface:
-
-  Reader()                        Default constructor.
-  init(parameters...)             Initialize the reader.
-  close()                         Close the reader.
-  size()                          Return the size of the source data.
-  append(buffer, n, read_buffer)  Append n elements to buffer. read_buffer can be used as
-                                  a buffer if necessary. Its capacity should be > 0.
-  read(read_buffer)               Read read_buffer.size() elements.
-  seek(i)                         Go to offset i.
-  finish()                        Finish reading.
-  finished()                      Has reading finished (at end or by calling finish())?
+  A separate thread is spawned for reading in the background. The reader thread stops
+  when it reaches the end of the file.
 */
 
-template<class Element, class Reader = ElementReader<Element>>
+template<class Element>
 struct ReadBuffer
 {
   // Main thread.
-  size_type               offset;
-  std::deque<Element>     buffer;
-  Reader                  reader;
+  BufferWindow<Element>   buffer;
+
+  // File
+  std::ifstream           file;
+  size_type               elements, file_offset;
 
   // Reader thread.
   std::vector<Element>    read_buffer;
   std::mutex              mtx;
-  std::condition_variable empty;
+  std::condition_variable empty;  // Is read_buffer empty?
   std::thread             reader_thread;
 
-  // Minimum size when refilling the buffer.
-  const static size_type BUFFER_SIZE = MEGABYTE;
+  // Read this many elements at once.
+  const static size_type READ_BUFFER_SIZE = MEGABYTE;
 
   // Refill the buffer if its size falls below this threshold.
-  const static size_type MINIMUM_SIZE = BUFFER_SIZE / 2;
-
-  // Read this many elements at once.
-  const static size_type READ_BUFFER_SIZE = BUFFER_SIZE;
+  const static size_type MINIMUM_SIZE = READ_BUFFER_SIZE / 2;
 
   ReadBuffer();
   ~ReadBuffer();
 
-  template<class... ReaderParameters> void init(ReaderParameters... parameters);
+  void open(const std::string& filename);
   void close();
 
-  inline size_type size() const { return this->reader.size(); }
-  inline bool buffered(size_type i) const
-  {
-    return (i >= this->offset && i < this->offset + this->buffer.size());
-  }
+  inline size_type size() const { return this->elements; }
 
   /*
     Beware: Calling seek() may invalidate the reference. The same may also happen when
@@ -389,128 +374,144 @@ struct ReadBuffer
   */
   inline Element& operator[] (size_type i)
   {
-    if(!(this->buffered(i))) { this->read(i); }
-    return this->buffer[i - this->offset];
+    if(!(this->buffer.buffered(i))) { this->read(i); }
+    return this->buffer[i];
   }
+
   void seek(size_type i); // Set offset to i.
 
   // Internal functions.
   bool fill();            // Fill the read buffer.
   void read(size_type i); // Read i into buffer, possibly seeking backwards.
-  void addBlock();        // Add a block into buffer, assuming that this read holds mtx.
+  void forceRead();       // Add elements into buffer, assuming that the current thread holds the mutex.
 
   ReadBuffer(const ReadBuffer&) = delete;
   ReadBuffer& operator= (const ReadBuffer&) = delete;
 };
 
-template<class Element, class Reader>
-ReadBuffer<Element, Reader>::ReadBuffer()
+template<class Element>
+ReadBuffer<Element>::ReadBuffer()
 {
-  this->offset = 0;
+  this->elements = 0; this->file_offset = 0;
   this->read_buffer.reserve(READ_BUFFER_SIZE);
 }
 
-template<class Element, class Reader>
-ReadBuffer<Element, Reader>::~ReadBuffer()
+template<class Element>
+ReadBuffer<Element>::~ReadBuffer()
 {
   this->close();
 }
 
-template<class Element, class Reader>
+template<class Element>
 void
-readerThread(ReadBuffer<Element, Reader>* buffer)
+readerThread(ReadBuffer<Element>* buffer)
 {
   while(!(buffer->fill()));
 }
 
-template<class Element, class Reader>
-template<class... ReaderParameters>
+template<class Element>
 void
-ReadBuffer<Element, Reader>::init(ReaderParameters... parameters)
+ReadBuffer<Element>::open(const std::string& filename)
 {
-  this->reader.init(parameters...);
-  this->reader_thread = std::thread(readerThread<Element, Reader>, this);
+  if(this->file.is_open())
+  {
+    std::cerr << "ReadBuffer::open(): The file is already open" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  this->file.open(filename.c_str(), std::ios_base::binary);
+  if(!(this->file))
+  {
+    std::cerr << "ReadBuffer::open(): Cannot open input file " << filename << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  this->elements = fileSize(this->file) / sizeof(Element);
+  this->file_offset = 0;
+
+  this->reader_thread = std::thread(readerThread<Element>, this);
 }
 
-template<class Element, class Reader>
+template<class Element>
 void
-ReadBuffer<Element, Reader>::close()
+ReadBuffer<Element>::close()
 {
   // We need to stop the reader thread.
   this->mtx.lock();
-  this->reader.finish();
+  this->file_offset = this->size();
   this->read_buffer.clear();
   this->empty.notify_one();
   this->mtx.unlock();
   if(this->reader_thread.joinable()) { this->reader_thread.join(); }
 
+  this->file.close();
+  this->elements = 0;
+
   sdsl::util::clear(this->buffer);
-  sdsl::util::clear(this->read_buffer);
-  this->reader.close();
 }
 
-template<class Element, class Reader>
+template<class Element>
 void
-ReadBuffer<Element, Reader>::seek(size_type i)
+ReadBuffer<Element>::seek(size_type i)
 {
   if(i >= this->size()) { return; }
 
-  if(this->buffered(i))
-  {
-    while(this->offset < i) { this->buffer.pop_front(); this->offset++; }
-  }
-  else
+  // Move the buffer and the file to the new position.
+  this->buffer.seek(i);
+  if(!(this->buffer.buffered(i)))
   {
     std::unique_lock<std::mutex> lock(this->mtx);
-    this->buffer.clear(); this->read_buffer.clear();
-    this->reader.seek(i); this->offset = i;
+    this->read_buffer.clear();
+    this->file.seekg(i * sizeof(Element), std::ios_base::beg);
+    this->file_offset = i;
   }
+
   if(this->buffer.size() < MINIMUM_SIZE)
   {
     std::unique_lock<std::mutex> lock(this->mtx);
-    this->addBlock();
+    this->forceRead();
     this->empty.notify_one();
   }
 }
 
-template<class Element, class Reader>
+template<class Element>
 bool
-ReadBuffer<Element, Reader>::fill()
+ReadBuffer<Element>::fill()
 {
   std::unique_lock<std::mutex> lock(this->mtx);
   this->empty.wait(lock, [this]() { return read_buffer.empty(); } );
 
-  this->read_buffer.resize(READ_BUFFER_SIZE);
-  this->reader.read(this->read_buffer);
+  this->read_buffer.resize(std::min(READ_BUFFER_SIZE, this->size() - this->file_offset));
+  DiskIO::read(this->file, this->read_buffer.data(), this->read_buffer.size());
+  this->file_offset += this->read_buffer.size();
 
-  return this->reader.finished();
+  return (this->file_offset >= this->size());
 }
 
-template<class Element, class Reader>
+template<class Element>
 void
-ReadBuffer<Element, Reader>::read(size_type i)
+ReadBuffer<Element>::read(size_type i)
 {
   if(i >= this->size()) { return; }
-  if(i < this->offset) { this->seek(i); return; }
+  if(i < this->buffer.offset) { this->seek(i); return; }
 
   std::unique_lock<std::mutex> lock(this->mtx);
-  while(!(this->buffered(i))) { this->addBlock(); }
+  while(!(this->buffer.buffered(i))) { this->forceRead(); }
   this->empty.notify_one();
 }
 
-template<class Element, class Reader>
+template<class Element>
 void
-ReadBuffer<Element, Reader>::addBlock()
+ReadBuffer<Element>::forceRead()
 {
   if(this->read_buffer.empty())
   {
-    this->reader.append(this->buffer, READ_BUFFER_SIZE, this->read_buffer);
+    this->read_buffer.resize(std::min(READ_BUFFER_SIZE, this->size() - this->file_offset));
+    DiskIO::read(this->file, this->read_buffer.data(), this->read_buffer.size());
+    this->file_offset += this->read_buffer.size();
   }
-  else
-  {
-    this->buffer.insert(this->buffer.end(), this->read_buffer.begin(), this->read_buffer.end());
-    this->read_buffer.clear();
-  }
+
+  this->buffer.insert(this->read_buffer.begin(), this->read_buffer.end());
+  this->read_buffer.clear();
 }
 
 //------------------------------------------------------------------------------
@@ -522,13 +523,18 @@ ReadBuffer<Element, Reader>::addBlock()
 template<class Element>
 struct WriteBuffer
 {
+  WriteBuffer();
   explicit WriteBuffer(const std::string& filename, size_type _buffer_size = MEGABYTE);
   ~WriteBuffer();
+
+  void open(const std::string& filename, size_type _buffer_size = MEGABYTE);
   void close();
+
+  inline size_type size() const { return this->elements; }
 
   inline void push_back(Element value)
   {
-    this->buffer.push_back(value);
+    this->buffer.push_back(value); this->elements++;
     if(buffer.size() >= this->buffer_size)
     {
       DiskIO::write(this->file, this->buffer.data(), this->buffer.size());
@@ -538,28 +544,43 @@ struct WriteBuffer
 
   std::ofstream        file;
   std::vector<Element> buffer;
-  size_type            buffer_size;
+  size_type            buffer_size, elements;
 
   WriteBuffer(const WriteBuffer&) = delete;
   WriteBuffer& operator= (const WriteBuffer&) = delete;
 };
 
 template<class Element>
-WriteBuffer<Element>::WriteBuffer(const std::string& filename, size_type _buffer_size) :
-  file(filename.c_str(), std::ios_base::binary), buffer(), buffer_size(_buffer_size)
+WriteBuffer<Element>::WriteBuffer() :
+  buffer_size(0), elements(0)
 {
-  if(!(this->file))
-  {
-    std::cerr << "WriteBuffer::WriteBuffer(): Cannot open output file " << filename << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  this->buffer.reserve(this->buffer_size);
+}
+
+template<class Element>
+WriteBuffer<Element>::WriteBuffer(const std::string& filename, size_type _buffer_size)
+{
+  this->open(filename, _buffer_size);
 }
 
 template<class Element>
 WriteBuffer<Element>::~WriteBuffer()
 {
   this->close();
+}
+
+template<class Element>
+void
+WriteBuffer<Element>::open(const std::string& filename, size_type _buffer_size)
+{
+  this->file.open(filename.c_str(), std::ios_base::binary);
+  if(!(this->file))
+  {
+    std::cerr << "WriteBuffer::open(): Cannot open output file " << filename << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  this->buffer_size = _buffer_size; this->elements = 0;
+  this->buffer.reserve(this->buffer_size);
 }
 
 template<class Element>
@@ -572,6 +593,8 @@ WriteBuffer<Element>::close()
   }
   this->file.close();
   sdsl::util::clear(this->buffer);
+  this->buffer_size = 0;
+  this->elements = 0;
 }
 
 //------------------------------------------------------------------------------

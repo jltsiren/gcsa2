@@ -170,29 +170,13 @@ struct PathNode
 
 //------------------------------------------------------------------------------
 
-  static std::vector<rank_type> dummyRankVector();
-
-  PathNode(const KMer& kmer, std::vector<rank_type>& labels);
+  PathNode(const KMer& kmer, WriteBuffer<rank_type>& labels);
 
   PathNode(const PathNode& source,
     const std::vector<rank_type>& old_labels, std::vector<rank_type>& new_labels);
 
   PathNode(const PathNode& left, const PathNode& right,
     const std::vector<rank_type>& old_labels, std::vector<rank_type>& new_labels);
-
-  /*
-    The constructors set the pointers when loading the path node:
-    - the first one sets it to labels.size()
-    - the second one sets it to 0
-
-    The third serialize() version sets the pointer to ptr. It can be used to write
-    PathNodes into memory mappable files or into files used with ReadBuffer.
-  */
-  PathNode(std::istream& in, std::vector<rank_type>& labels);
-  PathNode(std::istream& in, rank_type* labels);
-  void serialize(std::ostream& out, const std::vector<rank_type>& labels) const;
-  void serialize(std::ostream& out, const rank_type* labels) const;
-  void serialize(std::ostream& node_stream, std::ostream& label_stream, const rank_type* labels, size_type ptr);
 
   void print(std::ostream& out, const std::vector<rank_type>& labels) const;
   void print(std::ostream& out, const rank_type* labels) const;
@@ -298,15 +282,17 @@ struct LCP
 //------------------------------------------------------------------------------
 
 /*
-  A path graph is a set of files, each of them containing the paths derived from one
-  of the input files. The PathNodes in each file are sorted by their labels, and the
-  read() member functions will also return the PathNodes in sorted order.
+  A path graph is a set of files. Each file in the input graph becomes two temporary
+  files: one for the paths and another for the rank sequences corresponding to path
+  labels. The PathNodes in each file are sorted by their labels, and the read() member
+  functions will also return the PathNodes in sorted order. The labels are stored in
+  the same order as the PathNodes.
 */
 
 struct PathGraph
 {
-  std::vector<std::string> filenames;
-  std::vector<size_type>   sizes, rank_counts;
+  std::vector<std::string> path_names, rank_names;
+  std::vector<size_type>   path_counts, rank_counts;
 
   size_type path_count, rank_count, range_count;
   size_type order, doubling_steps;
@@ -322,14 +308,15 @@ struct PathGraph
 
   void clear();
   void swap(PathGraph& another);
-  void open(std::ifstream& input, size_type file) const;
+
+  void open(std::ifstream& path_file, std::ifstream& rank_file, size_type file) const;
 
   inline size_type size() const { return this->path_count; }
   inline size_type ranks() const { return this->rank_count; }
   inline size_type ranges() const { return this->range_count; } // Only works after prune().
   inline size_type k() const { return this->order; }
   inline size_type step() const { return this->doubling_steps; }
-  inline size_type files() const { return this->filenames.size(); }
+  inline size_type files() const { return this->path_names.size(); }
 
   inline size_type bytes() const
   {
