@@ -207,7 +207,8 @@ range_type
 parseKMer(const std::string& kmer_line)
 {
   std::string extensions;
-  range_type result(InputGraph::UNKNOWN, 0);
+  size_type unknown = InputGraph::UNKNOWN;  // avoid direct use of static const
+  range_type result(unknown, 0);
   {
     std::string token;
     std::istringstream ss(kmer_line);

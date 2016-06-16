@@ -980,8 +980,8 @@ PathGraph::extend(size_type size_limit)
     size_type threads = omp_get_max_threads();
 
     // Create thread-specific buffers.
-    std::vector<PathNode> temp_nodes[threads];
-    std::vector<PathNode::rank_type> temp_labels[threads];
+    std::vector<std::vector<PathNode>> temp_nodes(threads);
+    std::vector<std::vector<PathNode::rank_type>> temp_labels(threads);
     for(size_type thread = 0; thread < threads; thread++)
     {
       temp_nodes[thread].reserve(PathGraphBuilder::WRITE_BUFFER_SIZE);
