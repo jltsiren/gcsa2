@@ -9,6 +9,10 @@ SDSL_DIR=../sdsl-lite
 
 # Multithreading with OpenMP and libstdc++ Parallel Mode.
 PARALLEL_FLAGS=-fopenmp -pthread
+# Turn off libstdc++ parallel mode for clang
+ifneq (clang,$(findstring clang,$(shell $(CXX) --version)))
+PARALLEL_FLAGS+=-D_GLIBCXX_PARALLEL
+endif
 
 # Verbose output during index construction etc.
 OUTPUT_FLAGS=-DVERBOSE_STATUS_INFO
