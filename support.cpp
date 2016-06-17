@@ -372,7 +372,8 @@ std::string
 Key::decode(key_type key, size_type kmer_length, const Alphabet& alpha)
 {
   key = label(key);
-  kmer_length = std::min(kmer_length, MAX_LENGTH);
+  size_type max_length = Key::MAX_LENGTH;  // avoid direct use of static const
+  kmer_length = std::min(kmer_length, max_length);
 
   std::string res(kmer_length, '\0');
   for(size_type i = 1; i <= kmer_length; i++)

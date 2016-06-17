@@ -322,7 +322,8 @@ countKMers(const GCSA& index, size_type k, bool force)
     {
       node_stack.push(ReverseTrieNode(index.charRange(comp), 1, false));
     }
-    SeedCollector collector(std::min(k, ReverseTrieNode::SEED_LENGTH));
+    size_type seed_length = ReverseTrieNode::SEED_LENGTH;  // avoid direct use of static const
+    SeedCollector collector(std::min(k, seed_length));
     processSubtree(index, node_stack, collector);
     result = collector.count;
     seeds = collector.seeds;
