@@ -393,7 +393,8 @@ template<class Element>
 ReadBuffer<Element>::ReadBuffer()
 {
   this->elements = 0; this->file_offset = 0;
-  this->read_buffer.reserve(READ_BUFFER_SIZE);
+  size_type buffer_size = READ_BUFFER_SIZE;  // avoid direct use
+  this->read_buffer.reserve(buffer_size);
 }
 
 template<class Element>
@@ -480,7 +481,8 @@ ReadBuffer<Element>::fill()
   std::unique_lock<std::mutex> lock(this->mtx);
   this->empty.wait(lock, [this]() { return read_buffer.empty(); } );
 
-  this->read_buffer.resize(std::min(READ_BUFFER_SIZE, this->size() - this->file_offset));
+  size_type read_buffer_size = READ_BUFFER_SIZE;  // avoid direct use
+  this->read_buffer.resize(std::min(read_buffer_size, this->size() - this->file_offset));
   DiskIO::read(this->file, this->read_buffer.data(), this->read_buffer.size());
   this->file_offset += this->read_buffer.size();
 
@@ -505,7 +507,8 @@ ReadBuffer<Element>::forceRead()
 {
   if(this->read_buffer.empty())
   {
-    this->read_buffer.resize(std::min(READ_BUFFER_SIZE, this->size() - this->file_offset));
+    size_type read_buffer_size = READ_BUFFER_SIZE;  // avoid direct use
+    this->read_buffer.resize(std::min(read_buffer_size, this->size() - this->file_offset));
     DiskIO::read(this->file, this->read_buffer.data(), this->read_buffer.size());
     this->file_offset += this->read_buffer.size();
   }
