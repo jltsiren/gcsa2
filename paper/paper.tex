@@ -19,17 +19,17 @@
 % Author macros::end %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Editor-only macros:: begin (do not touch as author)%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\EventEditors{John Q. Open and Joan R. Acces}
-\EventNoEds{2}
-\EventLongTitle{42nd Conference on Very Important Topics (CVIT 2016)}
-\EventShortTitle{CVIT 2016}
-\EventAcronym{CVIT}
-\EventYear{2016}
-\EventDate{December 24--27, 2016}
-\EventLocation{Little Whinging, United Kingdom}
-\EventLogo{}
-\SeriesVolume{42}
-\ArticleNo{23}
+%\EventEditors{John Q. Open and Joan R. Acces}
+%\EventNoEds{2}
+%\EventLongTitle{42nd Conference on Very Important Topics (CVIT 2016)}
+%\EventShortTitle{CVIT 2016}
+%\EventAcronym{CVIT}
+%\EventYear{2016}
+%\EventDate{December 24--27, 2016}
+%\EventLocation{Little Whinging, United Kingdom}
+%\EventLogo{}
+%\SeriesVolume{42}
+\ArticleNo{1}
 % Editor-only macros::end %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -98,7 +98,7 @@ Variation graphs, which represent genetic variation within a population, are rep
 
 Sequence analysis pipelines typically start with mapping the reads from the sequenced genome to a \emph{reference genome} of the same species. As reference genomes are usually assembled from the genomes of a small number of individuals, they are biased towards those individuals. This \emph{reference bias} may affect the results of subsequent analysis, especially when the sequenced individuals are from different populations than the ones behind the reference genome.
 
-\emph{Variation graphs} (also called pan-genomes, graph genomes, and reference graphs), which encode the genetic variation within a population as a graph, have been proposed as a solution to the reference bias \cite{Paten2014,Marcus2014,Church2015,Dilthey2015,Marschall2016}. These graphs are eventually expected to replace reference sequences as reference genomes. The shift to graph references will likely take years, as new methods and tools must be developed to replace those based on linear references.
+\emph{Variation graphs} (also called genome graphs, graph references, and reference graphs), which encode the genetic variation within a population as a graph, have been proposed as a solution to the reference bias \cite{Paten2014,Marcus2014,Church2015,Dilthey2015,Marschall2016}. These graphs are expected to replace reference sequences as reference genomes. The shift to graph references will likely take years, as new methods and tools must be developed to replace those based on linear references.
 
 The \emph{variation graph toolkit vg} \cite{Garrison2014-2016} is a community effort to develop such tools. This paper describes \emph{GCSA2}, the path index used in vg. A \emph{path index} is a generalization of text indexes for labeled graphs. Given a query string, it finds the paths with a label matching the query. Indexing graphs for path queries is inherently hard, as the number of paths increases exponentially with path length. The design of a path index is hence a trade-off between maximum query length, the size of the index, and pruning complex regions of the graph.
 
@@ -106,7 +106,11 @@ Mapping reads to a graph was first investigated by Schneeberger et~al.~\cite{Sch
 
 The \emph{succinct de~Bruijn graph} of Bowe et.~al.~\cite{Bowe2012} is generalization of the FM\nobreakdash-index for representing \emph{de~Bruijn graphs} space-efficiently. Rødland \cite{Roedland2013} proposed another similar generalization. Succinct de~Bruijn graphs can represent \orderk{k} de~Bruijn graphs with different values of $k$ in the same structure \cite{Boucher2014}, but they still need to store the graph for the largest value of $k$ explicitly. Compacted \cite{Cazaux2014} and compressed de~Bruijn graphs \cite{Marcus2014} achieve similar space usage by representing unary paths in the graph as single nodes. A prototype read aligner based on compacted de~Bruijn graphs has been proposed \cite{Limasset2015}.
 
-Other approaches to indexing variation graphs include BWBBLE \cite{Huang2013}, which indexes the graph as a collection of sequences. Simple variants are encoded with the powerset alphabet, while more complex variants are represented as separate sequences, with a sufficient amount of context around the variant site. Query times are much higher than in ordinary FM\nobreakdash-indexes due to the powerset alphabet. The hypertext index \cite{Thachuk2013} assumes that the nodes of the graph are labeled with strings. The strings are indexed using an ordinary FM-index. Partial matches in the strings are combined into full matches with range queries in the edge matrix. While matches crossing one edge are easy to find, the approach becomes impractical with matches crossing multiple edges. There are also several structures (e.g.~\cite{Huang2010,Wandelt2013,Danek2014,Na2015}), which use a graph as a space-efficient way of indexing similar sequences.
+Some path indexes store the graph as a collection of sequences. BWBBLE \cite{Huang2013} uses the powerset alphabet for encoding simple variants and creates new sequences with a sufficient amount of context for complex variants. Queries are slower than in ordinary FM\nobreakdash-indexes due to using the powerset alphabet. vBWT \cite{Maciuca2016} encodes variant sites explicitly in the sequence as  $X(A|B|C)Y$, using distinct separator symbols for each site. As the variants must be taken into account during search, queries are slower than in ordinary FM\nobreakdash-indexes. The \emph{hypertext index} \cite{Thachuk2013} assumes that the nodes of the graph are labeled with strings. The strings are indexed using an ordinary FM-index. Partial matches in the strings are combined into full matches with range queries in the edge matrix. While matches crossing one edge are easy to find, the approach becomes impractical with matches crossing multiple edges.
+
+There are also several structures (e.g.~\cite{Huang2010,Wandelt2013,Danek2014,Na2015,Na2016}) using graphs as a space-efficient way of indexing similar sequences. While the problem is different from indexing the paths in a graph, the techniques used are similar.
+
+The above methods can be classified in three categories based on the data models they use. Most of them deal with graphs arising from \emph{aligned sequences}, assuming a shared global sequence with local variation. Methods based on GCSA can index directed acyclic graphs, as well as cyclic graphs that are sufficiently similar to \emph{de~Bruijn graphs}. GCSA2, the hypertext index, and methods based on de~Bruijn graphs work with \emph{arbitrary graphs}.
 
 GCSA2 combines ideas from the original GCSA and from succinct de~Bruijn graphs. Conceptually it uses a de~Bruijn graph as a path index of a variation graph. The \orderk{k} de~Bruijn graph is \emph{pruned} (compressed structurally) by using strings shorter than $k$ characters as nodes, if the shorter strings identify the start nodes of the corresponding paths uniquely. The pruned graph is then encoded with a generalization of the FM\nobreakdash-index. GCSA2 includes novel extensions based on what is essentially a suffix tree of the pruned de~Bruijn graph. These extensions are used for e.g.~finding maximal exact matches in the vg read aligner.
 
@@ -125,7 +129,7 @@ We primarily consider sequences over the \emph{DNA} alphabet $\set{\$, \baseA, \
 
 Given string $S[0, n-1]$, we define $S.\rank(i, c)$ as the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define $S.\select(i, c) = \arg \max_{j \le n} S.\rank(j, c) < i$ as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions are used in the SDSL library \cite{Gog2014b}. We assume for convenience that $S.\select(0, c) = -1$.} A \emph{bitvector} is a binary sequence supporting efficient $\rank$/$\select$ queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support $\rank$/$\select$ queries on arbitrary strings.
 
-Let $S$ be a string and $S'$ be be a string or an infinite character sequence over alphabet $\Sigma$. We say that sequences $S$ and $S'$ \emph{prefix-match}, if $S$ is a prefix of $S'$ or $S'$ is a prefix of $S$. Set $\mathcal{S}$ of strings is \emph{prefix-free}, if no two strings $S, S' \in \mathcal{S}$ (with $S \ne S'$) prefix-match.
+Let $S$ be a string and $S'$ be a string or an infinite character sequence over alphabet $\Sigma$. We say that sequences $S$ and $S'$ \emph{prefix-match}, if $S$ is a prefix of $S'$ or $S'$ is a prefix of $S$. Set $\mathcal{S}$ of strings is \emph{prefix-free}, if no two strings $S, S' \in \mathcal{S}$ (with $S \ne S'$) prefix-match.
 
 \subsection{Text indexes}
 
@@ -337,7 +341,7 @@ Let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph, and let $v'_{0}, \d
 
 The \emph{LCP interval tree} \cite{Abouelhoda2004} is an alternate representation of the suffix tree. Each node $v$ of the suffix tree is represented by the lexicographic range $[sp, ep]$ matching the label $\ell(v)$. These ranges can be determined from the LCP array. If we augment the FM\nobreakdash-index with an LCP array supporting \emph{next/previous smaller value} queries and \emph{range minimum queries}, we get a space-efficient data structure providing the full functionality of the suffix tree \cite{Fischer2009a}.
 
-If we build an $x$\nobreakdash-ary tree over the LCP array of graph $G'$, with each internal node storing the minimum LCP value in the corresponding range, we can support the required queries in $\Oh{x + \log_{x} \abs{V'}}$ time using $\frac{x}{x-1} \abs{V'} \log k$ bits of space. Because nodes of a path graph may match patterns that do not prefix-match their keys, we have to be careful with the suffix tree operations we use. By Lemma~\ref{lemma:pg-context}, the ranges returned by $\find$ queries always correspond to prefixes of the pattern. Hence we can safely use $\parent$ queries with such ranges.
+If we build an $x$\nobreakdash-ary tree over the LCP array of graph $G'$, with each internal node storing the minimum LCP value in the corresponding range, we can support the required queries in $\Oh{x + \log_{x} \abs{V'}}$ time using $\frac{x}{x-1} \abs{V'} \log k$ bits of space. Because nodes of a path graph may match patterns that do not prefix-match their keys, we have to be careful with the suffix tree operations we use. By Lemma~\ref{lemma:pg-context}, the ranges returned by $\find$ queries always correspond to prefixes of the pattern. Hence we can safely use $\parent$ queries with such ranges.\footnote{The $\parent$ query is similar to the $\textsf{shorter}$ query in the variable-order de~Bruijn graph \cite{Boucher2014}.}
 
 BWA-MEM \cite{Li2013} aligns reads to a reference genome by finding \emph{maximal exact matches} between the read and the reference. It stores both the reference and its reverse complement in the same index, allowing it to extend the pattern in both directions. GCSA cannot use similar techniques, as we cannot guarantee that the length of the lexicographic range matching pattern $X$ is the same as the length of the range matching its reverse complement $\revcomp{X}$ (that the key set contains key $K$ if and only if it contains key $\revcomp{K}$). However, we can search for maximal exact matches using \LFmapping{} and the $\parent$ operation \cite{Ohlebusch2010a}.
 
