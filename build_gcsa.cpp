@@ -177,13 +177,21 @@ main(int argc, char** argv)
   std::cout << index.sampleCount() << " (at " << index.sampledPositions() << " positions, "
             << index.sampleBits() << " bits each)" << std::endl;
   printHeader("Max query"); std::cout << index.order() << std::endl;
+  std::cout << std::endl;
 
   size_type index_bytes = sdsl::size_in_bytes(index);
-  size_type sample_bytes = sdsl::size_in_bytes(index.stored_samples);
+  size_type sample_bytes =
+    sdsl::size_in_bytes(index.sampled_paths) + sdsl::size_in_bytes(index.sampled_path_rank) +
+    sdsl::size_in_bytes(index.stored_samples) +
+    sdsl::size_in_bytes(index.samples) + sdsl::size_in_bytes(index.sample_select);
+  size_type counter_bytes =
+    sdsl::size_in_bytes(index.extra_pointers) + sdsl::size_in_bytes(index.redundant_pointers);
   size_type lcp_bytes = sdsl::size_in_bytes(lcp);
-  printHeader("Index size"); std::cout << inMegabytes(index_bytes) << " MB" << std::endl;
-  printHeader("Without samples"); std::cout << inMegabytes(index_bytes - sample_bytes) << " MB" << std::endl;
-  printHeader("LCP size"); std::cout << inMegabytes(lcp_bytes) << " MB" << std::endl;
+  printHeader("Core index"); std::cout << inMegabytes(index_bytes - sample_bytes - counter_bytes) << " MB" << std::endl;
+  printHeader("Samples"); std::cout << inMegabytes(sample_bytes) << " MB" << std::endl;
+  printHeader("Counter"); std::cout << inMegabytes(counter_bytes) << " MB" << std::endl;
+  printHeader("LCP array"); std::cout << inMegabytes(lcp_bytes) << " MB" << std::endl;
+  printHeader("Total size"); std::cout << inMegabytes(index_bytes + lcp_bytes) << " MB" << std::endl;
   std::cout << std::endl;
 
   if(verify) { verifyIndex(index, &lcp, graph); }
