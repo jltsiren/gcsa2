@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE ipe SYSTEM "ipe.dtd">
-<ipe version="70107" creator="Ipe 7.1.8">
-<info created="D:20160420105900" modified="D:20160420161547"/>
+<ipe version="70107" creator="Ipe 7.1.9">
+<info created="D:20160420105900" modified="D:20160622102539"/>
 <preamble>\usepackage{lmodern}
 \usepackage[T1]{fontenc}
 \usepackage{amssymb}
@@ -976,7 +976,7 @@ h
 588 24 m
 604 24 l
 </path>
-<path matrix="1 0 0 1 0 82" stroke="darkred" pen="fat" arrow="fpointed/normal">
+<path matrix="1 0 0 1 0 82" stroke="darkblue" pen="fat" arrow="fpointed/normal">
 588 24 m
 604 24 l
 </path>
@@ -1006,11 +1006,11 @@ h
 660 128 m
 680 128 l
 </path>
-<path matrix="1 0 0 1 0 -22" stroke="darkred" pen="fat" arrow="fpointed/normal">
+<path matrix="1 0 0 1 0 -22" stroke="darkblue" pen="fat" arrow="fpointed/normal">
 660 128 m
 680 128 l
 </path>
-<path matrix="1 0 0 1 0 -30" stroke="darkred" pen="fat" arrow="fpointed/normal">
+<path matrix="1 0 0 1 0 -30" stroke="darkblue" pen="fat" arrow="fpointed/normal">
 660 128 m
 680 128 l
 </path>
@@ -1050,7 +1050,7 @@ h
 612 128 m
 652 128 l
 </path>
-<path matrix="1 0 0 1 0 2" stroke="darkred" pen="fat" arrow="fpointed/normal">
+<path matrix="1 0 0 1 0 2" stroke="darkblue" pen="fat" arrow="fpointed/normal">
 612 104 m
 652 96 l
 </path>
