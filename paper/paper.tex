@@ -104,7 +104,7 @@ The \emph{variation graph toolkit vg} \cite{Garrison2014-2016} is a community ef
 
 Mapping reads to a graph was first investigated by Schneeberger et~al.~\cite{Schneeberger2009}. Sirén et~al.~\cite{Siren2014} developed \emph{GCSA}, which generalized the FM\nobreakdash-index \cite{Ferragina2005a} (a text index based on the Burrows-Wheeler transform \cite{Burrows1994}) for directed acyclic graphs. It depends on pruning the complex regions, as there are no limits on query length. Kim et~al.~\cite{Kim2015-2016} combined GCSA with the HISAT read aligner \cite{Kim2015}. The result was the first practical graph-based read aligner, though it uses the graph for more accurate mapping to a linear reference.
 
-The \emph{succinct de~Bruijn graph} of Bowe et.~al.~\cite{Bowe2012} is generalization of the FM\nobreakdash-index for representing \emph{de~Bruijn graphs} space-efficiently. Rødland \cite{Roedland2013} proposed another similar generalization. Succinct de~Bruijn graphs can represent \orderk{k} de~Bruijn graphs with different values of $k$ in the same structure \cite{Boucher2014}, but they still need to store the graph for the largest value of $k$ explicitly. Compacted \cite{Cazaux2014} and compressed de~Bruijn graphs \cite{Marcus2014} achieve similar space usage by representing unary paths in the graph as single nodes. A prototype read aligner based on compacted de~Bruijn graphs has been proposed \cite{Limasset2015}.
+The \emph{succinct de~Bruijn graph} of Bowe et.~al.~\cite{Bowe2012} is generalization of the FM\nobreakdash-index for representing \emph{de~Bruijn graphs} space-efficiently. Rødland \cite{Roedland2013} proposed another similar generalization. Succinct de~Bruijn graphs can represent \orderk{k} de~Bruijn graphs with different values of $k$ in the same structure \cite{Boucher2014}, but they still need to store the graph for the largest value of $k$ explicitly. Compacted \cite{Cazaux2014} and compressed \cite{Marcus2014} de~Bruijn graphs achieve similar space usage by representing unary paths in the graph as single nodes. A prototype read aligner based on compacted de~Bruijn graphs has been proposed \cite{Limasset2015}. Probabilistic de~Bruijn graphs \cite{Pell2012} use Bloom filters to store the graph. They support faster queries in similar space at the expense of producing false positives.
 
 Some path indexes store the graph as a collection of sequences. BWBBLE \cite{Huang2013} uses the powerset alphabet for encoding simple variants and creates new sequences with a sufficient amount of context for complex variants. Queries are slower than in ordinary FM\nobreakdash-indexes due to using the powerset alphabet. vBWT \cite{Maciuca2016} encodes variant sites explicitly in the sequence as  $X(A|B|C)Y$, using distinct separator symbols for each site. As the variants must be taken into account during search, queries are slower than in ordinary FM\nobreakdash-indexes. The \emph{hypertext index} \cite{Thachuk2013} assumes that the nodes of the graph are labeled with strings. The strings are indexed using an ordinary FM-index. Partial matches in the strings are combined into full matches with range queries in the edge matrix. While matches crossing one edge are easy to find, the approach becomes impractical with matches crossing multiple edges.
 
@@ -112,9 +112,9 @@ There are also several structures (e.g.~\cite{Huang2010,Wandelt2013,Danek2014,Na
 
 The above methods can be classified in three categories based on the data models they use. Most of them deal with graphs arising from \emph{aligned sequences}, assuming a shared global sequence with local variation. GCSA-based methods can index directed acyclic graphs, as well as cyclic graphs that are sufficiently similar to \emph{de~Bruijn graphs}. GCSA2, the hypertext index, and indexes based on de~Bruijn graphs work with \emph{arbitrary graphs}.
 
-GCSA2 combines ideas from the original GCSA and from succinct de~Bruijn graphs. Conceptually it uses a de~Bruijn graph as a path index of a variation graph. The \orderk{k} de~Bruijn graph is \emph{pruned} (compressed structurally) by using strings shorter than $k$ characters as nodes, if the shorter strings identify the start nodes of the corresponding paths uniquely. The pruned graph is then encoded with a generalization of the FM\nobreakdash-index. The index often uses less than 1~bit per \kmer{k} with large values of $k$. Similar space usage cannot be achieved with the other de~Bruijn graph-based approaches, which explicitly store information for each \kmer{k}. GCSA2 also includes novel extensions based on what is essentially a suffix tree of the pruned de~Bruijn graph. These extensions are used for e.g.~finding maximal exact matches in the vg read aligner.
+GCSA2 combines ideas from the original GCSA and from succinct de~Bruijn graphs. Conceptually it uses a de~Bruijn graph as a path index of a variation graph. The \orderk{k} de~Bruijn graph is \emph{pruned} (compressed structurally) by using strings shorter than $k$ characters as nodes, if the shorter strings identify the start nodes of the corresponding paths uniquely. The pruned graph is encoded with a generalization of the FM\nobreakdash-index. GCSA2 often uses less than 1~bit per \kmer{k} with large values of $k$. Other de~Bruijn graph-based path indexes cannot achieve similar space usage, as they store some information for each \kmer{k} explicitly. GCSA2 also includes extensions based on what is essentially a suffix tree of the pruned de~Bruijn graph. The extensions are used for e.g.~finding maximal exact matches in the vg read aligner.
 
-The proofs of lemmas describing the properties of the generalizations of de~Bruijn graphs are included in Appendix~\ref{appendix:proofs}.
+This paper describes the GCSA2 data structure. Its uses in the vg toolkit will be discussed in the vg paper. The proofs of lemmas describing the properties of the generalizations of de~Bruijn graphs are included in Appendix~\ref{appendix:proofs}.
 
 
 \section{Background}
@@ -186,7 +186,7 @@ Let $\mathcal{S}$ be a collection of character sequences over alphabet $\Sigma$,
 \begin{definition}[de~Bruijn graph]
 Let $\mathcal{S}$ be a \kcollection{k} over alphabet $\Sigma$. The \orderk{k} \emph{de~Bruijn graph} of $\mathcal{S}$ is a graph $G = (V, E)$ such that
 \begin{itemize}
-\item each node $v_{X} \in V$ represent a distinct \kmer{k} $X$ occurring in $\mathcal{S}$, with $G.\glabel(v_{X}) = X[0]$;
+\item each node $v_{X} \in V$ represents a distinct \kmer{k} $X$ occurring in $\mathcal{S}$, with $G.\glabel(v_{X}) = X[0]$;
 \item each node $v_{X} \in V$ has a \emph{key} $G.\gkey(v_{X}) = X$; and
 \item each edge $(v_{X}, v_{Y}) \in E$ represents a \kmer{k+1} $X[0]Y = Xc$ (where $c \in \Sigma$) occurring in $\mathcal{S}$.
 \end{itemize}
@@ -408,20 +408,22 @@ FM:   64 & 351567 &  88184 &    -- & 0.84M & 17.1 \textmu{}s &              -- &
 
 GCSA2 is a path index for variation graphs. It uses a pruned de~Bruijn graph as an index of the variation graph, and encodes that with a generalization of the FM\nobreakdash-index. The index includes extensions based on suffix trees; other extensions have also been considered but not implemented yet (see Appendix~\ref{appendix:hypertext}). GCSA2 has been integrated in the variation graph toolkit vg, where it is used for e.g.~read alignment based on maximal exact matches.
 
-We can build a whole-genome index overnight on a system with 96~gigabytes of memory and a few hundred gigabytes of fast disk space. The resulting index takes less than 16~gigabytes, which is less than what the existing path indexes capable of indexing arbitrary graphs require. Query performance is several times slower than with a similar implementation of the FM\nobreakdash-index for sequences.
+We can build a whole-genome index overnight on a system with 96~gigabytes of memory and a few hundred gigabytes of fast disk space. The resulting index takes less than 16~gigabytes, which is less than 1~bit per \kmer{k} for the \orderk{128} index. Query performance is several times slower than with a similar implementation of the FM\nobreakdash-index for sequences.
 
-GCSA2 improves upon the existing path indexes in the following ways:
+GCSA2 compares to the existing path indexes in the following ways:
 \begin{itemize}
 
-\item GCSA \cite{Siren2014} and HISAT2 \cite{Kim2015-2016} use the same techniques, but they can only index graphs that have finite \orderk{\infty} path graphs. On the other hand, they support queries of arbitrary length.
+\item GCSA \cite{Siren2014} and HISAT2 \cite{Kim2015-2016} use the same techniques as GCSA2. While GCSA2 can index any graph but restricts the length of the queries, GCSA and HISAT2 support queries of any length but require that the graph has an \orderk{\infty} pruned de~Bruijn graph of reasonable size.
 
-\item BWBBLE \cite{Huang2013} is reported to be 100x slower than BWA \cite{Li2009} and hence tens of times slower than GCSA2. The current implementation can only handle local variation.
+\item BWBBLE \cite{Huang2013} is reported to be 100x slower than BWA \cite{Li2009} and hence tens of times slower than a similar implementation of GCSA2. The current implementation can only handle local variation.
 
 \item vBWT \cite{Maciuca2016} is slower than BWBBLE. It can only handle local variation but supports queries of arbitrary length.
 
 \item Succinct \cite{Bowe2012}, compacted \cite{Cazaux2014}, and compressed \cite{Marcus2014} de~Bruijn graphs must store at least one character for each \kmer{k} and hence require more space than GCSA2.
 
-\item The hypertext index \cite{Thachuk2013} has not been implemented. It supports queries of arbitrary length, but becomes slow with matches crossing more than one edge.
+\item Probabilistic de~Bruijn graphs \cite{Pell2012} are faster to query, but they support only queries of length $k$, produce false positives, and require multiple bits per \kmer{k}.
+
+\item The hypertext index \cite{Thachuk2013} has not been implemented. It supports queries of arbitrary length but becomes slow with matches crossing more than one edge.
 
 \end{itemize}
 
@@ -451,9 +453,13 @@ Furthermore, $v_{0} = \mathcal{S}.\gnode(S, i) \in G'.\gvalue(v'_{i}) \subseteq 
 \end{proof}
 
 \begin{proof}[Proof of Lemma~\ref{lemma:pg-context} (Context length)]
-If $\abs{X} \le 1$, the statement is true by definition for $m = \abs{X}$. Now assume that $M_{i+1} = G'.\find(X[i+1, \abs{X}-1])$ is the set of all nodes $v' \in V'$ such that substring $X[i+1, i+m]$ is a prefix of $G'.\gkey(v')$.
+If $\abs{X} \le 1$, the statement is true by definition for $m = \abs{X}$. Now let $M_{i+1} = G'.\find(X[i+1, \abs{X}-1])$ bet the set of all nodes $v' \in V'$ such that substring $X[i+1, i+m]$ is a prefix of key $G'.\gkey(v')$, and assume that the set is nonempty.
 
-Consider the set $M_{i} = \bigcup_{v' \in M_{i+1}} G'.\gpred(v', X[i])$, and assume that it is nonempty. Edge $(u', v') \in E'$ exists if and only if key $G'.\gkey(u')$ prefix-matches string $G'.\glabel(u') \cdot G'.\gkey(v')$. Hence if $u' \in M_{i}$, key $G'.\gkey(u')$ prefix-matches string $X[i, i+m]$. If $\abs{M_{i}} > 1$, string $X[i, i+m]$ is a proper prefix of key $G'.\gkey(u')$ for all nodes $u' \in M_{i}$ due to the prefix-free property, and we can continue with context length $m+1$. Otherwise the context length becomes $\min(m+1, \abs{G'.\gkey(u')})$ for the only node $u' \in M_{i}$.
+Consider the set $M_{i} = \bigcup_{v' \in M_{i+1}} G'.\gpred(v', X[i]) = G'.\find(X[i, \abs{X}-1])$. There is an edge $(u', v') \in E'$ if and only if key $G'.\gkey(u')$ prefix-matches string $G'.\glabel(u') \cdot G'.\gkey(v')$. Hence key $G'.\gkey(u')$ prefix-matches string $X[i, i+m]$ for all nodes $u' \in M_{i}$.
+
+Now let $u' \in V'$ be a node with key $G'.\gkey(u')$ prefix-matching string $X[i, i+m]$. If the key is a prefix of string $X[i, i+m]$, there is an edge $(u', v') \in E'$ to all nodes $v' \in M_{i+1}$, and hence $u' \in M_{i}$. Otherwise let $S[j, j+\abs{G'.\gkey(u')}-1]$ be a substring represented by node $u'$ in the \kcollection{k} used for building the path graph. As $S[j+1, j+m] = X[i+1, i+m]$, the substring starting at $S[j+1]$ is represented by a node $v' \in M_{i+1}$, and hence $u' \in M_{i}$.
+
+Set $M_{i}$ is the set of all nodes $u' \in V'$ such that substring $X[i, i+m]$ is a prefix of key $G'.\gkey(u')$. If $\abs{M_{i}} > 1$, string $X[i, i+m]$ is a proper prefix of key $G'.\gkey(u')$ for all nodes $u' \in M_{i}$ due to the prefix-free property, and we can continue with context length $m+1$. Otherwise the context length becomes $\min(m+1, \abs{G'.\gkey(u')})$ for the only node $u' \in M_{i}$.
 \end{proof}
 
 \begin{proof}[Proof of Lemma~\ref{lemma:pg-keys} (Short keys)]
