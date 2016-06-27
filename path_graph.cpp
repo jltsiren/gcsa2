@@ -982,7 +982,7 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 
 const std::string MergedGraph::PREFIX = ".gcsa";
 
-MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, const LCP& kmer_lcp) :
+MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, const LCP& kmer_lcp, size_type size_limit) :
   path_name(TempFile::getName(PREFIX)), rank_name(TempFile::getName(PREFIX)),
   from_name(TempFile::getName(PREFIX)), lcp_name(TempFile::getName(PREFIX)),
   path_count(0), rank_count(0), from_count(0),
@@ -1009,16 +1009,21 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
   PathGraphMerger merger(source, kmer_lcp, false);
   std::vector<range_type> curr_from;
   size_type curr_comp = 0;  // Used to transform next.
+
+  size_type bytes = 0;
   for(range_type range = merger.first(); !(merger.atEnd(range)); range = merger.next())
   {
     range_type path_lcp = merger.ranges.front().left_lcp;
-    lcp_file.push_back(path_lcp.first * mapper.order() + path_lcp.second);
     merger.mergePathNodes(range, curr_from, this->path_count);
-    writePath(merger.buffer[range.second].node, merger.buffer[range.second].label, path_file, rank_file);
-    if(curr_from.size() > 0)
+    bytes += merger.buffer[range.second].node.bytes() + curr_from.size() * sizeof(range_type) + 1;
+    if(bytes > size_limit)
     {
-      for(size_type i = 0; i < curr_from.size(); i++) { from_file.push_back(curr_from[i]); }
+      std::cerr << "MergedGraph::MergedGraph(): Size limit exceeded, construction aborted" << std::endl;
+      std::exit(EXIT_FAILURE);
     }
+    writePath(merger.buffer[range.second].node, merger.buffer[range.second].label, path_file, rank_file);
+    for(size_type i = 0; i < curr_from.size(); i++) { from_file.push_back(curr_from[i]); }
+    lcp_file.push_back(path_lcp.first * mapper.order() + path_lcp.second);
     while(merger.buffer[range.second].firstLabel(0) >= this->next[curr_comp])
     {
       this->next[curr_comp] = this->path_count;

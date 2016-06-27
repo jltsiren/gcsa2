@@ -465,21 +465,27 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   {
     std::cerr << "GCSA::GCSA(): Initial path length: " << path_graph.k() << std::endl;
   }
-  path_graph.prune(lcp, parameters.size_limit);
-  for(size_type step = 1; step <= parameters.doubling_steps && path_graph.unsorted > 0; step++)
+  bool fully_sorted = false;
+  for(size_type step = 1; step <= parameters.doubling_steps; step++)
   {
     if(Verbosity::level >= Verbosity::BASIC)
     {
       std::cerr << "GCSA::GCSA(): Step " << step << " (path length " << path_graph.k() << " -> "
                 << (2 * path_graph.k()) << ")" << std::endl;
     }
-    path_graph.extend(parameters.size_limit);
     path_graph.prune(lcp, parameters.size_limit);
+    if(path_graph.unsorted == 0) { fully_sorted = true; break; }
+    path_graph.extend(parameters.size_limit);
   }
-  this->header.order = (path_graph.unsorted == 0 ? ~(size_type)0 : path_graph.k());
+  if(!fully_sorted)
+  {
+    path_graph.prune(lcp, parameters.size_limit);
+    if(path_graph.unsorted == 0) { fully_sorted = true; }
+  }
+  this->header.order = (fully_sorted ? ~(size_type)0 : path_graph.k());
 
   // Merge the paths into the nodes of a pruned de Bruijn graph.
-  MergedGraph merged_graph(path_graph, mapper, lcp);
+  MergedGraph merged_graph(path_graph, mapper, lcp, parameters.size_limit);
   this->header.path_nodes = merged_graph.size();
   path_graph.clear();
   sdsl::util::clear(lcp);
