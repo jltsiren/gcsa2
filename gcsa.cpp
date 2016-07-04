@@ -463,7 +463,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   // Prefix-doubling.
   if(Verbosity::level >= Verbosity::BASIC)
   {
-    std::cerr << "GCSA::GCSA(): Initial path length: " << path_graph.k() << std::endl;
+    std::cerr << "GCSA::GCSA(): Prefix-doubling from path length " << path_graph.k() << std::endl;
   }
   bool fully_sorted = false;
   for(size_type step = 1; step <= parameters.doubling_steps; step++)
@@ -477,22 +477,33 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
     if(path_graph.unsorted == 0) { fully_sorted = true; break; }
     path_graph.extend(parameters.size_limit);
   }
-  if(!fully_sorted)
+  if(Verbosity::level >= Verbosity::EXTENDED)
+  {
+    double stop = readTimer();
+    std::cerr << "GCSA::GCSA(): Prefix-doubling: " << (stop - start) << " seconds, "
+              << inGigabytes(memoryUsage()) << " GB" << std::endl;
+    start = stop;
+  }
+
+  // Merge the paths into the nodes of a maximally pruned de Bruijn graph.
+  if(Verbosity::level >= Verbosity::BASIC)
+  {
+    std::cerr << "GCSA::GCSA(): Merging the paths" << std::endl;
+  }
+  if(!fully_sorted) // This is not strictly necessary, but prune() makes the following merge() faster.
   {
     path_graph.prune(lcp, parameters.size_limit);
     if(path_graph.unsorted == 0) { fully_sorted = true; }
   }
-  this->header.order = (fully_sorted ? ~(size_type)0 : path_graph.k());
-
-  // Merge the paths into the nodes of a pruned de Bruijn graph.
   MergedGraph merged_graph(path_graph, mapper, lcp, parameters.size_limit);
   this->header.path_nodes = merged_graph.size();
+  this->header.order = (fully_sorted ? ~(size_type)0 : path_graph.k());
   path_graph.clear();
   sdsl::util::clear(lcp);
   if(Verbosity::level >= Verbosity::EXTENDED)
   {
     double stop = readTimer();
-    std::cerr << "GCSA::GCSA(): Prefix-doubling: " << (stop - start) << " seconds, "
+    std::cerr << "GCSA::GCSA(): Merging: " << (stop - start) << " seconds, "
               << inGigabytes(memoryUsage()) << " GB" << std::endl;
     start = stop;
   }
