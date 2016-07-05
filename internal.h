@@ -456,17 +456,22 @@ ReadBuffer<Element>::seek(size_type i)
 {
   if(i >= this->size()) { return; }
 
-  // Move the buffer and the file to the new position.
+  // Move the buffer to the new position.
+  // Clear the buffer and seek in the file if file offset is wrong.
   this->buffer.seek(i);
   if(!(this->buffer.buffered(i)))
   {
     std::unique_lock<std::mutex> lock(this->mtx);
-    this->read_buffer.clear();
-    this->file.seekg(i * sizeof(Element), std::ios_base::beg);
-    this->file_offset = i;
+    if(this->file_offset != i + this->read_buffer.size())
+    {
+      this->read_buffer.clear();
+      this->file.seekg(i * sizeof(Element), std::ios_base::beg);
+      this->file_offset = i;
+    }
   }
 
-  if(this->buffer.size() < MINIMUM_SIZE)
+  // Force read but only if there is still something to read.
+  if(this->buffer.size() < MINIMUM_SIZE && i + this->buffer.size() < this->size())
   {
     std::unique_lock<std::mutex> lock(this->mtx);
     this->forceRead();
