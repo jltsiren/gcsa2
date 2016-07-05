@@ -985,7 +985,14 @@ struct SameFromSet
   inline bool operator() (range_type range)
   {
     this->fromNodes(range, this->buffer);
-    return (this->buffer == this->nodes);
+
+    // Manual comparison guarantees using a single thread.
+    if(this->buffer.size() != this->nodes.size()) { return false; }
+    for(size_type i = 0; i < this->buffer.size(); i++)
+    {
+      if(this->buffer[i] != this->nodes[i]) { return false; }
+    }
+    return true;
   }
 
   inline void select(range_type range)
