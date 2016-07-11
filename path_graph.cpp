@@ -665,7 +665,8 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 {
   this->path_count = 0; this->rank_count = 0; this->range_count = 0;
   this->order = source.k(); this->doubling_steps = 0;
-  this->unique = UNKNOWN; this->unsorted = UNKNOWN; this->nondeterministic = UNKNOWN;
+  this->unique = UNKNOWN; this->redundant = UNKNOWN;
+  this->unsorted = UNKNOWN; this->nondeterministic = UNKNOWN;
 
   sdsl::sd_vector<>::rank_1_type key_rank(&key_exists);
   for(size_type file = 0; file < source.files(); file++)
@@ -709,7 +710,7 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 PathGraph::PathGraph(size_type file_count, size_type path_order, size_type steps) :
   path_names(file_count), rank_names(file_count), path_counts(file_count, 0), rank_counts(file_count, 0),
   path_count(0), rank_count(0), range_count(0), order(path_order), doubling_steps(steps),
-  unique(0), unsorted(0), nondeterministic(0)
+  unique(0), redundant(0), unsorted(0), nondeterministic(0)
 {
   for(size_type file = 0; file < this->files(); file++)
   {
@@ -738,7 +739,8 @@ PathGraph::clear()
 
   this->path_count = 0; this->rank_count = 0;
   this->order = 0;
-  this->unique = UNKNOWN; this->unsorted = UNKNOWN; this->nondeterministic = UNKNOWN;
+  this->unique = UNKNOWN; this->redundant = UNKNOWN;
+  this->unsorted = UNKNOWN; this->nondeterministic = UNKNOWN;
 }
 
 void
@@ -756,6 +758,7 @@ PathGraph::swap(PathGraph& another)
   std::swap(this->doubling_steps, another.doubling_steps);
 
   std::swap(this->unique, another.unique);
+  std::swap(this->redundant, another.redundant);
   std::swap(this->unsorted, another.unsorted);
   std::swap(this->nondeterministic, another.nondeterministic);
 }
@@ -791,10 +794,17 @@ struct SameFromFile
   const PathGraphMerger& merger;
   node_type              from;
   size_type              file;
+  bool                   same_from, same_file;
 
-  SameFromFile(const PathGraphMerger& source, size_type i) :
-    merger(source), from(source.buffer[i].node.from), file(source.buffer[i].file)
+  SameFromFile(const PathGraphMerger& source, range_type range) :
+    merger(source), from(source.buffer[range.first].node.from), file(source.buffer[range.first].file),
+    same_from(true), same_file(true)
   {
+    for(size_type i = range.first + 1; i <= range.second; i++)
+    {
+      if(this->merger.buffer[i].node.from != this->from) { this->same_from = false; }
+      if(this->merger.buffer[i].file != this->file) { this->same_file = false; }
+    }
   }
 
   inline bool operator() (range_type range) const
@@ -819,13 +829,26 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
   PathGraphBuilder builder(this->files(), this->k(), this->step(), size_limit);
   for(range_type range = merger.first(); !(merger.atEnd(range)); range = merger.next())
   {
-    SameFromFile same_from(merger, range.first);
-    if(same_from(range))
+    SameFromFile same_from(merger, range);
+    if(same_from.same_from)
     {
-      range = merger.extendRange(same_from);
-      merger.mergePathNodes();
-      builder.write(merger.buffer[range.second]);
-      builder.graph.unique++;
+      if(same_from.same_file)
+      {
+        range = merger.extendRange(same_from);
+        merger.mergePathNodes();
+        builder.write(merger.buffer[range.second]);
+        builder.graph.unique++;
+      }
+      else
+      {
+        // FIXME Later: Write just one path per file.
+        for(size_type i = range.first; i <= range.second; i++)
+        {
+          merger.buffer[i].node.makeSorted();
+          builder.write(merger.buffer[i]);
+        }
+        builder.graph.redundant += Range::length(range);
+      }
     }
     else
     {
@@ -845,7 +868,10 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
   {
     std::cerr << "PathGraph::prune(): " << old_path_count << " -> " << this->size() << " paths ("
               << this->ranges() << " ranges)" << std::endl;
-    std::cerr << "PathGraph::prune(): " << this->unique << " unique, " << this->unsorted << " unsorted, "
+    std::cerr << "PathGraph::prune(): "
+              << this->unique << " unique, "
+              << this->redundant << " redundant, "
+              << this->unsorted << " unsorted, "
               << this->nondeterministic << " nondeterministic paths" << std::endl;
     std::cerr << "PathGraph::prune(): " << inGigabytes(this->bytes()) << " GB in "
               << this->files() << " file(s)" << std::endl;

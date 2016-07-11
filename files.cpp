@@ -233,16 +233,14 @@ parseKMer(const std::string& kmer_line)
 /*
   If the kmer ends with an endmarker, it cannot be extended, and we mark it
   sorted. If its label is not unique, it will be treated as a nondeterministic
-  path. We also mark nodes ending with the source marker sorted, because there
-  should be only one such path, which is duplicated in each input file.
+  path.
 */
 void
 markSourceSinkNodes(std::vector<KMer>& kmers)
 {
   for(size_type i = 0; i < kmers.size(); i++)
   {
-    if(Key::last(kmers[i].key) == Alphabet::SOURCE_COMP ||
-       Key::last(kmers[i].key) == Alphabet::SINK_COMP)
+    if(Key::last(kmers[i].key) == Alphabet::SINK_COMP)
     {
       kmers[i].makeSorted();
     }

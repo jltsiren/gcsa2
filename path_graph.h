@@ -297,7 +297,7 @@ struct PathGraph
   size_type path_count, rank_count, range_count;
   size_type order, doubling_steps;
 
-  size_type unique, unsorted, nondeterministic;
+  size_type unique, redundant, unsorted, nondeterministic;
 
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // .gcsa
