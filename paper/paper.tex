@@ -5,7 +5,7 @@
 \bibliographystyle{plainurl}
 
 % Author macros::begin %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\title{Indexing Variation Graphs\footnote{This work was supported by the Wellcome Trust grant [098051].}}
+\title{Indexing Variation Graphs\footnote{This work was supported by the Wellcome Trust grant 098051.}}
 
 \author[1]{Jouni Sirén}
 \affil[1]{Wellcome Trust Sanger Institute, Hinxton, Cambridge, UK\\
@@ -335,7 +335,7 @@ If node $v' \in V'$ with lexicographic rank $i$ has only one predecessor, the le
 
 Let $B_{S}[0, \abs{V'}-1]$ be a bitvector. If we have sampled the values for the node $v' \in V'$ with lexicographic rank $i$, we mark that as $B_{S}[i] = 1$. We can then determine the rank of node $v'$ among the sampled nodes as $j = B_{S}.\rank(i, 1)$. For each sampled node $v' \in V$, we store the size of the value set $\abs{G'.\gvalue(v')}$ in another bitvector $B_{V}$, using the same encoding as in bitvectors $\bvIN$ and $\bvOUT$. We store the samples in array $V_{S}$ in the same order, using $\log \abs{V}$ bits each. The sampled values for node $v'$ with rank $j$ among the sampled nodes can be found at $V_{S}[B_{V}.\select(j, 1) + 1, B_{V}.\select(j+1, 1)]$.
 
-\subsection{Extensions}
+\subsection{Extensions}\label{sect:extensions}
 
 Let $G' = (V', E')$ be an \orderk{k} path graph, and let $v'_{0}, \dotsc, v'_{\abs{V'}-1}$ be its nodes in lexicographic order by their keys. We define the \emph{LCP array} $\LCP[0, \abs{V'}-1]$ of graph $G'$ as an array, where $\LCP[i]$ is the length of the longest common prefix of keys $G'.\gkey(v'_{i-1})$ and $G'.\gkey(v'_{i})$, with $\LCP[0] = 0$. The following extensions are based on the trie of keys $G'.\gkey(v')$ for all nodes $v' \in V'$, with unary paths compacted in the same way as in the suffix tree. The compacted trie can be considered the \emph{suffix tree} of graph $G'$.
 
@@ -365,18 +365,35 @@ GCSA2 has been developed as the path indexing library of vg \cite{Garrison2014-2
 
 The vg \emph{variation graphs} have strings as node labels. Each node can be traversed in both forward and reverse complement orientations, and edges may cross between the orientations. When extracting paths from a variation graph, the graph is implicitly converted into an input graph with single-character labels. Input graph nodes corresponding to the initial offsets of variation graph node labels are always selected as samples.
 
-We built vg graphs from the human reference genome (GRCh37) and the 1000~Genomes Project phase~3 variation \cite{1000GP2015}. To avoid excessive growth, we removed paths where \kmer{16}s crossed more than $4$ nontrivial edges with \texttt{vg mod -p -l -e 4}, and subgraphs shorter than $100$ bases with \texttt{vg mod -S -l 100}. We extracted all paths of length $16$ from the forward strands of the graphs. There were a total of 4.80~billion paths with 1.53~billion distinct labels. We built GCSA with 1\nobreakdash--3 doubling steps, producing \orderk{32}, \orderk{64}, and \orderk{128} indexes. The results are summarized in Table~\ref{table:construction}.  We could build whole-genome indexes overnight using less than 96~gigabytes of memory, including disk cache. The de~Bruijn graphs had roughly $1.031^{k} \cdot 2.38$~billion nodes, but pruning reduced the size to 4.4\nobreakdash--5.8~billion nodes. The index grew more slowly with $k$, as we sampled the values more often in lower order graphs.
+We built vg graphs from the human reference genome (GRCh37) and the 1000~Genomes Project phase~3 variation \cite{1000GP2015}. To avoid excessive growth, we removed paths where \kmer{16}s crossed more than $4$ nontrivial edges with \texttt{vg mod -p -l -e 4}, and subgraphs shorter than $100$ bases with \texttt{vg mod -S -l 100}. We extracted all paths of length $16$ from the forward strands of the graphs. There were a total of 4.80~billion paths with 1.53~billion distinct labels. We built GCSA with 1\nobreakdash--3 doubling steps, producing \orderk{32}, \orderk{64}, and \orderk{128} indexes.
+
+Table~\ref{table:construction} summarizes index construction, while Table~\ref{table:indexes} contains details on the size of the indexes. We can build whole-genome indexes overnight using less than 96~gigabytes of memory, including disk cache. The indexes contain roughly $1.031^{k} \cdot 2.348$~billion \kmer{k}s, but the pruned de~Bruijn graphs use only 4.4\nobreakdash--5.8~billion nodes to represent them. Index size grows even more slowly with $k$, as we sample more values in lower order graphs. For $k = 128$, GCSA2 requires 0.68~bits per \kmer{k}, out of which 0.32~bits is used for the path graph.
 
 \begin{table}[t!]
 \begin{center}
-\caption{GCSA2 construction with different orders of the path graph. Billions of nodes in the de~Bruijn graph and the pruned de~Bruijn graph; index size in gigabytes; construction time in hours; peak memory and disk usage in gigabytes; and disk I/O volume for reading and writing in terabytes.}\label{table:construction}
-\begin{tabular}{c|ccc|ccc|cc}
+\caption{GCSA2 construction with different orders of the path graph. Construction time in hours; peak memory and disk usage in gigabytes; and disk I/O volume for reading and writing in terabytes.}\label{table:construction}
+\begin{tabular}{c|ccc|cc}
 \hline
-\textbf{Order} & \textbf{Nodes} & \textbf{Pruned} & \textbf{Index} & \textbf{Time} & \textbf{Memory} & \textbf{Disk} & \textbf{Read} & \textbf{Write} \\
+\textbf{Order} & \textbf{Time} & \textbf{Memory} & \textbf{Disk} & \textbf{Read} & \textbf{Write} \\
 \hline
- 32 & 6.23G & 4.39G & 13.7 GB & 9.85 h & 63.2 GB & 401 GB & 1.55 TB & 1.05 TB \\
- 64 & 16.9G & 5.27G & 14.2 GB & 13.6 h & 56.1 GB & 424 GB & 2.23 TB & 1.71 TB \\
-128 &  118G & 5.76G & 15.3 GB & 18.0 h & 56.9 GB & 489 GB & 3.00 TB & 2.47 TB \\
+ 32 &        &         &        &         &         \\
+ 64 & 12.1 h & 55.9 GB & 415 GB & 2.03 TB & 1.51 TB \\
+128 & 16.1 h & 56.6 GB & 478 GB & 2.78 TB & 2.25 TB \\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}[t!]
+\begin{center}
+\caption{Index sizes with different orders $k$ of the path graph. Number of \kmer{k}s and nodes in the pruned de~Bruijn graph in billions; index size in gigabytes and in bits per \kmer{k} for the graph ($\BWT$, $\bvIN$, and $\bvOUT$), the index (graph, $B_{S}$, $B_{V}$, and $V_{S}$), and the index with the extensions from Section \ref{sect:extensions}.}\label{table:indexes}
+\begin{tabular}{c|cc|c|c|c}
+\hline
+\textbf{Order} & \textbf{\kmer{k}s} & \textbf{Nodes} & \textbf{Graph} & \textbf{Index} & \textbf{With extensions} \\
+\hline
+ 32 & 6.20G & & & & \\
+ 64 & 16.7G & 5.24G & 3.93 GB / 2.03 bits & 9.19 GB / 4.74 bits & 14.1 GB / 7.27 bits \\
+128 &  116G & 5.76G & 4.29 GB / 0.32 bits & 9.17 GB / 0.68 bits & 15.2 GB / 1.12 bits \\
 \hline
 \end{tabular}
 \end{center}
