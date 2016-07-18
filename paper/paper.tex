@@ -361,7 +361,7 @@ The bitvectors are often highly compressible \cite{Gagie2015}, but GCSA already 
 
 \section{Implementation and Experiments}
 
-GCSA2 has been developed as the path indexing library of vg \cite{Garrison2014-2016}. The implementation is written in C++, and the source code is available on GitHub (\url{https://github.com/jltsiren/gcsa2}). As the implementation uses \emph{SDSL} \cite{Gog2014b} and \emph{libstdc++ parallel mode}, it requires g++ version~4.9 or later to compile. The index uses fast succinct data structures instead of the smaller but slower compressed data structures in most of its components. The experiments were done on a system with two 16\nobreakdash-core AMD Opteron 6378 processors and 256~gigabytes of memory running Ubuntu~12.04 on Linux kernel~3.2.0. All files were stored on a distributed Lustre file system. We used vg version~1.3.0 for processing the graphs, GCSA2 version~0.6 for building the indexes, and GCSA2 version~0.6.1 for the queries.
+GCSA2 has been developed as the path indexing library of vg \cite{Garrison2014-2016}. The implementation is written in C++, and the source code is available on GitHub (\url{https://github.com/jltsiren/gcsa2}). As the implementation uses \emph{SDSL} \cite{Gog2014b} and \emph{libstdc++ parallel mode}, it requires g++ version~4.9 or later to compile. The index uses fast succinct data structures instead of the smaller but slower compressed data structures for most of its components. The experiments were done on a system with two 16\nobreakdash-core AMD Opteron 6378 processors and 256~gigabytes of memory running Ubuntu~12.04 on Linux kernel~3.2.0. All files were stored on a distributed Lustre file system. We used vg version~1.3.0 for processing the graphs and GCSA2 version~0.7 for the benchmarks.
 
 The vg \emph{variation graphs} have strings as node labels. Each node can be traversed in both forward and reverse complement orientations, and edges may cross between the orientations. When extracting paths from a variation graph, the graph is implicitly converted into an input graph with single-character labels. Input graph nodes corresponding to the initial offsets of variation graph node labels are always selected as samples.
 
@@ -376,7 +376,7 @@ Table~\ref{table:construction} summarizes index construction, while Table~\ref{t
 \hline
 \textbf{Order} & \textbf{Time} & \textbf{Memory} & \textbf{Disk} & \textbf{Read} & \textbf{Write} \\
 \hline
- 32 &        &         &        &         &         \\
+ 32 & 8.62 h & 63.1 GB & 387 GB & 1.37 TB & 0.88 TB \\
  64 & 12.1 h & 55.9 GB & 415 GB & 2.03 TB & 1.51 TB \\
 128 & 16.1 h & 56.6 GB & 478 GB & 2.78 TB & 2.25 TB \\
 \hline
@@ -391,7 +391,7 @@ Table~\ref{table:construction} summarizes index construction, while Table~\ref{t
 \hline
 \textbf{Order} & \textbf{\kmer{k}s} & \textbf{Nodes} & \textbf{Graph} & \textbf{Index} & \textbf{With extensions} \\
 \hline
- 32 & 6.20G & & & & \\
+ 32 & 6.20G & 4.37G & 3.28 GB / 4.55 bits & 9.97 GB / 13.8 bits & 13.6 GB / 18.9 bits \\
  64 & 16.7G & 5.24G & 3.93 GB / 2.03 bits & 9.19 GB / 4.74 bits & 14.1 GB / 7.27 bits \\
 128 &  116G & 5.76G & 4.29 GB / 0.32 bits & 9.17 GB / 0.68 bits & 15.2 GB / 1.12 bits \\
 \hline
@@ -399,22 +399,24 @@ Table~\ref{table:construction} summarizes index construction, while Table~\ref{t
 \end{center}
 \end{table}
 
-We extracted \kmer{16}s, \kmer{32}s, and \kmer{64}s from the (non-pruned) vg graphs using \texttt{vg sim}, and queried for them in the \orderk{64} index using a single thread. We also ran the same queries in an FM\nobreakdash-index (\texttt{csa\_wt<>} from SDSL with SA sample density 17) of the reference. The results can be seen in Table~\ref{table:benchmark}. The $\find$ and $\locate$ queries are several times slower than in the FM\nobreakdash-index, which uses the same SDSL components. A simplified encoding (see Appendix~\ref{appendix:encoding}) would make $\find$ queries faster and $\locate$ queries slower.
+We extracted \kmer{16}s, \kmer{32}s, \kmer{64}s, and \kmer{128}s from the (non-pruned) vg graphs using \texttt{vg sim}, and queried for them in the \orderk{128} index using a single thread. We also ran the same queries in an FM\nobreakdash-index (\texttt{csa\_wt<>} from SDSL with SA sample density 17) of the reference. The results can be seen in Table~\ref{table:benchmark}. The $\find$ and $\locate$ queries are several times slower than in the FM\nobreakdash-index, which uses the same SDSL components. A simplified encoding (see Appendix~\ref{appendix:encoding}) would make $\find$ queries faster and $\locate$ queries slower.
 
 \begin{table}[t!]
 \begin{center}
-\caption{Query benchmarks using an \orderk{64} GCSA and an FM\nobreakdash-index. Index type and pattern length; number of patterns, matching patterns, matching nodes, and distinct occurrences; average time for $[sp, ep] = \find(X)$, $\parent(sp, ep)$, and $\countq(sp, ep)$ queries in microseconds; and average time per value for $\locate(sp, ep)$ queries in microseconds.}\label{table:benchmark}
+\caption{Query benchmarks using an \orderk{128} GCSA and an FM\nobreakdash-index. Index type and pattern length; number of patterns, matching patterns, matching nodes, and distinct occurrences; average time for $[sp, ep] = \find(X)$, $\parent(sp, ep)$, and $\countq(sp, ep)$ queries in microseconds; and average time per value for $\locate(sp, ep)$ queries in microseconds.}\label{table:benchmark}
 \begin{tabular}{c|cccc|cccc}
 \hline
  & \textbf{Patterns} & \textbf{Found} & \textbf{Nodes} & \textbf{Occs} & $\find()$ & $\parent()$ & $\countq()$ & $\locate()$ \\
 \hline
-GCSA: 16 & 351584 & 347453 & 1829M &  872M & 18.0 \textmu{}s & 0.40 \textmu{}s & 0.93 \textmu{}s & 8.61 \textmu{}s \\
-GCSA: 32 & 351555 & 333258 & 52.6M & 34.3M & 37.7 \textmu{}s & 0.27 \textmu{}s & 0.44 \textmu{}s & 4.52 \textmu{}s \\
-GCSA: 64 & 351567 & 326101 & 0.33M & 1.35M & 75.3 \textmu{}s & 0.25 \textmu{}s & 0.33 \textmu{}s & 1.66 \textmu{}s \\
+GCSA:  16 & 351584 & 347453 & 2477M &  872M & 18.3 \textmu{}s & 0.41 \textmu{}s & 0.87 \textmu{}s & 12.1 \textmu{}s \\
+GCSA:  32 & 351555 & 333258 &  112M & 34.3M & 37.9 \textmu{}s & 0.28 \textmu{}s & 0.38 \textmu{}s & 11.1 \textmu{}s \\
+GCSA:  64 & 351567 & 326101 & 2.63M & 1.35M & 76.1 \textmu{}s & 0.26 \textmu{}s & 0.28 \textmu{}s & 5.76 \textmu{}s \\
+GCSA: 128 & 351596 & 316500 & 0.32M & 0.37M &  149 \textmu{}s & 0.26 \textmu{}s & 0.26 \textmu{}s & 5.98 \textmu{}s \\
 \hline
-FM:   16 & 351584 & 301538 &    -- &  782M & 6.04 \textmu{}s &              -- &              -- & 2.44 \textmu{}s \\
-FM:   32 & 351555 & 153957 &    -- & 26.6M & 10.9 \textmu{}s &              -- &              -- & 2.17 \textmu{}s \\
-FM:   64 & 351567 &  88184 &    -- & 0.84M & 17.1 \textmu{}s &              -- &              -- & 1.92 \textmu{}s \\
+FM:    16 & 351584 & 301538 &    -- &  782M & 6.06 \textmu{}s &              -- &              -- & 2.46 \textmu{}s \\
+FM:    32 & 351555 & 153957 &    -- & 26.6M & 10.9 \textmu{}s &              -- &              -- & 2.19 \textmu{}s \\
+FM:    64 & 351567 &  88184 &    -- & 0.84M & 17.2 \textmu{}s &              -- &              -- & 1.91 \textmu{}s \\
+FM:   128 & 351596 &  35678 &    -- & 0.08M & 23.6 \textmu{}s &              -- &              -- & 3.48 \textmu{}s \\
 \hline
 \end{tabular}
 \end{center}
@@ -425,14 +427,14 @@ FM:   64 & 351567 &  88184 &    -- & 0.84M & 17.1 \textmu{}s &              -- &
 
 GCSA2 is a path index for variation graphs. It uses a pruned de~Bruijn graph as an index of the variation graph, and encodes that with a generalization of the FM\nobreakdash-index. The index includes extensions based on suffix trees; other extensions have also been considered but not implemented yet (see Appendix~\ref{appendix:hypertext}). GCSA2 has been integrated in the variation graph toolkit vg, where it is used for e.g.~read alignment based on maximal exact matches.
 
-We can build a whole-genome index overnight on a system with 96~gigabytes of memory and a few hundred gigabytes of fast disk space. The resulting index takes less than 16~gigabytes, which is less than 1~bit per \kmer{k} for the \orderk{128} index. Query performance is several times slower than with a similar implementation of the FM\nobreakdash-index for sequences.
+We can build a whole-genome index overnight on a system with 96~gigabytes of memory and a few hundred gigabytes of fast disk space. The resulting index takes less than 16~gigabytes, or 1.12~bits per \kmer{k} for the \orderk{128} index with extensions. Query performance is several times slower than with a similar implementation of the FM\nobreakdash-index for sequences.
 
 GCSA2 compares to the existing path indexes in the following ways:
 \begin{itemize}
 
-\item GCSA \cite{Siren2014} and HISAT2 \cite{Kim2015-2016} use the same techniques as GCSA2. While GCSA2 can index any graph but restricts the length of the queries, GCSA and HISAT2 support queries of any length but require that the graph has an \orderk{\infty} pruned de~Bruijn graph of reasonable size.
+\item GCSA \cite{Siren2014} and HISAT2 \cite{Kim2015-2016} are based on the same techniques. While GCSA2 can index any graph but restricts query length, GCSA and HISAT2 support queries of any length but require that the graph has an \orderk{\infty} pruned de~Bruijn graph of reasonable size.
 
-\item BWBBLE \cite{Huang2013} is reported to be 100x slower than BWA \cite{Li2009} and hence tens of times slower than a similar implementation of GCSA2. The current implementation can only handle local variation.
+\item BWBBLE \cite{Huang2013} is reported to be 100x slower than BWA \cite{Li2009} and hence tens of times slower than a similar implementation of GCSA2 would be. The current implementation can only handle local variation.
 
 \item vBWT \cite{Maciuca2016} is slower than BWBBLE. It can only handle local variation but supports queries of arbitrary length.
 
