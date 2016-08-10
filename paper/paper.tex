@@ -1,36 +1,17 @@
-\documentclass[a4paper,UKenglish]{lipics-v2016}
+\documentclass[a4paper,11pt]{llncs}
 
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{fullpage}
+\setlength\tabcolsep{4pt}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{textgreek}
 \usepackage{microtype}
-
-\bibliographystyle{plainurl}
-
-% Author macros::begin %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\title{Indexing Variation Graphs\footnote{This work was supported by the Wellcome Trust grant 098051.}}
-
-\author[1]{Jouni Sirén}
-\affil[1]{Wellcome Trust Sanger Institute, Hinxton, Cambridge, UK\\
-  \texttt{jouni.siren@iki.fi}}
-\authorrunning{J. Sirén}
-
-\Copyright{Jouni Sirén}
-
-\subjclass{E.1 Data Structures}
-\keywords{Burrows-Wheeler transform, de Bruijn graphs, path indexes, variation graphs}
-% Author macros::end %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%Editor-only macros:: begin (do not touch as author)%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\EventEditors{John Q. Open and Joan R. Acces}
-%\EventNoEds{2}
-%\EventLongTitle{42nd Conference on Very Important Topics (CVIT 2016)}
-%\EventShortTitle{CVIT 2016}
-%\EventAcronym{CVIT}
-%\EventYear{2016}
-%\EventDate{December 24--27, 2016}
-%\EventLocation{Little Whinging, United Kingdom}
-%\EventLogo{}
-%\SeriesVolume{42}
-\ArticleNo{1}
-% Editor-only macros::end %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{hyperref}
 
 
 % Mathematics
@@ -39,12 +20,11 @@
 \newcommand{\Oh}[1]{\ensuremath{\mathsf{O}\!\left( #1 \right)}}
 
 % DNA
-\newcommand{\dnaseq}[1]{\ensuremath{\mathtt{#1}}}
-\newcommand{\baseA}{\dnaseq{A}}
-\newcommand{\baseC}{\dnaseq{C}}
-\newcommand{\baseG}{\dnaseq{G}}
-\newcommand{\baseT}{\dnaseq{T}}
-\newcommand{\baseN}{\dnaseq{N}}
+\newcommand{\baseA}{\mathtt{A}}
+\newcommand{\baseC}{\mathtt{C}}
+\newcommand{\baseG}{\mathtt{G}}
+\newcommand{\baseT}{\mathtt{T}}
+\newcommand{\baseN}{\mathtt{N}}
 \newcommand{\dnacomp}[1]{\ensuremath{\overline{#1}}}
 \newcommand{\revcomp}[1]{\ensuremath{\overleftarrow{#1}}}
 
@@ -85,8 +65,16 @@
 \newcommand{\bvOUT}{\ensuremath{\mathsf{OUT}}}
 
 
+\title{Indexing Variation Graphs\thanks{This work was supported by the Wellcome Trust grant 098051.}}
+
+\author{Jouni Sirén}
+\institute{Wellcome Trust Sanger Institute, UK \\ \email{jouni.siren@iki.fi}}
+
+
 \begin{document}
 
+\thispagestyle{empty}
+\setcounter{page}{0}
 \maketitle
 
 \begin{abstract}
@@ -94,6 +82,7 @@ Variation graphs, which represent genetic variation within a population, are rep
 \end{abstract}
 
 
+\clearpage
 \section{Introduction}
 
 Sequence analysis pipelines typically start with mapping the reads from the sequenced genome to a \emph{reference genome} of the same species. As reference genomes are usually assembled from the genomes of a small number of individuals, they are biased towards those individuals. This \emph{reference bias} may affect the results of subsequent analysis, especially when the sequenced individuals are from different populations than the ones behind the reference genome.
@@ -125,7 +114,7 @@ A \emph{string} $S[0, n-1] = s_{0} \dotsm s_{n-1}$ of length $\abs{S} = n$ is a 
 
 Sometimes we consider \emph{infinite} character sequences $S = (s_{i})_{i \in Z}$, where set $Z$ is a contiguous infinite subset of $\mathbb{Z}$. The notion of substrings generalizes for such infinite sequences in a natural way. We say that a substring of an infinite sequence $S$ is \emph{left-infinite} if it extends infinitely to the left, and \emph{right-infinite} if it extends infinitely to the right. A substring of a finite or infinite sequence $S$ is \emph{left-maximal} if it is left-infinite or a prefix, and \emph{right-maximal} if it is right-infinite or a suffix.
 
-We primarily consider sequences over the \emph{DNA} alphabet $\set{\$, \baseA, \baseC, \baseG, \baseT, \baseN}$. Characters $\baseA$, $\baseC$, $\baseG$, and $\baseT$ are called \emph{bases}, while character $\baseN$ represents an arbitrary or unknown base. In addition to the endmarker $\$$, the alphabet may also contain other characters for technical purposes. Each character $c$ of the DNA alphabet has a \emph{complement} $\dnacomp{c}$ defined as $\dnacomp{\baseA} = \baseT$, $\dnacomp{\baseC} = \baseG$, $\dnacomp{\baseG} = \baseC$, $\dnacomp{\baseT} = \baseA$, and $\dnacomp{c} = c$ for other characters $c$. Given a DNA sequence $S$, its \emph{reverse complement} is the sequence $\revcomp{S}$ obtained by reversing the non-technical parts of the sequence and replacing each character with its complement. For example, $\revcomp{\dnaseq{GATTACA}\$} = \dnaseq{TGTAATC}\$$.
+We primarily consider sequences over the \emph{DNA} alphabet $\set{\$, \baseA, \baseC, \baseG, \baseT, \baseN}$. Characters $\baseA$, $\baseC$, $\baseG$, and $\baseT$ are called \emph{bases}, while character $\baseN$ represents an arbitrary or unknown base. In addition to the endmarker $\$$, the alphabet may also contain other characters for technical purposes. Each character $c$ of the DNA alphabet has a \emph{complement} $\dnacomp{c}$ defined as $\dnacomp{\baseA} = \baseT$, $\dnacomp{\baseC} = \baseG$, $\dnacomp{\baseG} = \baseC$, $\dnacomp{\baseT} = \baseA$, and $\dnacomp{c} = c$ for other characters $c$. Given a DNA sequence $S$, its \emph{reverse complement} is the sequence $\revcomp{S}$ obtained by reversing the non-technical parts of the sequence and replacing each character with its complement. For example, $\revcomp{\mathtt{GATTACA}\$} = \mathtt{TGTAATC}\$$.
 
 Given string $S[0, n-1]$, we define $S.\rank(i, c)$ as the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define $S.\select(i, c) = \arg \max_{j \le n} S.\rank(j, c) < i$ as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions are used in the SDSL library \cite{Gog2014b}. We assume for convenience that $S.\select(0, c) = -1$.} A \emph{bitvector} is a binary sequence supporting efficient $\rank$/$\select$ queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support $\rank$/$\select$ queries on arbitrary strings.
 
@@ -139,7 +128,7 @@ The \emph{suffix tree} \cite{Weiner1973} is the most fundamental full-text index
 
 \begin{figure}[t!]
 \includegraphics{gcsa2_text_indexes.pdf}
-\caption{\LFmapping, BWT, suffix array, and LCP array for text $\dnaseq{GCATCATA}\$$.}\label{figure:indexes}
+\caption{\protect\LFmapping, BWT, suffix array, and LCP array for text $\mathtt{GCATCATA}\$$.}\label{figure:indexes}
 \end{figure}
 
 The \emph{Burrows-Wheeler transform (BWT)} \cite{Burrows1994} is a permutation of the text. Given text $T[0, n-1]$, its BWT is a string $\BWT[0, n-1]$, where $\BWT[i] = T[(\SA[i]-1) \bmod n]$. Given the \emph{lexicographic rank} $i$ of suffix $T[\SA[i], n-1]$, we can use \emph{\LFmapping} on the BWT to find the lexicographic rank of the previous suffix $T[(\SA[i]-1) \bmod n, n-1]$. Let
@@ -226,7 +215,7 @@ We can also use the \orderk{k} de~Bruijn graph $G' = (V', E')$ of graph $G = (V,
 
 \begin{figure}[t!]
 \includegraphics[width=396pt]{gcsa2_graph_dbg.pdf}
-\caption{Left: Input graph $G = (V, E)$, with each node $v \in V$ labeled with $v:G.\glabel(v)$. Right: The \orderk{3} de~Bruijn graph $G' = (V', E')$ of graph $G$, with each node $v' \in V'$ labeled with $G'.\gkey(v')$ and $G'.\gvalue(v')$. Both: Edges $(t, s)$ are not shown. The highlighted path in the de~Bruijn graph is a false positive, as it consists of two disjoint paths in the input graph.}\label{figure:graph-dbg}
+\caption{Left: Input graph $G = (V, E)$, with each node $v \in V$ labeled with $v:G.\glabel(v)$. Right: The \protect\orderk{3} de~Bruijn graph $G' = (V', E')$ of graph $G$, with each node $v' \in V'$ labeled with $G'.\gkey(v')$ and $G'.\gvalue(v')$. Both: Edges $(t, s)$ are not shown. The highlighted path in the de~Bruijn graph is a false positive, as it consists of two disjoint paths in the input graph.}\label{figure:graph-dbg}
 \end{figure}
 
 \subsection{Path graphs}
@@ -292,7 +281,7 @@ We can compress a de~Bruijn graph structurally by repeatedly merging sets of nod
 
 \begin{figure}[t!]
 \includegraphics[width=396pt]{gcsa2_pruned_index.pdf}
-\caption{Left: An \orderk{3} pruned de~Bruijn graph $G''$ \kequivalent{3} to the de~Bruijn graph in Figure~\ref{figure:graph-dbg}. Right: GCSA for graph $G''$. Leftward arrows show how backward searching proceeds, with the red arrows demonstrating it from pattern $\dnaseq{T}$ to pattern $\dnaseq{AT}$. Rightward arrows tell where the samples for each node are located, with the blue ones showing them for node $\dnaseq{CAT}$.}\label{figure:pruned-index}
+\caption{Left: An \protect\orderk{3} pruned de~Bruijn graph $G''$ \protect\kequivalent{3} to the de~Bruijn graph in Figure~\ref{figure:graph-dbg}. Right: GCSA for graph $G''$. Leftward arrows show how backward searching proceeds, with the red arrows demonstrating it from pattern $\mathtt{T}$ to pattern $\mathtt{AT}$. Rightward arrows tell where the samples for each node are located, with the blue ones showing them for node $\mathtt{CAT}$.}\label{figure:pruned-index}
 \end{figure}
 
 \begin{definition}[Maximally pruned de~Bruijn graph]
@@ -449,11 +438,12 @@ GCSA2 compares to the existing path indexes in the following ways:
 The compressed suffix tree used in GCSA2 may also be useful as a text index, as it is both easy to implement and fast in practice. As long as the average LCP value is low, we can generalize the byte array encoding of the LCP array \cite{Abouelhoda2004} to implement it space-efficiently. We use an array of $m$\nobreakdash-bit integers for the LCP array and the $x$\nobreakdash-ary tree, mark the values that are too large for $m$~bits with the largest possible value, and store them separately.
 
 
-\subparagraph*{Acknowledgements.}
+\paragraph*{Acknowledgements.}
 
 The author thanks Erik Garrison, Richard Durbin, and Adam Novak for the fruitful discussions while developing the GCSA2 index.
 
 
+\bibliographystyle{plainurl}
 \bibliography{paper}
 
 

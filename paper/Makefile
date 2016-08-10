@@ -3,11 +3,11 @@ FIGURES=gcsa2_text_indexes.pdf gcsa2_graph_dbg.pdf gcsa2_pruned_index.pdf
 
 all: paper.pdf
 
-paper.pdf: cc-by.pdf lipics-logo-bw.pdf paper.bbl $(FIGURES) $(SOURCES)
+paper.pdf: paper.bbl $(FIGURES) $(SOURCES)
 	pdflatex paper
 	pdflatex paper
 
-force: cc-by.pdf lipics-logo-bw.pdf paper.bbl $(FIGURES) $(SOURCES)
+force: paper.bbl $(FIGURES) $(SOURCES)
 	rm -f paper.pdf
 	pdflatex paper
 	pdflatex paper

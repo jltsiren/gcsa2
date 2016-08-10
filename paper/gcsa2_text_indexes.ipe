@@ -2,10 +2,18 @@
 <!DOCTYPE ipe SYSTEM "ipe.dtd">
 <ipe version="70107" creator="Ipe 7.1.8">
 <info created="D:20160420105900" modified="D:20160420125923"/>
-<preamble>\usepackage{lmodern}
+<preamble>\usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
+
+\usepackage{fullpage}
+
+\usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{textgreek}
 \usepackage{microtype}
+\usepackage{hyperref}
+
 
 % DNA
 \newcommand{\dnaseq}[1]{\ensuremath{\mathtt{#1}}}
