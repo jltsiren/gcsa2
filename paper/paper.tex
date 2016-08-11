@@ -103,7 +103,7 @@ The above methods can be classified in three categories based on the data models
 
 GCSA2 combines ideas from the original GCSA and from succinct de~Bruijn graphs. Conceptually it uses a de~Bruijn graph as a path index of a variation graph. The \orderk{k} de~Bruijn graph is \emph{pruned} (compressed structurally) by using strings shorter than $k$ characters as nodes, if the shorter strings identify the start nodes of the corresponding paths uniquely. The pruned graph is encoded with a generalization of the FM\nobreakdash-index. GCSA2 often uses around 1~bit per \kmer{k} with large values of $k$. Explicit de~Bruijn graphs cannot achieve similar space usage, as they store some information for each \kmer{k}. GCSA2 also includes extensions based on what is essentially a suffix tree of the pruned de~Bruijn graph. The extensions are used for e.g.~finding maximal exact matches in the vg read aligner.
 
-This paper describes the GCSA2 data structure. Its uses in the vg toolkit will be discussed in the vg paper. The proofs of lemmas describing the properties of the generalizations of de~Bruijn graphs are included in Appendix~\ref{appendix:proofs}.
+This paper describes the GCSA2 data structure. Its uses in the vg toolkit will be discussed in the vg paper.
 
 
 \section{Background}
@@ -127,6 +127,7 @@ The \emph{suffix tree} \cite{Weiner1973} is the most fundamental full-text index
 \emph{Suffix arrays} (SA) \cite{Manber1993} were introduced as a space-efficient alternative to the suffix tree. The suffix array of text $T[0, n-1]$ is an array of pointers $\SA[0, n-1]$ to the suffixes of the text in \emph{lexicographic order}. We find the occurrences of \emph{pattern} string $X$ in the text in $\Oh{\abs{X} \log n}$ time by using \emph{binary search} in the suffix array. The suffix array requires $n \log n$ bits of space in addition to the $n \log \sigma$ bits used by the text, while its functionality is more limited than that of the suffix tree. See Figure~\ref{figure:indexes} for an example of the suffix array and related structures.
 
 \begin{figure}[t!]
+\centering
 \includegraphics{gcsa2_text_indexes.pdf}
 \caption{\protect\LFmapping, BWT, suffix array, and LCP array for text $\mathtt{GCATCATA}\$$.}\label{figure:indexes}
 \end{figure}
@@ -214,7 +215,7 @@ A \kmer{(k+1)} index of graph $G = (V, E)$ can simulate the \orderk{k} de~Bruijn
 We can also use the \orderk{k} de~Bruijn graph $G' = (V', E')$ of graph $G = (V, E)$ as a \kmer{k} index of $G$. Let $\mathcal{S}$ be the \kcollection{k} in Definition~\ref{def:dbg}. We attach a set of nodes of graph $G$ to each node $v' \in V'$ as a \emph{value}: $G'.\gvalue(v) = \set{ \mathcal{S}.\gnode(S, i) \mid S \in \mathcal{S}, S[i, i+k-1] = G'.\gkey(v)}.$ Apart from some technicalities near the source/sink nodes, set $G'.\gvalue(v)$ is the set of start nodes of the paths $P$ matching pattern $G'.\gkey(v)$ in graph $G$. There will be no false negatives, regardless of pattern length. There may be \emph{false positives} (path labels that exist in the index but not in the input graph) with patterns longer than $k$, but we can avoid them by \emph{verifying} the results of such queries in the input graph. See Figure~\ref{figure:graph-dbg} for an example.
 
 \begin{figure}[t!]
-\includegraphics[width=396pt]{gcsa2_graph_dbg.pdf}
+\includegraphics[width=\textwidth]{gcsa2_graph_dbg.pdf}
 \caption{Left: Input graph $G = (V, E)$, with each node $v \in V$ labeled with $v:G.\glabel(v)$. Right: The \protect\orderk{3} de~Bruijn graph $G' = (V', E')$ of graph $G$, with each node $v' \in V'$ labeled with $G'.\gkey(v')$ and $G'.\gvalue(v')$. Both: Edges $(t, s)$ are not shown. The highlighted path in the de~Bruijn graph is a false positive, as it consists of two disjoint paths in the input graph.}\label{figure:graph-dbg}
 \end{figure}
 
@@ -280,7 +281,7 @@ If $\abs{V'_{K}} > 0$ and $G'.\gvalue(u') = G'.\gvalue(v')$ for all $u', v' \in 
 We can compress a de~Bruijn graph structurally by repeatedly merging sets of nodes sharing a common prefix of their keys, as long as the conditions of Lemma~\ref{lemma:dbg-prune} hold. Let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph, and let $G'' = (V'', E'')$ be the same graph after further pruning. Each node $v'' \in V''$ is an \emph{equivalence class} of nodes $V'(v'') \subseteq V'$ corresponding to a shared prefix $G''.\gkey(v'')$ of keys. For all $v' \in V'(v'')$, we have $G'.\gvalue(v') = G''.\gvalue(v'')$. See Figure~\ref{figure:pruned-index} for an example of a pruned de~Bruijn graph.
 
 \begin{figure}[t!]
-\includegraphics[width=396pt]{gcsa2_pruned_index.pdf}
+\includegraphics[width=\textwidth]{gcsa2_pruned_index.pdf}
 \caption{Left: An \protect\orderk{3} pruned de~Bruijn graph $G''$ \protect\kequivalent{3} to the de~Bruijn graph in Figure~\ref{figure:graph-dbg}. Right: GCSA for graph $G''$. Leftward arrows show how backward searching proceeds, with the red arrows demonstrating it from pattern $\mathtt{T}$ to pattern $\mathtt{AT}$. Rightward arrows tell where the samples for each node are located, with the blue ones showing them for node $\mathtt{CAT}$.}\label{figure:pruned-index}
 \end{figure}
 

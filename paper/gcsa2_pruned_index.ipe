@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE ipe SYSTEM "ipe.dtd">
-<ipe version="70107" creator="Ipe 7.1.9">
-<info created="D:20160420105900" modified="D:20160622102539"/>
+<ipe version="70107" creator="Ipe 7.1.8">
+<info created="D:20160420105900" modified="D:20160811110710"/>
 <preamble>\usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 
@@ -302,35 +302,35 @@ h
 <page>
 <layer name="alpha"/>
 <view layers="alpha" active="alpha"/>
-<text layer="alpha" matrix="1 0 0 1 -16 24" transformations="translations" pos="36 68" stroke="black" type="label" width="19.635" height="4.81" depth="1.35" halign="center" valign="center">{\scriptsize $\#\#\#$}</text>
+<text layer="alpha" matrix="1 0 0 1 -16 24" transformations="translations" pos="36 68" stroke="black" type="label" width="19.635" height="4.849" depth="1.35" halign="center" valign="center">{\scriptsize $\#\#\#$}</text>
 <text matrix="1 0 0 1 -16 16" transformations="translations" pos="36 68" stroke="black" type="label" width="14.733" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $0:2$}</text>
-<text matrix="1 0 0 1 24 24" transformations="translations" pos="36 68" stroke="black" type="label" width="16.795" height="4.81" depth="1.35" halign="center" valign="center">{\scriptsize $\#\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 24 24" transformations="translations" pos="36 68" stroke="black" type="label" width="16.795" height="4.849" depth="1.35" halign="center" valign="center">{\scriptsize $\#\#\dnaseq{G}$}</text>
 <text matrix="1 0 0 1 24 16" transformations="translations" pos="36 68" stroke="black" type="label" width="14.733" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $0:1$}</text>
-<text matrix="1 0 0 1 60 24" transformations="translations" pos="36 68" stroke="black" type="label" width="10.25" height="4.81" depth="1.35" halign="center" valign="center">{\scriptsize $\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 60 24" transformations="translations" pos="36 68" stroke="black" type="label" width="10.25" height="4.849" depth="1.35" halign="center" valign="center">{\scriptsize $\#\dnaseq{G}$}</text>
 <text matrix="1 0 0 1 60 16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $0$}</text>
-<text matrix="1 0 0 1 124 56" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{CAT}$}</text>
+<text matrix="1 0 0 1 124 56" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{CAT}$}</text>
 <text matrix="1 0 0 1 124 48" transformations="translations" pos="36 68" stroke="black" type="label" width="11.669" height="4.5" depth="1.35" halign="center" valign="center">{\scriptsize $2,6$}</text>
-<text matrix="1 0 0 1 124 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{CT}$}</text>
+<text matrix="1 0 0 1 124 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{CT}$}</text>
 <text matrix="1 0 0 1 124 -16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $2$}</text>
-<text matrix="1 0 0 1 156 72" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{ATC}$}</text>
+<text matrix="1 0 0 1 156 72" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{ATC}$}</text>
 <text matrix="1 0 0 1 156 64" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $3$}</text>
-<text matrix="1 0 0 1 156 40" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{ATG}$}</text>
+<text matrix="1 0 0 1 156 40" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{ATG}$}</text>
 <text matrix="1 0 0 1 156 32" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $3$}</text>
-<text matrix="1 0 0 1 156 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TT}$}</text>
+<text matrix="1 0 0 1 156 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TT}$}</text>
 <text matrix="1 0 0 1 156 -16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $4$}</text>
-<text matrix="1 0 0 1 188 56" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TC}$}</text>
+<text matrix="1 0 0 1 188 56" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TC}$}</text>
 <text matrix="1 0 0 1 188 48" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $5$}</text>
-<text matrix="1 0 0 1 188 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TG}$}</text>
+<text matrix="1 0 0 1 188 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TG}$}</text>
 <text matrix="1 0 0 1 188 -16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $5$}</text>
-<text matrix="1 0 0 1 220 56" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{ATA}$}</text>
+<text matrix="1 0 0 1 220 56" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{ATA}$}</text>
 <text matrix="1 0 0 1 220 48" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $7$}</text>
-<text matrix="1 0 0 1 220 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{GT}$}</text>
+<text matrix="1 0 0 1 220 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{GT}$}</text>
 <text matrix="1 0 0 1 220 -16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $8$}</text>
-<text matrix="1 0 0 1 252 24" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TA}$}</text>
+<text matrix="1 0 0 1 252 24" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{TA}$}</text>
 <text matrix="1 0 0 1 252 16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $9$}</text>
-<text matrix="1 0 0 1 284 24" transformations="translations" pos="36 68" stroke="black" type="label" width="7.676" height="5.231" depth="0.39" halign="center" valign="center">{\scriptsize $\dnaseq{A}\$$}</text>
+<text matrix="1 0 0 1 284 24" transformations="translations" pos="36 68" stroke="black" type="label" width="7.676" height="5.238" depth="0.38" halign="center" valign="center">{\scriptsize $\dnaseq{A}\$$}</text>
 <text matrix="1 0 0 1 284 16" transformations="translations" pos="36 68" stroke="black" type="label" width="7.942" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $10$}</text>
-<text matrix="1 0 0 1 316 24" transformations="translations" pos="36 68" stroke="black" type="label" width="11.913" height="5.231" depth="0.39" halign="center" valign="center">{\scriptsize $\$\$\$$}</text>
+<text matrix="1 0 0 1 316 24" transformations="translations" pos="36 68" stroke="black" type="label" width="11.914" height="5.238" depth="0.38" halign="center" valign="center">{\scriptsize $\$\$\$$}</text>
 <text matrix="1 0 0 1 316 16" transformations="translations" pos="36 68" stroke="black" type="label" width="7.942" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $11$}</text>
 <path matrix="1 0 0 1 -344 16" stroke="black">
 432 80 m
@@ -515,7 +515,7 @@ h
 448 64 m
 464 48 l
 </path>
-<text matrix="1 0 0 1 92 24" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{GC}$}</text>
+<text matrix="1 0 0 1 92 24" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{GC}$}</text>
 <text matrix="1 0 0 1 92 16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $1$}</text>
 <path matrix="1 0 0 1 -312 16" stroke="black">
 432 80 m
@@ -536,30 +536,30 @@ h
 32 72 m
 48 72 l
 </path>
-<text matrix="1 0 0 1 -8 60" transformations="translations" pos="392 116" stroke="black" type="label" width="13.742" height="6.926" depth="1.93" halign="center" valign="baseline">$\gkey$</text>
-<text matrix="1 0 0 1 0 64" transformations="translations" pos="432 112" stroke="black" type="label" width="20.963" height="6.919" depth="0" halign="center" valign="baseline">$\bvOUT$</text>
-<text matrix="1 0 0 1 32 64" transformations="translations" pos="464 112" stroke="black" type="label" width="22.831" height="6.919" depth="0" halign="center" valign="baseline">$\BWT$</text>
-<text matrix="1 0 0 1 32 64" transformations="translations" pos="496 112" stroke="black" type="label" width="9.824" height="6.919" depth="0" halign="center" valign="baseline">$\bvIN$</text>
-<text matrix="1 0 0 1 48 64" transformations="translations" pos="528 112" stroke="black" type="label" width="13.742" height="6.926" depth="1.93" halign="center" valign="baseline">$\gkey$</text>
+<text matrix="1 0 0 1 -8 60" transformations="translations" pos="392 116" stroke="black" type="label" width="13.754" height="6.926" depth="1.93" halign="center" valign="baseline">$\gkey$</text>
+<text matrix="1 0 0 1 0 64" transformations="translations" pos="432 112" stroke="black" type="label" width="20.963" height="6.918" depth="0" halign="center" valign="baseline">$\bvOUT$</text>
+<text matrix="1 0 0 1 32 64" transformations="translations" pos="464 112" stroke="black" type="label" width="22.831" height="6.918" depth="0" halign="center" valign="baseline">$\BWT$</text>
+<text matrix="1 0 0 1 32 64" transformations="translations" pos="496 112" stroke="black" type="label" width="9.824" height="6.918" depth="0" halign="center" valign="baseline">$\bvIN$</text>
+<text matrix="1 0 0 1 48 64" transformations="translations" pos="528 112" stroke="black" type="label" width="13.754" height="6.926" depth="1.93" halign="center" valign="baseline">$\gkey$</text>
 <text matrix="1 0 0 1 48 64" transformations="translations" pos="560 112" stroke="black" type="label" width="13.328" height="6.812" depth="1.49" halign="center" valign="baseline">$B_{S}$</text>
 <text matrix="1 0 0 1 64 64" transformations="translations" pos="592 112" stroke="black" type="label" width="14.475" height="6.812" depth="1.49" halign="center" valign="baseline">$B_{V}$</text>
 <text matrix="1 0 0 1 64 64" transformations="translations" pos="624 112" stroke="black" type="label" width="11.583" height="6.812" depth="1.49" halign="center" valign="baseline">$V_{S}$</text>
-<text matrix="1 0 0 1 -16 -64" transformations="translations" pos="400 208" stroke="black" type="label" width="11.913" height="5.231" depth="0.39" halign="center" valign="baseline">{\scriptsize $\$\$\$$}</text>
-<text matrix="1 0 0 1 -16 -72" transformations="translations" pos="400 208" stroke="black" type="label" width="7.676" height="5.231" depth="0.39" halign="center" valign="baseline">{\scriptsize $\dnaseq{A}\$$}</text>
-<text matrix="1 0 0 1 -16 -80" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATA}$}</text>
-<text matrix="1 0 0 1 -16 -88" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATC}$}</text>
-<text matrix="1 0 0 1 -16 -96" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATG}$}</text>
-<text matrix="1 0 0 1 -16 -104" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CAT}$}</text>
-<text matrix="1 0 0 1 -16 -112" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CT}$}</text>
-<text matrix="1 0 0 1 -16 -120" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GC}$}</text>
-<text matrix="1 0 0 1 -16 -128" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GT}$}</text>
-<text matrix="1 0 0 1 -16 -136" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TA}$}</text>
-<text matrix="1 0 0 1 -16 -144" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TC}$}</text>
-<text matrix="1 0 0 1 -16 -152" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TG}$}</text>
-<text matrix="1 0 0 1 -16 -160" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TT}$}</text>
-<text matrix="1 0 0 1 -16 -168" transformations="translations" pos="400 208" stroke="black" type="label" width="10.25" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\dnaseq{G}$}</text>
-<text matrix="1 0 0 1 -16 -176" transformations="translations" pos="400 208" stroke="black" type="label" width="16.795" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\dnaseq{G}$}</text>
-<text matrix="1 0 0 1 -16 -184" transformations="translations" pos="400 208" stroke="black" type="label" width="19.635" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\#$}</text>
+<text matrix="1 0 0 1 -16 -64" transformations="translations" pos="400 208" stroke="black" type="label" width="11.914" height="5.238" depth="0.38" halign="center" valign="baseline">{\scriptsize $\$\$\$$}</text>
+<text matrix="1 0 0 1 -16 -72" transformations="translations" pos="400 208" stroke="black" type="label" width="7.676" height="5.238" depth="0.38" halign="center" valign="baseline">{\scriptsize $\dnaseq{A}\$$}</text>
+<text matrix="1 0 0 1 -16 -80" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATA}$}</text>
+<text matrix="1 0 0 1 -16 -88" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATC}$}</text>
+<text matrix="1 0 0 1 -16 -96" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATG}$}</text>
+<text matrix="1 0 0 1 -16 -104" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CAT}$}</text>
+<text matrix="1 0 0 1 -16 -112" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CT}$}</text>
+<text matrix="1 0 0 1 -16 -120" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GC}$}</text>
+<text matrix="1 0 0 1 -16 -128" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GT}$}</text>
+<text matrix="1 0 0 1 -16 -136" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TA}$}</text>
+<text matrix="1 0 0 1 -16 -144" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TC}$}</text>
+<text matrix="1 0 0 1 -16 -152" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TG}$}</text>
+<text matrix="1 0 0 1 -16 -160" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TT}$}</text>
+<text matrix="1 0 0 1 -16 -168" transformations="translations" pos="400 208" stroke="black" type="label" width="10.25" height="4.849" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 -16 -176" transformations="translations" pos="400 208" stroke="black" type="label" width="16.795" height="4.849" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 -16 -184" transformations="translations" pos="400 208" stroke="black" type="label" width="19.635" height="4.849" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\#$}</text>
 <text matrix="1 0 0 1 96 -48" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
 <text matrix="1 0 0 1 96 -88" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $0$}</text>
 <text matrix="1 0 0 1 96 -56" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
@@ -580,22 +580,22 @@ h
 <text matrix="1 0 0 1 96 -184" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
 <text matrix="1 0 0 1 96 -192" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
 <text matrix="1 0 0 1 96 -200" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
-<text matrix="1 0 0 1 176 -64" transformations="translations" pos="400 208" stroke="black" type="label" width="11.913" height="5.231" depth="0.39" halign="center" valign="baseline">{\scriptsize $\$\$\$$}</text>
-<text matrix="1 0 0 1 176 -72" transformations="translations" pos="400 208" stroke="black" type="label" width="7.676" height="5.231" depth="0.39" halign="center" valign="baseline">{\scriptsize $\dnaseq{A}\$$}</text>
-<text matrix="1 0 0 1 176 -80" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATA}$}</text>
-<text matrix="1 0 0 1 176 -88" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATC}$}</text>
-<text matrix="1 0 0 1 176 -96" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATG}$}</text>
-<text matrix="1 0 0 1 176 -104" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CAT}$}</text>
-<text matrix="1 0 0 1 176 -112" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CT}$}</text>
-<text matrix="1 0 0 1 176 -120" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GC}$}</text>
-<text matrix="1 0 0 1 176 -128" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GT}$}</text>
-<text matrix="1 0 0 1 176 -136" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TA}$}</text>
-<text matrix="1 0 0 1 176 -144" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TC}$}</text>
-<text matrix="1 0 0 1 176 -152" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TG}$}</text>
-<text matrix="1 0 0 1 176 -160" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TT}$}</text>
-<text matrix="1 0 0 1 176 -168" transformations="translations" pos="400 208" stroke="black" type="label" width="10.25" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\dnaseq{G}$}</text>
-<text matrix="1 0 0 1 176 -176" transformations="translations" pos="400 208" stroke="black" type="label" width="16.795" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\dnaseq{G}$}</text>
-<text matrix="1 0 0 1 176 -184" transformations="translations" pos="400 208" stroke="black" type="label" width="19.635" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\#$}</text>
+<text matrix="1 0 0 1 176 -64" transformations="translations" pos="400 208" stroke="black" type="label" width="11.914" height="5.238" depth="0.38" halign="center" valign="baseline">{\scriptsize $\$\$\$$}</text>
+<text matrix="1 0 0 1 176 -72" transformations="translations" pos="400 208" stroke="black" type="label" width="7.676" height="5.238" depth="0.38" halign="center" valign="baseline">{\scriptsize $\dnaseq{A}\$$}</text>
+<text matrix="1 0 0 1 176 -80" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATA}$}</text>
+<text matrix="1 0 0 1 176 -88" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATC}$}</text>
+<text matrix="1 0 0 1 176 -96" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATG}$}</text>
+<text matrix="1 0 0 1 176 -104" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CAT}$}</text>
+<text matrix="1 0 0 1 176 -112" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CT}$}</text>
+<text matrix="1 0 0 1 176 -120" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GC}$}</text>
+<text matrix="1 0 0 1 176 -128" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GT}$}</text>
+<text matrix="1 0 0 1 176 -136" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TA}$}</text>
+<text matrix="1 0 0 1 176 -144" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TC}$}</text>
+<text matrix="1 0 0 1 176 -152" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TG}$}</text>
+<text matrix="1 0 0 1 176 -160" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{TT}$}</text>
+<text matrix="1 0 0 1 176 -168" transformations="translations" pos="400 208" stroke="black" type="label" width="10.25" height="4.849" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 176 -176" transformations="translations" pos="400 208" stroke="black" type="label" width="16.795" height="4.849" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\dnaseq{G}$}</text>
+<text matrix="1 0 0 1 176 -184" transformations="translations" pos="400 208" stroke="black" type="label" width="19.635" height="4.849" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#\#\#$}</text>
 <text matrix="1 0 0 1 0 -48" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
 <text matrix="1 0 0 1 0 -56" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
 <text matrix="1 0 0 1 0 -64" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
@@ -616,26 +616,26 @@ h
 <text matrix="1 0 0 1 0 -184" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
 <text matrix="1 0 0 1 0 -192" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
 <text matrix="1 0 0 1 0 -200" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="baseline">{\scriptsize $1$}</text>
-<text matrix="1 0 0 1 64 -48" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
-<text matrix="1 0 0 1 64 -56" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
-<text matrix="1 0 0 1 64 -64" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
-<text matrix="1 0 0 1 64 -72" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
-<text matrix="1 0 0 1 64 -80" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
-<text matrix="1 0 0 1 64 -88" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseG$}</text>
-<text matrix="1 0 0 1 64 -120" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
-<text matrix="1 0 0 1 64 -112" transformations="translations" pos="432 208" stroke="black" type="label" width="6.545" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#$}</text>
-<text matrix="1 0 0 1 64 -128" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
-<text matrix="1 0 0 1 64 -144" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
-<text matrix="1 0 0 1 64 -160" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
-<text matrix="1 0 0 1 64 -136" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseG$}</text>
-<text matrix="1 0 0 1 64 -152" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
-<text matrix="1 0 0 1 64 -104" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseG$}</text>
-<text matrix="1 0 0 1 64 -96" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
-<text matrix="1 0 0 1 64 -168" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
-<text matrix="1 0 0 1 64 -176" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.324" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
-<text matrix="1 0 0 1 64 -184" transformations="translations" pos="432 208" stroke="black" type="label" width="6.545" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#$}</text>
-<text matrix="1 0 0 1 64 -192" transformations="translations" pos="432 208" stroke="black" type="label" width="6.545" height="4.81" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#$}</text>
-<text matrix="1 0 0 1 64 -200" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="5.231" depth="0.39" halign="center" valign="baseline">{\scriptsize $\$$}</text>
+<text matrix="1 0 0 1 64 -48" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
+<text matrix="1 0 0 1 64 -56" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
+<text matrix="1 0 0 1 64 -64" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
+<text matrix="1 0 0 1 64 -72" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
+<text matrix="1 0 0 1 64 -80" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
+<text matrix="1 0 0 1 64 -88" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseG$}</text>
+<text matrix="1 0 0 1 64 -120" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
+<text matrix="1 0 0 1 64 -112" transformations="translations" pos="432 208" stroke="black" type="label" width="6.545" height="4.849" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#$}</text>
+<text matrix="1 0 0 1 64 -128" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
+<text matrix="1 0 0 1 64 -144" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
+<text matrix="1 0 0 1 64 -160" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseA$}</text>
+<text matrix="1 0 0 1 64 -136" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseG$}</text>
+<text matrix="1 0 0 1 64 -152" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
+<text matrix="1 0 0 1 64 -104" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseG$}</text>
+<text matrix="1 0 0 1 64 -96" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
+<text matrix="1 0 0 1 64 -168" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseT$}</text>
+<text matrix="1 0 0 1 64 -176" transformations="translations" pos="432 208" stroke="black" type="label" width="3.705" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\baseC$}</text>
+<text matrix="1 0 0 1 64 -184" transformations="translations" pos="432 208" stroke="black" type="label" width="6.545" height="4.849" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#$}</text>
+<text matrix="1 0 0 1 64 -192" transformations="translations" pos="432 208" stroke="black" type="label" width="6.545" height="4.849" depth="1.35" halign="center" valign="baseline">{\scriptsize $\#$}</text>
+<text matrix="1 0 0 1 64 -200" transformations="translations" pos="432 208" stroke="black" type="label" width="3.971" height="5.238" depth="0.38" halign="center" valign="baseline">{\scriptsize $\$$}</text>
 <path matrix="1 0 0 1 0 2" stroke="black" dash="dashed" arrow="fpointed/normal">
 524 160 m
 500 160 l
@@ -860,10 +860,6 @@ h
 508 64 m
 452 136 l
 </path>
-<path matrix="1 0 0 1 -16 2" stroke="darkred" pen="fat" arrow="fpointed/normal">
-508 48 m
-452 128 l
-</path>
 <path matrix="1 0 0 1 -16 2" stroke="black" dash="dashed" arrow="fpointed/normal">
 508 144 m
 452 120 l
@@ -1085,6 +1081,10 @@ h
 <path matrix="1 0 0 1 0 2" stroke="black" dash="dashed" arrow="fpointed/normal">
 612 24 m
 652 48 l
+</path>
+<path matrix="1 0 0 1 -16 2" stroke="darkred" pen="fat" arrow="fpointed/normal">
+508 48 m
+452 128 l
 </path>
 </page>
 </ipe>
