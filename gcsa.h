@@ -102,7 +102,7 @@ public:
   template<class Iterator>
   range_type find(Iterator begin, Iterator end) const
   {
-    if(begin == end) { return range_type(0, this->size() - 1); }
+    if(begin == end || this->size() == 0) { return range_type(0, this->size() - 1); }
 
     --end;
     range_type range = this->charRange(this->alpha.char2comp[*end]);

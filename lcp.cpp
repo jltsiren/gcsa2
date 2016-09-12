@@ -196,16 +196,17 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
 {
   double start = readTimer();
 
+  if(graph.size() == 0) { this->lcp_size = 0; return; }
   if(graph.lcp_name.empty())
   {
-    std::cerr << "LCPArray::LCPArray: The input graph does not contain the LCP file" << std::endl;
+    std::cerr << "LCPArray::LCPArray(): The input graph does not contain the LCP file" << std::endl;
     std::exit(EXIT_FAILURE);
   }
 
   std::ifstream in(graph.lcp_name.c_str(), std::ios_base::binary);
   if(!in)
   {
-    std::cerr << "LCPArray::LCPArray: Cannot open LCP file " << graph.lcp_name << std::endl;
+    std::cerr << "LCPArray::LCPArray(): Cannot open LCP file " << graph.lcp_name << std::endl;
     std::exit(EXIT_FAILURE);
   }
 

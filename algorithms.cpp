@@ -93,6 +93,7 @@ verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, si
   #pragma omp parallel for schedule(static)
   for(size_type thread = 0; thread < threads; thread++)
   {
+    if(Range::empty(bounds[thread])) { continue; }
     size_type i = bounds[thread].first;
     while(i <= bounds[thread].second)
     {
