@@ -90,7 +90,7 @@ const sdsl::int_vector<8> Alphabet::DEFAULT_COMP2CHAR = { '$', 'A', 'C', 'G', 'T
 Alphabet::Alphabet() :
   char2comp(DEFAULT_CHAR2COMP), comp2char(DEFAULT_COMP2CHAR),
   C(DEFAULT_COMP2CHAR.size() + 1, 0),
-  sigma(DEFAULT_COMP2CHAR.size())
+  sigma(DEFAULT_COMP2CHAR.size()), fast_chars(FAST_CHARS)
 {
 }
 
@@ -108,7 +108,7 @@ Alphabet::Alphabet(const sdsl::int_vector<64>& counts,
   const sdsl::int_vector<8>& _char2comp, const sdsl::int_vector<8>& _comp2char) :
   char2comp(_char2comp), comp2char(_comp2char),
   C(_comp2char.size() + 1, 0),
-  sigma(_comp2char.size())
+  sigma(_comp2char.size()), fast_chars(FAST_CHARS)
 {
   for(size_type i = 0; i < counts.size(); i++) { this->C[i + 1] = this->C[i] + counts[i]; }
 }
@@ -124,6 +124,7 @@ Alphabet::copy(const Alphabet& a)
   this->comp2char = a.comp2char;
   this->C = a.C;
   this->sigma = a.sigma;
+  this->fast_chars = a.fast_chars;
 }
 
 void
@@ -135,6 +136,7 @@ Alphabet::swap(Alphabet& a)
     this->comp2char.swap(a.comp2char);
     this->C.swap(a.C);
     std::swap(this->sigma, a.sigma);
+    std::swap(this->fast_chars, a.fast_chars);
   }
 }
 
@@ -154,6 +156,7 @@ Alphabet::operator=(Alphabet&& a)
     this->comp2char = std::move(a.comp2char);
     this->C = std::move(a.C);
     this->sigma = a.sigma;
+    this->fast_chars = a.fast_chars;
   }
   return *this;
 }
@@ -167,6 +170,7 @@ Alphabet::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string
   written_bytes += this->comp2char.serialize(out, child, "comp2char");
   written_bytes += this->C.serialize(out, child, "C");
   written_bytes += sdsl::write_member(this->sigma, out, child, "sigma");
+  written_bytes += sdsl::write_member(this->fast_chars, out, child, "fast_chars");
   sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
 }
@@ -178,6 +182,7 @@ Alphabet::load(std::istream& in)
   this->comp2char.load(in);
   this->C.load(in);
   sdsl::read_member(this->sigma, in);
+  sdsl::read_member(this->fast_chars, in);
 }
 
 //------------------------------------------------------------------------------

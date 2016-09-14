@@ -117,6 +117,9 @@ private:
 /*
   GCSA file header.
 
+  Version 3 (GCSA v0.8):
+  - Changed to a faster CSA-style encoding.
+
   Version 2 (GCSA v0.6):
   - Added OccurrenceCounter to the end of the body.
 
@@ -135,7 +138,7 @@ struct GCSAHeader
   uint64_t flags;
 
   const static uint32_t TAG = 0x6C5A6C5A;
-  const static uint32_t VERSION = 2;
+  const static uint32_t VERSION = 3;
   const static uint32_t MIN_VERSION = 1;
 
   const static uint64_t COMPRESSED = 0x1; // Not in use.

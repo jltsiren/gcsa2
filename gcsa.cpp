@@ -57,17 +57,16 @@ GCSA::swap(GCSA& another)
   if(this != &another)
   {
     this->header.swap(another.header);
-
-    this->bwt.swap(another.bwt);
     this->alpha.swap(another.alpha);
 
-    this->path_nodes.swap(another.path_nodes);
-    sdsl::util::swap_support(this->path_rank, another.path_rank, &(this->path_nodes), &(another.path_nodes));
-    sdsl::util::swap_support(this->path_select, another.path_select, &(this->path_nodes), &(another.path_nodes));
+    this->fast_bwt.swap(another.fast_bwt);
+    this->fast_rank.swap(another.fast_rank);
+
+    this->sparse_bwt.swap(another.sparse_bwt);
+    this->sparse_rank.swap(another.sparse_rank);
 
     this->edges.swap(another.edges);
     sdsl::util::swap_support(this->edge_rank, another.edge_rank, &(this->edges), &(another.edges));
-    sdsl::util::swap_support(this->edge_select, another.edge_select, &(this->edges), &(another.edges));
 
     this->sampled_paths.swap(another.sampled_paths);
     sdsl::util::swap_support(this->sampled_path_rank, another.sampled_path_rank, &(this->sampled_paths), &(another.sampled_paths));
@@ -78,6 +77,8 @@ GCSA::swap(GCSA& another)
 
     this->extra_pointers.swap(another.extra_pointers);
     this->redundant_pointers.swap(another.redundant_pointers);
+
+    this->setVectors();
   }
 }
 
@@ -94,17 +95,16 @@ GCSA::operator=(GCSA&& source)
   if(this != &source)
   {
     this->header = std::move(source.header);
-
-    this->bwt = std::move(source.bwt);
     this->alpha = std::move(source.alpha);
 
-    this->path_nodes = std::move(source.path_nodes);
-    this->path_rank = std::move(source.path_rank);
-    this->path_select = std::move(source.path_select);
+    this->fast_bwt = std::move(source.fast_bwt);
+    this->fast_rank = std::move(source.fast_rank);
+
+    this->sparse_bwt = std::move(source.sparse_bwt);
+    this->sparse_rank = std::move(source.sparse_rank);
 
     this->edges = std::move(source.edges);
     this->edge_rank = std::move(source.edge_rank);
-    this->edge_select = std::move(source.edge_select);
 
     this->sampled_paths = std::move(source.sampled_paths);
     this->sampled_path_rank = std::move(source.sampled_path_rank);
@@ -128,17 +128,28 @@ GCSA::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string nam
   size_type written_bytes = 0;
 
   written_bytes += this->header.serialize(out, child, "header");
-
-  written_bytes += this->bwt.serialize(out, child, "bwt");
   written_bytes += this->alpha.serialize(out, child, "alpha");
 
-  written_bytes += this->path_nodes.serialize(out, child, "path_nodes");
-  written_bytes += this->path_rank.serialize(out, child, "path_rank");
-  written_bytes += this->path_select.serialize(out, child, "path_select");
+  for(size_type comp = 0; comp < this->alpha.sigma; comp++)
+  {
+    written_bytes += this->fast_bwt[comp].serialize(out, child, "fast_bwt");
+  }
+  for(size_type comp = 0; comp < this->alpha.sigma; comp++)
+  {
+    written_bytes += this->fast_rank[comp].serialize(out, child, "fast_rank");
+  }
+
+  for(size_type comp = 0; comp < this->alpha.sigma; comp++)
+  {
+    written_bytes += this->sparse_bwt[comp].serialize(out, child, "sparse_bwt");
+  }
+  for(size_type comp = 0; comp < this->alpha.sigma; comp++)
+  {
+    written_bytes += this->sparse_rank[comp].serialize(out, child, "sparse_rank");
+  }
 
   written_bytes += this->edges.serialize(out, child, "edges");
   written_bytes += this->edge_rank.serialize(out, child, "edge_rank");
-  written_bytes += this->edge_select.serialize(out, child, "edge_select");
 
   written_bytes += this->sampled_paths.serialize(out, child, "sampled_paths");
   written_bytes += this->sampled_path_rank.serialize(out, child, "sampled_path_rank");
@@ -162,17 +173,18 @@ GCSA::load(std::istream& in)
   {
     std::cerr << "GCSA::load(): Invalid header: " << this->header << std::endl;
   }
-
-  this->bwt.load(in);
   this->alpha.load(in);
 
-  this->path_nodes.load(in);
-  this->path_rank.load(in, &(this->path_nodes));
-  this->path_select.load(in, &(this->path_nodes));
+  this->fast_bwt.resize(this->alpha.sigma); this->fast_rank.resize(this->alpha.sigma);
+  for(size_type comp = 0; comp < this->alpha.sigma; comp++) { this->fast_bwt[comp].load(in); }
+  for(size_type comp = 0; comp < this->alpha.sigma; comp++) { this->fast_rank[comp].load(in, &(this->fast_bwt[comp])); }
+
+  this->sparse_bwt.resize(this->alpha.sigma); this->sparse_rank.resize(this->alpha.sigma);
+  for(size_type comp = 0; comp < this->alpha.sigma; comp++) { this->sparse_bwt[comp].load(in); }
+  for(size_type comp = 0; comp < this->alpha.sigma; comp++) { this->sparse_rank[comp].load(in, &(this->sparse_bwt[comp])); }
 
   this->edges.load(in);
   this->edge_rank.load(in, &(this->edges));
-  this->edge_select.load(in, &(this->edges));
 
   this->sampled_paths.load(in);
   this->sampled_path_rank.load(in, &(this->sampled_paths));
@@ -189,17 +201,16 @@ void
 GCSA::copy(const GCSA& source)
 {
   this->header = source.header;
-
-  this->bwt = source.bwt;
   this->alpha = source.alpha;
 
-  this->path_nodes = source.path_nodes;
-  this->path_rank = source.path_rank;
-  this->path_select = source.path_select;
+  this->fast_bwt = source.fast_bwt;
+  this->fast_rank = source.fast_rank;
+
+  this->sparse_bwt = source.sparse_bwt;
+  this->sparse_rank = source.sparse_rank;
 
   this->edges = source.edges;
   this->edge_rank = source.edge_rank;
-  this->edge_select = source.edge_select;
 
   this->sampled_paths = source.sampled_paths;
   this->sampled_path_rank = source.sampled_path_rank;
@@ -217,11 +228,13 @@ GCSA::copy(const GCSA& source)
 void
 GCSA::setVectors()
 {
-  this->path_rank.set_vector(&(this->path_nodes));
-  this->path_select.set_vector(&(this->path_nodes));
+  for(size_type comp = 0; comp < this->alpha.sigma; comp++)
+  {
+    this->fast_rank[comp].set_vector(&(this->fast_bwt[comp]));
+    this->sparse_rank[comp].set_vector(&(this->sparse_bwt[comp]));
+  }
 
   this->edge_rank.set_vector(&(this->edges));
-  this->edge_select.set_vector(&(this->edges));
 
   this->sampled_path_rank.set_vector(&(this->sampled_paths));
 
@@ -507,10 +520,10 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
     std::cerr << "GCSA::GCSA(): Building the index" << std::endl;
   }
   sdsl::int_vector<64> counts(graph.alpha.sigma, 0); // alpha
-  sdsl::int_vector<8> bwt_buffer(merged_graph.size() + merged_graph.size() / 2, 0); // bwt
-  this->path_nodes = bit_vector(bwt_buffer.size(), 0);
+  std::vector<bit_vector> bwt(graph.alpha.sigma); // fast_bwt, sparse_bwt
+  for(size_type comp = 0; comp < bwt.size(); comp++) { bwt[comp] = bit_vector(merged_graph.size(), 0); }
   CounterArray outdegrees(merged_graph.size(), 4); // edges
-  this->sampled_paths = bit_vector(merged_graph.size(), 0);
+  bit_vector sampled_positions(merged_graph.size(), 0); // sampled_paths
   std::vector<node_type> sample_buffer; // stored_samples
   this->samples = bit_vector(merged_graph.size() + merged_graph.extra(), 0);
 
@@ -542,30 +555,18 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
     {
       if(!(reader[0].paths[reader[0].path].hasPredecessor(comp))) { continue; }
 
-      // Find the predecessor of paths[i] with comp and the first path intersecting it.
+      // Find the predecessor of paths[i] with comp and the path intersecting it.
       reader[0].predecessor(comp, first, last);
       if(!(reader[comp + 1].intersect(first, last, 0)))
       {
         reader[comp + 1].advance();
       }
 
-      // Add an edge.
+      // Add the edge.
+      bwt[comp][i] = 1; counts[comp]++;
       indegree++; outdegrees.increment(reader[comp + 1].path); total_edges++;
-      if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + merged_graph.size() / 2); }
-      bwt_buffer[total_edges - 1] = comp; counts[comp]++;
       pred_comp = comp; // For sampling.
-
-      // Create additional edges if the next path nodes also intersect with the predecessor.
-      while(reader[comp + 1].path + 1 < merged_graph.size() && reader[comp + 1].intersect(first, last, 1))
-      {
-        reader[comp + 1].advance();
-        indegree++; outdegrees.increment(reader[comp + 1].path); total_edges++;
-        if(total_edges > bwt_buffer.size()) { bwt_buffer.resize(bwt_buffer.size() + merged_graph.size() / 2); }
-        bwt_buffer[total_edges - 1] = comp; counts[comp]++;
-      }
     }
-    if(total_edges > this->path_nodes.size()) { this->path_nodes.resize(bwt_buffer.size()); }
-    this->path_nodes[total_edges - 1] = 1;
 
     /*
       Get the from nodes and update the occurrences/redundant arrays.
@@ -628,7 +629,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
     // Store the samples.
     if(sample_this)
     {
-      this->sampled_paths[i] = 1;
+      sampled_positions[i] = 1;
       for(size_type k = 0; k < curr_from.size(); k++)
       {
         sample_bits = std::max(sample_bits, bit_length(curr_from[k]));
@@ -653,19 +654,28 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   sdsl::util::clear(occurrences); sdsl::util::clear(redundant);
 
   // Initialize bwt.
-  bwt_buffer.resize(total_edges);
-  directConstruct(this->bwt, bwt_buffer);
-  sdsl::util::clear(bwt_buffer);
+  this->fast_bwt.resize(this->alpha.sigma); this->fast_rank.resize(this->alpha.sigma);
+  this->sparse_bwt.resize(this->alpha.sigma); this->sparse_rank.resize(this->alpha.sigma);
+  this->sparse_bwt[0] = bwt[0]; sdsl::util::clear(bwt[0]);
+  for(size_type comp = 1; comp <= graph.alpha.fast_chars; comp++)
+  {
+    this->fast_bwt[comp] = bwt[comp]; sdsl::util::clear(bwt[comp]);
+  }
+  for(size_type comp = graph.alpha.fast_chars + 1; comp < graph.alpha.sigma; comp++)
+  {
+    this->sparse_bwt[comp] = bwt[comp]; sdsl::util::clear(bwt[comp]);
+  }
 
-  // Initialize bitvectors (path_nodes, edges, sampled_paths, samples).
-  this->path_nodes.resize(total_edges);
-  this->edges = bit_vector(total_edges, 0); total_edges = 0;
+  // Initialize bitvectors (edges, sampled_positions, samples).
+  bit_vector edge_buffer(total_edges, 0); total_edges = 0;
   for(size_type i = 0; i < merged_graph.size(); i++)
   {
     total_edges += outdegrees[i];
-    this->edges[total_edges - 1] = 1;
+    edge_buffer[total_edges - 1] = 1;
   }
   outdegrees.clear();
+  this->edges = edge_buffer; sdsl::util::clear(edge_buffer);
+  this->sampled_paths = sampled_positions; sdsl::util::clear(sampled_positions);
   this->samples.resize(sample_buffer.size());
   this->initSupport();
 
@@ -697,10 +707,13 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
 void
 GCSA::initSupport()
 {
-  sdsl::util::init_support(this->path_rank, &(this->path_nodes));
-  sdsl::util::init_support(this->path_select, &(this->path_nodes));
+  for(size_type comp = 0; comp < this->alpha.sigma; comp++)
+  {
+    sdsl::util::init_support(this->fast_rank[comp], &(this->fast_bwt[comp]));
+    sdsl::util::init_support(this->sparse_rank[comp], &(this->sparse_bwt[comp]));
+  }
+
   sdsl::util::init_support(this->edge_rank, &(this->edges));
-  sdsl::util::init_support(this->edge_select, &(this->edges));
   sdsl::util::init_support(this->sampled_path_rank, &(this->sampled_paths));
   sdsl::util::init_support(this->sample_select, &(this->samples));
 }
@@ -730,38 +743,30 @@ GCSA::countKMers(size_type k, bool force) const
 void
 GCSA::LF(range_type range, std::vector<range_type>& results) const
 {
-  for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++) { results[comp] = Range::empty_range(); }
-  range = this->bwtRange(range);
-
-  if(range.first == range.second) // Single edge.
+  if(range.first == range.second) // Single path node.
   {
-    auto temp = this->bwt.inverse_select(range.first);
-    size_type path_node = this->edge_rank(this->alpha.C[temp.second] + temp.first);
-    results[temp.second] = range_type(path_node, path_node);
-  }
-  else if(Range::length(range) <= SHORT_RANGE) // Use brute force for a few edges.
-  {
-    for(size_type i = range.first; i <= range.second; i++)
+    for(size_type comp = 1; comp <= this->alpha.fast_chars; comp++)
     {
-      auto temp = this->bwt.inverse_select(i);
-      if(Range::empty(results[temp.second]))
+      if(this->fast_bwt[comp][range.first])
       {
-        size_type edge_pos = this->alpha.C[temp.second] + temp.first;
-        results[temp.second] = range_type(edge_pos, edge_pos);
+        results[comp].first = results[comp].second = this->edge_rank(this->LF(this->fast_rank, range.first, comp));
       }
-      else { results[temp.second].second++; }
+      else { results[comp] = Range::empty_range(); }
     }
-    for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
+    for(size_type comp = this->alpha.fast_chars + 1; comp + 1 < this->alpha.sigma; comp++)
     {
-      if(!Range::empty(results[comp])) { results[comp] = this->pathNodeRange(results[comp]); }
+      if(this->sparse_bwt[comp][range.first])
+      {
+        results[comp].first = results[comp].second = this->edge_rank(this->LF(this->sparse_rank, range.first, comp));
+      }
+      else { results[comp] = Range::empty_range(); }
     }
   }
   else  // General case.
   {
     for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++)
     {
-      results[comp] = gcsa::LF(this->bwt, this->alpha, range, comp);
-      if(!Range::empty(results[comp])) { results[comp] = this->pathNodeRange(results[comp]); }
+      results[comp] = this->LF(range, comp);
     }
   }
 }

@@ -39,9 +39,11 @@ namespace gcsa
 class GCSA
 {
 public:
-  typedef gcsa::size_type  size_type;
-  typedef sdsl::wt_huff<>  bwt_type;
-  typedef sdsl::bit_vector bit_vector;
+  typedef gcsa::size_type       size_type;
+
+  typedef sdsl::bit_vector      bit_vector;
+  typedef sdsl::bit_vector_il<> fast_vector;
+  typedef sdsl::sd_vector<>     sparse_vector;
 
 //------------------------------------------------------------------------------
 
@@ -58,10 +60,6 @@ public:
   void load(std::istream& in);
 
   const static std::string EXTENSION; // .gcsa
-
-  const static size_type SHORT_RANGE = 5; // Different strategy for LF(range).
-  const static size_type MAX_ERRORS = 100; // Suppress further error messages during verification.
-  const static size_type RMQ_BUFFER = 4 * MEGABYTE; // How many ranges to buffer before computing the RMQs?
 
 //------------------------------------------------------------------------------
 
@@ -160,22 +158,36 @@ public:
 
   inline range_type LF(range_type range, comp_type comp) const
   {
-    range = this->bwtRange(range);
-    range = gcsa::LF(this->bwt, this->alpha, range, comp);
+    if(comp > 0 && comp <= this->alpha.fast_chars) { range = this->LF(this->fast_rank, range, comp); }
+    else { range = this->LF(this->sparse_rank, range, comp); }
+
     if(Range::empty(range)) { return range; }
     return this->pathNodeRange(range);
   }
 
-  // Follow the first edge backwards.
+  // Follow the first edge backwards. Try the fast characters first.
   inline size_type LF(size_type path_node) const
   {
-    path_node = this->startPos(path_node);
-    auto temp = this->bwt.inverse_select(path_node);
-    path_node = this->alpha.C[temp.second] + temp.first;
-    return this->edge_rank(path_node);
+    for(size_type comp = 1; comp <= this->alpha.fast_chars; comp++)
+    {
+      if(this->fast_bwt[comp][path_node])
+      {
+        return this->edge_rank(this->LF(this->fast_rank, path_node, comp));
+      }
+    }
+    for(size_type comp = this->alpha.fast_chars + 1; comp < this->alpha.sigma; comp++)
+    {
+      if(this->sparse_bwt[comp][path_node])
+      {
+        return this->edge_rank(this->LF(this->sparse_rank, path_node, comp));
+      }
+    }
+
+    return this->edge_rank(this->LF(this->sparse_rank, path_node, 0));
   }
 
   // LF(range, c) for 1 <= c < sigma - 1.
+  // FIXME optimize this
   void LF(range_type range, std::vector<range_type>& results) const;
 
   inline bool sampled(size_type path_node) const { return this->sampled_paths[path_node]; }
@@ -193,33 +205,33 @@ public:
 
 //------------------------------------------------------------------------------
 
-  GCSAHeader                header;
+  GCSAHeader                              header;
+  Alphabet                                alpha;
 
-  bwt_type                  bwt;
-  Alphabet                  alpha;
+  // Indicator bitvectors for characters using fast encoding.
+  std::vector<fast_vector>                fast_bwt;
+  std::vector<fast_vector::rank_1_type>   fast_rank;
 
-  // The last BWT position in each path is marked with an 1-bit.
-  bit_vector                path_nodes;
-  bit_vector::rank_1_type   path_rank;
-  bit_vector::select_1_type path_select;
+  // Indicator bitvectors for characters using sparse encoding.
+  std::vector<sparse_vector>              sparse_bwt;
+  std::vector<sparse_vector::rank_1_type> sparse_rank;
 
   // The last outgoing edge from each path is marked with an 1-bit.
-  bit_vector                edges;
-  bit_vector::rank_1_type   edge_rank;
-  bit_vector::select_1_type edge_select;
+  fast_vector                             edges;
+  fast_vector::rank_1_type                edge_rank;
 
   // Paths containing samples are marked with an 1-bit.
-  bit_vector                sampled_paths;
-  bit_vector::rank_1_type   sampled_path_rank;
+  fast_vector                             sampled_paths;
+  fast_vector::rank_1_type                sampled_path_rank;
 
   // The last sample belonging to the same path is marked with an 1-bit.
-  sdsl::int_vector<0>       stored_samples;
-  bit_vector                samples;
-  bit_vector::select_1_type sample_select;
+  sdsl::int_vector<0>                     stored_samples;
+  bit_vector                              samples;
+  bit_vector::select_1_type               sample_select;
 
   // Structures used for counting queries.
-  SadaSparse                extra_pointers;
-  SadaCount                 redundant_pointers;
+  SadaSparse                              extra_pointers;
+  SadaCount                               redundant_pointers;
 
 //------------------------------------------------------------------------------
 
@@ -232,28 +244,27 @@ private:
 
 //------------------------------------------------------------------------------
 
-  inline size_type startPos(size_type path_node) const
-  {
-    return (path_node > 0 ? this->path_select(path_node) + 1 : 0);
-  }
-
-  inline size_type endPos(size_type path_node) const
-  {
-    return this->path_select(path_node + 1);
-  }
-
-  inline range_type bwtRange(range_type path_node_range) const
-  {
-    path_node_range.first = this->startPos(path_node_range.first);
-    path_node_range.second = this->endPos(path_node_range.second);
-    return path_node_range;
-  }
-
   inline range_type pathNodeRange(range_type outgoing_range) const
   {
     outgoing_range.first = this->edge_rank(outgoing_range.first);
     outgoing_range.second = this->edge_rank(outgoing_range.second);
     return outgoing_range;
+  }
+
+
+  // The following LF implementations return outgoing edges.
+  template<class Rank>
+  inline size_type LF(const std::vector<Rank>& rank, size_type i, comp_type comp) const
+  {
+    return this->alpha.C[comp] + rank[comp](i);
+  }
+
+  template<class Rank>
+  inline range_type LF(const std::vector<Rank>& rank, range_type range, comp_type comp) const
+  {
+    range.first = this->LF(rank, range.first, comp);
+    range.second = this->LF(rank, range.second + 1, comp) - 1;
+    return range;
   }
 };  // class GCSA
 

@@ -31,6 +31,8 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+const size_type MAX_ERRORS = 100; // Suppress further error messages.
+
 std::ostream&
 printOccs(const std::vector<node_type>& occs, std::ostream& out)
 {
@@ -55,12 +57,12 @@ locateFailure(const std::vector<node_type>& expected, const std::vector<node_typ
 bool
 printFailure(size_type& failure_count)
 {
-  if(failure_count == GCSA::MAX_ERRORS)
+  if(failure_count == MAX_ERRORS)
   {
     std::cerr << "verifyIndex(): There were further errors" << std::endl;
   }
   failure_count++;
-  return (failure_count <= GCSA::MAX_ERRORS);
+  return (failure_count <= MAX_ERRORS);
 }
 
 struct KMerSplitComparator
