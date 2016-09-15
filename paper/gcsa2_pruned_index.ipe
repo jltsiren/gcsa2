@@ -308,7 +308,7 @@ h
 <text matrix="1 0 0 1 24 16" transformations="translations" pos="36 68" stroke="black" type="label" width="14.733" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $0:1$}</text>
 <text matrix="1 0 0 1 60 24" transformations="translations" pos="36 68" stroke="black" type="label" width="10.25" height="4.849" depth="1.35" halign="center" valign="center">{\scriptsize $\#\dnaseq{G}$}</text>
 <text matrix="1 0 0 1 60 16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $0$}</text>
-<text matrix="1 0 0 1 124 56" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{CAT}$}</text>
+<text matrix="1 0 0 1 124 56" transformations="translations" pos="36 68" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{CA}$}</text>
 <text matrix="1 0 0 1 124 48" transformations="translations" pos="36 68" stroke="black" type="label" width="11.669" height="4.5" depth="1.35" halign="center" valign="center">{\scriptsize $2,6$}</text>
 <text matrix="1 0 0 1 124 -8" transformations="translations" pos="36 68" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="center">{\scriptsize $\dnaseq{CT}$}</text>
 <text matrix="1 0 0 1 124 -16" transformations="translations" pos="36 68" stroke="black" type="label" width="3.971" height="4.494" depth="0" halign="center" valign="center">{\scriptsize $2$}</text>
@@ -549,7 +549,7 @@ h
 <text matrix="1 0 0 1 -16 -80" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATA}$}</text>
 <text matrix="1 0 0 1 -16 -88" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATC}$}</text>
 <text matrix="1 0 0 1 -16 -96" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATG}$}</text>
-<text matrix="1 0 0 1 -16 -104" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CAT}$}</text>
+<text matrix="1 0 0 1 -16 -104" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CA}$}</text>
 <text matrix="1 0 0 1 -16 -112" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CT}$}</text>
 <text matrix="1 0 0 1 -16 -120" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GC}$}</text>
 <text matrix="1 0 0 1 -16 -128" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GT}$}</text>
@@ -585,7 +585,7 @@ h
 <text matrix="1 0 0 1 176 -80" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATA}$}</text>
 <text matrix="1 0 0 1 176 -88" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATC}$}</text>
 <text matrix="1 0 0 1 176 -96" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{ATG}$}</text>
-<text matrix="1 0 0 1 176 -104" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CAT}$}</text>
+<text matrix="1 0 0 1 176 -104" transformations="translations" pos="400 208" stroke="black" type="label" width="11.115" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CA}$}</text>
 <text matrix="1 0 0 1 176 -112" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{CT}$}</text>
 <text matrix="1 0 0 1 176 -120" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GC}$}</text>
 <text matrix="1 0 0 1 176 -128" transformations="translations" pos="400 208" stroke="black" type="label" width="7.41" height="4.262" depth="0" halign="center" valign="baseline">{\scriptsize $\dnaseq{GT}$}</text>
