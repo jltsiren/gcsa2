@@ -74,6 +74,9 @@ public:
   const static size_type SOURCE_COMP = 6;
   const static size_type SINK_COMP = 0;
 
+  // By default, comp values 1 to 4 should be encoded using the fast encoding.
+  const static size_type FAST_CHARS = 4;
+
   const static sdsl::int_vector<8> DEFAULT_CHAR2COMP;
   const static sdsl::int_vector<8> DEFAULT_COMP2CHAR;
 
@@ -92,7 +95,7 @@ public:
     const sdsl::int_vector<8>& _comp2char = DEFAULT_COMP2CHAR) :
     char2comp(_char2comp), comp2char(_comp2char),
     C(sdsl::int_vector<64>(_comp2char.size() + 1, 0)),
-    sigma(_comp2char.size())
+    sigma(_comp2char.size()), fast_chars(FAST_CHARS)
   {
     if(sequence.size() == 0) { return; }
 
@@ -119,7 +122,7 @@ public:
 
   sdsl::int_vector<8>  char2comp, comp2char;
   sdsl::int_vector<64> C;
-  size_type            sigma;
+  size_type            sigma, fast_chars;
 
 private:
   void copy(const Alphabet& a);
