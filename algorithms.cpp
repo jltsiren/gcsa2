@@ -251,8 +251,9 @@ struct ReverseTrieNode
 struct KMerCounter
 {
   size_type count, depth_limit;
+  bool      all_chars;
 
-  KMerCounter(size_type limit) : count(0), depth_limit(limit) {}
+  KMerCounter(size_type limit, bool include_Ns) : count(0), depth_limit(limit), all_chars(include_Ns) {}
 
   inline void add(const ReverseTrieNode& node)
   {
@@ -264,8 +265,9 @@ struct SeedCollector
 {
   size_type depth_limit;
   std::vector<ReverseTrieNode> seeds;
+  bool all_chars;
 
-  SeedCollector(size_type limit) : depth_limit(limit), seeds() {}
+  SeedCollector(size_type limit, bool include_Ns) : depth_limit(limit), seeds(), all_chars(include_Ns) {}
 
   inline void add(const ReverseTrieNode& node)
   {
@@ -278,6 +280,7 @@ void
 processSubtree(const GCSA& index, std::stack<ReverseTrieNode>& node_stack, Handler& handler)
 {
   std::vector<range_type> predecessors(index.alpha.sigma);
+  size_type limit = (handler.all_chars ? index.alpha.sigma : index.alpha.fast_chars + 2);
   while(!(node_stack.empty()))
   {
     ReverseTrieNode curr = node_stack.top(); node_stack.pop();
@@ -285,8 +288,9 @@ processSubtree(const GCSA& index, std::stack<ReverseTrieNode>& node_stack, Handl
     handler.add(curr);
     if(curr.depth < handler.depth_limit)
     {
-      index.LF(curr.range, predecessors);
-      for(size_type comp = 1; comp + 1 < index.alpha.sigma; comp++)
+      if(handler.all_chars) { index.LF_all(curr.range, predecessors); }
+      else { index.LF_fast(curr.range, predecessors); }
+      for(size_type comp = 1; comp + 1 < limit; comp++)
       {
         node_stack.push(ReverseTrieNode(predecessors[comp], curr.depth + 1));
       }
@@ -295,7 +299,7 @@ processSubtree(const GCSA& index, std::stack<ReverseTrieNode>& node_stack, Handl
 }
 
 size_type
-countKMers(const GCSA& index, size_type k, bool force)
+countKMers(const GCSA& index, size_type k, bool include_Ns, bool force)
 {
   if(k == 0) { return 1; }
   if(k > index.order())
@@ -322,7 +326,7 @@ countKMers(const GCSA& index, size_type k, bool force)
       node_stack.push(ReverseTrieNode(index.charRange(comp), 1));
     }
     size_type seed_length = ReverseTrieNode::SEED_LENGTH;  // avoid direct use of static const
-    SeedCollector collector(std::min(k, seed_length));
+    SeedCollector collector(std::min(k, seed_length), include_Ns);
     processSubtree(index, node_stack, collector);
     seeds = collector.seeds;
   }
@@ -334,7 +338,7 @@ countKMers(const GCSA& index, size_type k, bool force)
   {
     std::stack<ReverseTrieNode> node_stack;
     node_stack.push(seeds[i]);
-    KMerCounter counter(k);
+    KMerCounter counter(k, include_Ns);
     processSubtree(index, node_stack, counter);
     #pragma omp atomic
     result += counter.count;

@@ -57,11 +57,11 @@ bool verifyIndex(const GCSA& index, const LCPArray* lcp, const InputGraph& graph
   Kmer counting. Returns the number of kmers of the given length. If k > order(),
   prints a warning and returns immediately unless force == true.
 
-  A kmer is a path of length k containing comp values 0 <= comp < sigma - 1. Alternatively,
-  the path contains either k values 0 < comp < sigma - 1, or k - 1 such values followed
-  by a 0.
+  By default, the algorithm counts only kmers consisting of bases (comp values 1-4;
+  comp values encoded in fast_bwt). If include_Ns == true, the algorithm will also
+  count kmers containing Ns (comp values encoded in sparse_bwt, except 0 and sigma - 1).
 */
-size_type countKMers(const GCSA& index, size_type k, bool force = false);
+size_type countKMers(const GCSA& index, size_type k, bool include_Ns = false, bool force = false);
 
 //------------------------------------------------------------------------------
 

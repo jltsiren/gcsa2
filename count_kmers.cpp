@@ -23,6 +23,7 @@
 */
 
 #include <string>
+#include <unistd.h>
 
 #include "algorithms.h"
 
@@ -35,18 +36,47 @@ main(int argc, char** argv)
 {
   if(argc < 3)
   {
-    std::cerr << "usage: count_kmers base_name k" << std::endl;
+    std::cerr << "usage: count_kmers [options] base_name k" << std::endl;
+    std::cerr << "  -f  Force counting kmers longer than the order of the index" << std::endl;
+    std::cerr << "  -N  Include kmers containing Ns" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
 
-  std::string base_name = argv[1];
-  size_type k = std::stoul(argv[2]);
+  int c = 0;
+  bool force = false, include_Ns = false;
+  while((c = getopt(argc, argv, "fN")) != -1)
+  {
+    switch(c)
+    {
+    case 'f':
+      force = true; break;
+    case 'N':
+      include_Ns = true; break;
+    case '?':
+      std::exit(EXIT_FAILURE);
+    default:
+      std::exit(EXIT_FAILURE);
+    }
+  }
+
+  if(optind + 1 >= argc)
+  {
+    std::cerr << "count_kmers: Base name or kmer length not specified" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  std::string base_name = argv[optind];
+  size_type k = std::stoul(argv[optind + 1]);
+
+
   std::cout << "Kmer counter" << std::endl;
   std::cout << std::endl;
   std::cout << "Base name:  " << base_name << std::endl;
   std::cout << "K:          " << k << std::endl;
-  std::cout << std::endl;
+  std::cout << "Options:   ";
+  if(force) { std::cout << " force"; }
+  if(include_Ns) { std::cout << " include_Ns"; }
+  std::cout << std::endl << std::endl;
 
   GCSA index;
   std::string gcsa_name = base_name + GCSA::EXTENSION;
@@ -54,7 +84,7 @@ main(int argc, char** argv)
   std::cout << "GCSA:       " << index.size() << " paths, order " << index.order() << std::endl;
 
   double start = readTimer();
-  size_type kmer_count = countKMers(index, k);
+  size_type kmer_count = countKMers(index, k, include_Ns, force);
   double seconds = readTimer() - start;
   std::cout << "Kmers:      " << kmer_count << std::endl;
   std::cout << std::endl;
