@@ -723,6 +723,9 @@ GCSA::initSupport()
 void
 GCSA::LF_fast(range_type range, std::vector<range_type>& results) const
 {
+  for(size_type comp = 1; comp <= this->alpha.fast_chars; comp++) { results[comp] = Range::empty_range(); }
+  if(Range::empty(range)) { return; }
+
   if(range.first == range.second) // Single path node.
   {
     for(size_type comp = 1; comp <= this->alpha.fast_chars; comp++)
@@ -731,7 +734,6 @@ GCSA::LF_fast(range_type range, std::vector<range_type>& results) const
       {
         results[comp].first = results[comp].second = this->edge_rank(this->LF(this->fast_rank, range.first, comp));
       }
-      else { results[comp] = Range::empty_range(); }
     }
   }
   else  // General case.
@@ -747,6 +749,9 @@ GCSA::LF_fast(range_type range, std::vector<range_type>& results) const
 void
 GCSA::LF_all(range_type range, std::vector<range_type>& results) const
 {
+  for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++) { results[comp] = Range::empty_range(); }
+  if(Range::empty(range)) { return; }
+
   if(range.first == range.second) // Single path node.
   {
     for(size_type comp = 1; comp <= this->alpha.fast_chars; comp++)
@@ -755,7 +760,6 @@ GCSA::LF_all(range_type range, std::vector<range_type>& results) const
       {
         results[comp].first = results[comp].second = this->edge_rank(this->LF(this->fast_rank, range.first, comp));
       }
-      else { results[comp] = Range::empty_range(); }
     }
     for(size_type comp = this->alpha.fast_chars + 1; comp + 1 < this->alpha.sigma; comp++)
     {
@@ -763,7 +767,6 @@ GCSA::LF_all(range_type range, std::vector<range_type>& results) const
       {
         results[comp].first = results[comp].second = this->edge_rank(this->LF(this->sparse_rank, range.first, comp));
       }
-      else { results[comp] = Range::empty_range(); }
     }
   }
   else  // General case.

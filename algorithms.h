@@ -63,6 +63,13 @@ bool verifyIndex(const GCSA& index, const LCPArray* lcp, const InputGraph& graph
 */
 size_type countKMers(const GCSA& index, size_type k, bool include_Ns = false, bool force = false);
 
+/*
+  As above, but counts the kmers in two indexes and reports the results as
+  (shared kmers, kmers unique to left, kmers unique to right). The indexes must
+  use compatible alphabets.
+*/
+std::array<size_type, 3> countKMers(const GCSA& left, const GCSA& right, size_type k, bool include_Ns = false, bool force = false);
+
 //------------------------------------------------------------------------------
 
 } // namespace gcsa

@@ -237,12 +237,12 @@ verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, si
 
 //------------------------------------------------------------------------------
 
+const size_type KMER_SEED_LENGTH = 5; // Create all patterns of that length before parallelizing.
+
 struct ReverseTrieNode
 {
   range_type range;
   size_type  depth;
-
-  const static size_type SEED_LENGTH = 5; // Create all patterns of that length before parallelizing.
 
   ReverseTrieNode() : range(0, 0), depth(0) {}
   ReverseTrieNode(range_type rng, size_type d) : range(rng), depth(d) {}
@@ -257,7 +257,7 @@ struct KMerCounter
 
   inline void add(const ReverseTrieNode& node)
   {
-    if(node.depth >= this->depth_limit) { this->count++; }
+    if(node.depth == this->depth_limit) { this->count++; }
   }
 };
 
@@ -302,31 +302,22 @@ size_type
 countKMers(const GCSA& index, size_type k, bool include_Ns, bool force)
 {
   if(k == 0) { return 1; }
-  if(k > index.order())
+  if(k > index.order() && !force)
   {
-    if(force)
-    {
-      std::cerr << "countKMers(): Warning: The value of k (" << k
-                << ") is greater than the order of the graph (" << index.order() << ")" << std::endl;
-    }
-    else
-    {
-      std::cerr << "countKMers(): The value of k (" << k
-                << ") is greater than the order of the graph (" << index.order() << ")" << std::endl;
-      return 0;
-    }
+    std::cerr << "countKMers(): The value of k is greater than the order of the index" << std::endl;
+    return 0;
   }
 
-  // Create an array of seed kmers of length ReverseTrieNode::SEED_LENGTH.
+  // Create an array of seed kmers of length KMER_SEED_LENGTH.
   std::vector<ReverseTrieNode> seeds;
   {
     std::stack<ReverseTrieNode> node_stack;
-    for(size_type comp = 1; comp + 1 < index.alpha.sigma; comp++)
+    size_type limit = (include_Ns ? index.alpha.sigma : index.alpha.fast_chars + 2);
+    for(size_type comp = 1; comp + 1 < limit; comp++)
     {
       node_stack.push(ReverseTrieNode(index.charRange(comp), 1));
     }
-    size_type seed_length = ReverseTrieNode::SEED_LENGTH;  // avoid direct use of static const
-    SeedCollector collector(std::min(k, seed_length), include_Ns);
+    SeedCollector collector(std::min(k, KMER_SEED_LENGTH), include_Ns);
     processSubtree(index, node_stack, collector);
     seeds = collector.seeds;
   }
@@ -342,6 +333,165 @@ countKMers(const GCSA& index, size_type k, bool include_Ns, bool force)
     processSubtree(index, node_stack, counter);
     #pragma omp atomic
     result += counter.count;
+  }
+
+  return result;
+}
+
+//------------------------------------------------------------------------------
+
+struct KmerSearchState
+{
+  range_type  left, right;
+  size_type   k;
+
+  KmerSearchState() : left(0, 0), right(0, 0), k(0) {}
+
+  KmerSearchState(range_type left_range, range_type right_range) :
+    left(left_range), right(right_range), k(0)
+  {
+  }
+
+  KmerSearchState(range_type left_range, range_type right_range, const KmerSearchState& successor) :
+    left(left_range), right(right_range), k(successor.k + 1)
+  {
+  }
+};
+
+struct KmerSymmetricDifference
+{
+  size_type k;
+  bool      include_Ns;
+  size_type shared, left, right;
+
+  KmerSymmetricDifference(size_type depth, bool Ns) :
+    k(depth), include_Ns(Ns),
+    shared(0), left(0), right(0)
+  {
+  }
+
+  inline bool allChars() const { return this->include_Ns; }
+
+  inline bool reportCondition(const KmerSearchState& state) const
+  {
+    return (state.k == this->k);
+  }
+
+  inline bool expandCondition(const KmerSearchState& state) const
+  {
+    return (state.k < this->k);
+  }
+
+  inline void report(const KmerSearchState& state)
+  {
+    if(Range::length(state.left) > 0 && Range::length(state.right) > 0) { this->shared++; }
+    else if(Range::length(state.left) > 0 && Range::length(state.right) == 0) { this->left++; }
+    else if(Range::length(state.left) == 0 && Range::length(state.right) > 0) { this->right++; }
+  }
+};
+
+struct KmerSeedCollector
+{
+  size_type k;
+  bool include_Ns;
+  std::vector<KmerSearchState> seeds;
+
+  KmerSeedCollector(size_type depth, bool Ns) : k(depth), include_Ns(Ns), seeds() {}
+
+  inline bool allChars() const { return this->include_Ns; }
+
+  inline bool reportCondition(const KmerSearchState& state) const
+  {
+    return (state.k == this->k);
+  }
+
+  inline bool expandCondition(const KmerSearchState& state) const
+  {
+    return (state.k < this->k);
+  }
+
+  inline void report(const KmerSearchState& state)
+  {
+    seeds.push_back(state);
+  }
+};
+
+template<class Handler>
+void
+processSubtrees(const GCSA& left, const GCSA& right, std::stack<KmerSearchState>& state_stack, Handler& handler)
+{
+  std::vector<range_type> left_pred(left.alpha.sigma), right_pred(right.alpha.sigma);
+  size_type limit = (handler.allChars() ? left.alpha.sigma : left.alpha.fast_chars + 2);
+  while(!(state_stack.empty()))
+  {
+    KmerSearchState curr = state_stack.top(); state_stack.pop();
+    if(Range::empty(curr.left) && Range::empty(curr.right)) { continue; }
+    if(handler.reportCondition(curr)) { handler.report(curr); }
+    if(handler.expandCondition(curr))
+    {
+      if(handler.allChars())
+      {
+        left.LF_all(curr.left, left_pred); right.LF_all(curr.right, right_pred);
+      }
+      else
+      {
+        left.LF_fast(curr.left, left_pred); right.LF_fast(curr.right, right_pred);
+      }
+      for(size_type comp = 1; comp + 1 < limit; comp++)
+      {
+        state_stack.push(KmerSearchState(left_pred[comp], right_pred[comp], curr));
+      }
+    }
+  }
+}
+
+std::array<size_type, 3>
+countKMers(const GCSA& left, const GCSA& right, size_type k, bool include_Ns, bool force)
+{
+  std::array<size_type, 3> result = { 0, 0, 0 };
+
+  if(k == 0) { result[0] = 1; return result; }
+  if(k > left.order() && !force)
+  {
+    std::cerr << "countKMers(): The value of k is greater than the order of the left index" << std::endl;
+    return result;
+  }
+  if(k > right.order() && !force)
+  {
+    std::cerr << "countKMers(): The value of k is greater than the order of the right index" << std::endl;
+    return result;
+  }
+
+  if(left.alpha.sigma != right.alpha.sigma || left.alpha.fast_chars != right.alpha.fast_chars)
+  {
+    std::cerr << "countKMers(): The indexes use incompatible alphabets" << std::endl;
+    return result;
+  }
+
+  // Create an array of seed kmers of length KMER_SEED_LENGTH.
+  std::vector<KmerSearchState> seeds;
+  {
+    std::stack<KmerSearchState> state_stack;
+    state_stack.push(KmerSearchState(range_type(0, left.size() - 1), range_type(0, right.size() - 1)));
+    KmerSeedCollector collector(std::min(k, KMER_SEED_LENGTH), include_Ns);
+    processSubtrees(left, right, state_stack, collector);
+    seeds = collector.seeds;
+  }
+
+  // Extend the seeds in parallel.
+  #pragma omp parallel for schedule (dynamic, 1)
+  for(size_type i = 0; i < seeds.size(); i++)
+  {
+    std::stack<KmerSearchState> state_stack;
+    state_stack.push(seeds[i]);
+    KmerSymmetricDifference counter(k, include_Ns);
+    processSubtrees(left, right, state_stack, counter);
+    #pragma omp critical
+    {
+      result[0] += counter.shared;
+      result[1] += counter.left;
+      result[2] += counter.right;
+    }
   }
 
   return result;
