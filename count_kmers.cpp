@@ -134,9 +134,9 @@ compareKmers(const std::string& left_name, const std::string& right_name, size_t
   double start = readTimer();
   std::array<size_type, 3> results = countKMers(left, right, k, include_Ns, force);
   double seconds = readTimer() - start;
-  std::cout << "Shared:      " << results[0] << std::endl;
-  std::cout << "Left:        " << results[1] << std::endl;
-  std::cout << "Right:       " << results[2] << std::endl;
+  std::cout << "Shared:      " << results[0] << " kmers" << std::endl;
+  std::cout << "Left:        " << results[1] << " unique kmers" << std::endl;
+  std::cout << "Right:       " << results[2] << " unique kmers" << std::endl;
   std::cout << std::endl;
 
   std::cout << "Kmers counted in " << seconds << " seconds ("
