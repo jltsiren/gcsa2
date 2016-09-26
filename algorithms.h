@@ -53,15 +53,40 @@ namespace gcsa
 bool verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, size_type kmer_length);
 bool verifyIndex(const GCSA& index, const LCPArray* lcp, const InputGraph& graph);
 
+//------------------------------------------------------------------------------
+
+struct KMerSearchParameters
+{
+  size_type seed_length;  // Parallelize using seed kmers of this length.
+  bool include_Ns;        // Include kmers containing Ns in the search.
+  bool force;             // Force searching for kmers longer than the order of the index.
+  std::string output;     // Base name for output.
+
+  const static size_type SEED_LENGTH = 5;
+  const static std::string LEFT_EXTENSION;  // .left
+  const static std::string RIGHT_EXTENSION; // .right
+
+  KMerSearchParameters() : seed_length(SEED_LENGTH), include_Ns(false), force(false), output() {}
+};
+
 /*
   Kmer counting. Returns the number of kmers of the given length. If k > order(),
   prints a warning and returns immediately unless force == true.
 
-  A kmer is a path of length k containing comp values 0 <= comp < sigma - 1. Alternatively,
-  the path contains either k values 0 < comp < sigma - 1, or k - 1 such values followed
-  by a 0.
+  By default, the algorithm counts only kmers consisting of bases (comp values 1-4;
+  comp values encoded in fast_bwt). If include_Ns == true, the algorithm will also
+  count kmers containing Ns (comp values encoded in sparse_bwt, except 0 and sigma - 1).
 */
-size_type countKMers(const GCSA& index, size_type k, bool force = false);
+size_type countKMers(const GCSA& index, size_type k,
+  const KMerSearchParameters& parameters = KMerSearchParameters());
+
+/*
+  As above, but counts the kmers in two indexes and reports the results as
+  (shared kmers, kmers unique to left, kmers unique to right). The indexes must
+  use compatible alphabets.
+*/
+std::array<size_type, 3> compareKMers(const GCSA& left, const GCSA& right, size_type k,
+  const KMerSearchParameters& parameters = KMerSearchParameters());
 
 //------------------------------------------------------------------------------
 

@@ -720,29 +720,12 @@ GCSA::initSupport()
 
 //------------------------------------------------------------------------------
 
-bool
-GCSA::verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const
-{
-  return gcsa::verifyIndex(*this, 0, kmers, kmer_length);
-}
-
-bool
-GCSA::verifyIndex(const InputGraph& graph) const
-{
-  return gcsa::verifyIndex(*this, 0, graph);
-}
-
-size_type
-GCSA::countKMers(size_type k, bool force) const
-{
-  return gcsa::countKMers(*this, k, force);
-}
-
-//------------------------------------------------------------------------------
-
 void
-GCSA::LF(range_type range, std::vector<range_type>& results) const
+GCSA::LF_fast(range_type range, std::vector<range_type>& results) const
 {
+  for(size_type comp = 1; comp <= this->alpha.fast_chars; comp++) { results[comp] = Range::empty_range(); }
+  if(Range::empty(range)) { return; }
+
   if(range.first == range.second) // Single path node.
   {
     for(size_type comp = 1; comp <= this->alpha.fast_chars; comp++)
@@ -751,7 +734,32 @@ GCSA::LF(range_type range, std::vector<range_type>& results) const
       {
         results[comp].first = results[comp].second = this->edge_rank(this->LF(this->fast_rank, range.first, comp));
       }
-      else { results[comp] = Range::empty_range(); }
+    }
+  }
+  else  // General case.
+  {
+    for(size_type comp = 1; comp <= this->alpha.fast_chars; comp++)
+    {
+      results[comp] = this->LF(this->fast_rank, range, comp);
+      if(!Range::empty(results[comp])) { results[comp] = this->pathNodeRange(results[comp]); }
+    }
+  }
+}
+
+void
+GCSA::LF_all(range_type range, std::vector<range_type>& results) const
+{
+  for(size_type comp = 1; comp + 1 < this->alpha.sigma; comp++) { results[comp] = Range::empty_range(); }
+  if(Range::empty(range)) { return; }
+
+  if(range.first == range.second) // Single path node.
+  {
+    for(size_type comp = 1; comp <= this->alpha.fast_chars; comp++)
+    {
+      if(this->fast_bwt[comp][range.first])
+      {
+        results[comp].first = results[comp].second = this->edge_rank(this->LF(this->fast_rank, range.first, comp));
+      }
     }
     for(size_type comp = this->alpha.fast_chars + 1; comp + 1 < this->alpha.sigma; comp++)
     {
@@ -759,7 +767,6 @@ GCSA::LF(range_type range, std::vector<range_type>& results) const
       {
         results[comp].first = results[comp].second = this->edge_rank(this->LF(this->sparse_rank, range.first, comp));
       }
-      else { results[comp] = Range::empty_range(); }
     }
   }
   else  // General case.

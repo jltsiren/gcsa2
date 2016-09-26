@@ -74,13 +74,8 @@ public:
 //------------------------------------------------------------------------------
 
   /*
-    Algorithms using GCSA. See algorithms.h for more information.
+    Algorithms using GCSA. These have been moved to algorithms.h.
   */
-
-  bool verifyIndex(std::vector<KMer>& kmers, size_type kmer_length) const;
-  bool verifyIndex(const InputGraph& graph) const;
-
-  size_type countKMers(size_type k, bool force = false) const;
 
 //------------------------------------------------------------------------------
 
@@ -186,9 +181,11 @@ public:
     return this->edge_rank(this->LF(this->sparse_rank, path_node, 0));
   }
 
-  // LF(range, c) for 1 <= c < sigma - 1.
-  // FIXME optimize this
-  void LF(range_type range, std::vector<range_type>& results) const;
+  // LF(range, comp) for fast comp values.
+  void LF_fast(range_type range, std::vector<range_type>& results) const;
+
+  // LF(range, comp) for 1 <= comp < sigma - 1.
+  void LF_all(range_type range, std::vector<range_type>& results) const;
 
   inline bool sampled(size_type path_node) const { return this->sampled_paths[path_node]; }
 
