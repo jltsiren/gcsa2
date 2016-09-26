@@ -50,7 +50,7 @@ main(int argc, char** argv)
     std::cerr << "  -o X  Output the symmetric difference to X"
               << KMerSearchParameters::LEFT_EXTENSION << " and X"
               << KMerSearchParameters::RIGHT_EXTENSION << std::endl;
-    std::cerr << "  -s N  Parallelize based on seed kmers of length N (default "
+    std::cerr << "  -s N  Parallelize using seed kmers of length N (default "
               << KMerSearchParameters::SEED_LENGTH << ")" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);

@@ -57,7 +57,7 @@ bool verifyIndex(const GCSA& index, const LCPArray* lcp, const InputGraph& graph
 
 struct KMerSearchParameters
 {
-  size_type seed_length;  // Parallelize based on seed kmers of this length.
+  size_type seed_length;  // Parallelize using seed kmers of this length.
   bool include_Ns;        // Include kmers containing Ns in the search.
   bool force;             // Force searching for kmers longer than the order of the index.
   std::string output;     // Base name for output.
