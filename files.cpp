@@ -22,8 +22,8 @@
   SOFTWARE.
 */
 
-#include "files.h"
-#include "internal.h"
+#include <gcsa/files.h>
+#include <gcsa/internal.h>
 
 namespace gcsa
 {
@@ -518,6 +518,71 @@ std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header)
   return stream << "GCSA header version " << header.version << ": "
                 << header.path_nodes << " path nodes, "
                 << header.edges << " edges, order " << header.order;
+}
+
+//------------------------------------------------------------------------------
+
+LCPHeader::LCPHeader() :
+  tag(TAG), version(VERSION),
+  size(0), branching(0),
+  flags(0)
+{
+}
+
+size_type
+LCPHeader::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+{
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+  size_type written_bytes = 0;
+  written_bytes += sdsl::write_member(this->tag, out, child, "tag");
+  written_bytes += sdsl::write_member(this->version, out, child, "version");
+  written_bytes += sdsl::write_member(this->size, out, child, "size");
+  written_bytes += sdsl::write_member(this->branching, out, child, "branching");
+  written_bytes += sdsl::write_member(this->flags, out, child, "flags");
+  sdsl::structure_tree::add_size(child, written_bytes);
+  return written_bytes;
+}
+
+void
+LCPHeader::load(std::istream& in)
+{
+  sdsl::read_member(this->tag, in);
+  sdsl::read_member(this->version, in);
+  sdsl::read_member(this->size, in);
+  sdsl::read_member(this->branching, in);
+  sdsl::read_member(this->flags, in);
+}
+
+bool
+LCPHeader::check(uint32_t expected_version) const
+{
+  return (this->tag == TAG && this->version == expected_version && this->flags == 0);
+}
+
+bool
+LCPHeader::checkNew() const
+{
+  return (this->tag == TAG && this->version > VERSION);
+}
+
+void
+LCPHeader::swap(LCPHeader& another)
+{
+  if(this != &another)
+  {
+    std::swap(this->tag, another.tag);
+    std::swap(this->version, another.version);
+    std::swap(this->size, another.size);
+    std::swap(this->branching, another.branching);
+    std::swap(this->flags, another.flags);
+  }
+}
+
+std::ostream& operator<<(std::ostream& stream, const LCPHeader& header)
+{
+  return stream << "LCP header version " << header.version
+                << ": array size " << header.size
+                << ", branching factor " << header.branching;
 }
 
 //------------------------------------------------------------------------------

@@ -25,7 +25,7 @@
 #include <string>
 #include <unistd.h>
 
-#include "algorithms.h"
+#include <gcsa/algorithms.h>
 
 using namespace gcsa;
 

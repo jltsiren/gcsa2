@@ -22,9 +22,9 @@
   SOFTWARE.
 */
 
-#include "algorithms.h"
-#include "internal.h"
-#include "path_graph.h"
+#include <gcsa/algorithms.h>
+#include <gcsa/internal.h>
+#include <gcsa/path_graph.h>
 
 namespace gcsa
 {

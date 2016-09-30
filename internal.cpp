@@ -22,7 +22,7 @@
   SOFTWARE.
 */
 
-#include "internal.h"
+#include <gcsa/internal.h>
 
 namespace gcsa
 {

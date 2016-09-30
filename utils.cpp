@@ -28,7 +28,7 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
-#include "internal.h"
+#include <gcsa/internal.h>
 
 namespace gcsa
 {

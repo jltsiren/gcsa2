@@ -22,9 +22,8 @@
   SOFTWARE.
 */
 
+#include <gcsa/utils.h>
 #include <sdsl/suffix_arrays.hpp>
-
-#include "utils.h"
 
 using namespace gcsa;
 

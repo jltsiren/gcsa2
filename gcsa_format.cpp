@@ -24,7 +24,7 @@
 
 #include <unistd.h>
 
-#include "gcsa.h"
+#include <gcsa/gcsa.h>
 
 using namespace gcsa;
 

@@ -25,8 +25,8 @@
 #ifndef _GCSA_PATH_GRAPH_H
 #define _GCSA_PATH_GRAPH_H
 
-#include "dbg.h"
-#include "files.h"
+#include <gcsa/dbg.h>
+#include <gcsa/files.h>
 
 namespace gcsa
 {

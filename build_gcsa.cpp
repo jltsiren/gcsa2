@@ -26,7 +26,7 @@
 #include <string>
 #include <unistd.h>
 
-#include "algorithms.h"
+#include <gcsa/algorithms.h>
 
 using namespace gcsa;
 
@@ -45,8 +45,8 @@ using namespace gcsa;
 //------------------------------------------------------------------------------
 
 #ifdef VERIFY_MAPPER
-#include "dbg.h"
-#include "path_graph.h"
+#include <gcsa/dbg.h>
+#include <gcsa/path_graph.h>
 #endif
 
 bool verifyGraph(const InputGraph& input_graph);

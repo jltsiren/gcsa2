@@ -25,7 +25,7 @@
 #ifndef _GCSA_DBG_H
 #define _GCSA_DBG_H
 
-#include "support.h"
+#include <gcsa/support.h>
 
 namespace gcsa
 {

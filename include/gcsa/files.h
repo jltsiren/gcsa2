@@ -25,7 +25,7 @@
 #ifndef _GCSA_FILES_H
 #define _GCSA_FILES_H
 
-#include "support.h"
+#include <gcsa/support.h>
 
 namespace gcsa
 {
@@ -154,6 +154,40 @@ struct GCSAHeader
 };
 
 std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header);
+
+//------------------------------------------------------------------------------
+
+/*
+  LCP file header.
+
+  Version 1 (GCSA v0.8)
+  - The first use of the header.
+  - LCP body is identical to version 0.
+*/
+
+struct LCPHeader
+{
+  uint32_t tag;
+  uint32_t version;
+  uint64_t size;
+  uint64_t branching;
+  uint64_t flags;
+
+  const static uint32_t TAG = 0x6C5A7C94;
+  const static uint32_t VERSION = 1;
+  const static uint32_t MIN_VERSION = 1;
+
+  LCPHeader();
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+  bool check(uint32_t expected_version = VERSION) const;
+  bool checkNew() const;
+
+  void swap(LCPHeader& another);
+};
+
+std::ostream& operator<<(std::ostream& stream, const LCPHeader& header);
 
 //------------------------------------------------------------------------------
 

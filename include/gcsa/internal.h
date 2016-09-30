@@ -33,7 +33,7 @@
 #include <mutex>
 #include <thread>
 
-#include "utils.h"
+#include <gcsa/utils.h>
 
 namespace gcsa
 {

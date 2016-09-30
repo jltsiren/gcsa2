@@ -24,8 +24,8 @@
 
 #include <deque>
 
-#include "internal.h"
-#include "path_graph.h"
+#include <gcsa/internal.h>
+#include <gcsa/path_graph.h>
 
 namespace gcsa
 {

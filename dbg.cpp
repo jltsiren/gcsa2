@@ -22,7 +22,7 @@
   SOFTWARE.
 */
 
-#include "dbg.h"
+#include <gcsa/dbg.h>
 
 namespace gcsa
 {

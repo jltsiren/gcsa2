@@ -24,8 +24,8 @@
 
 #include <stack>
 
-#include "internal.h"
-#include "lcp.h"
+#include <gcsa/internal.h>
+#include <gcsa/lcp.h>
 
 namespace gcsa
 {

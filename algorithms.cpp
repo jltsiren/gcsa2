@@ -24,8 +24,8 @@
 
 #include <stack>
 
-#include "algorithms.h"
-#include "internal.h"
+#include <gcsa/algorithms.h>
+#include <gcsa/internal.h>
 
 namespace gcsa
 {

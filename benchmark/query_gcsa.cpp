@@ -22,8 +22,8 @@
   SOFTWARE.
 */
 
-#include "gcsa.h"
-#include "lcp.h"
+#include <gcsa/gcsa.h>
+#include <gcsa/lcp.h>
 
 using namespace gcsa;
 

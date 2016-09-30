@@ -22,7 +22,7 @@
   SOFTWARE.
 */
 
-#include "support.h"
+#include <gcsa/support.h>
 
 namespace gcsa
 {
