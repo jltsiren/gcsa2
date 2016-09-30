@@ -27,4 +27,5 @@ Proc. WABI 2012, Springer LNCS 7534, pp. 225-235, Ljubljana, Slovenia, September
 [DOI: 10.1007/978-3-642-33122-0_18](http://dx.doi.org/10.1007/978-3-642-33122-0_18)
 
 Jouni Sirén: **Indexing Variation Graphs**.
-[arXiv:1604.06605](http://arxiv.org/abs/1604.06605), 2016.
+Accepted to ALENEX 2017.
+[arXiv:1604.06605](http://arxiv.org/abs/1604.06605), 2017.
