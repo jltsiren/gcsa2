@@ -524,7 +524,7 @@ std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header)
 
 LCPHeader::LCPHeader() :
   tag(TAG), version(VERSION),
-  size(0), branching(0),
+  size(0), branching(2),
   flags(0)
 {
 }

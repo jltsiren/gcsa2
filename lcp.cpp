@@ -43,8 +43,7 @@ operator<< (std::ostream& out, const STNode& node)
 
 const std::string LCPArray::EXTENSION = ".lcp";
 
-LCPArray::LCPArray() :
-  lcp_size(0), branching_factor(2)
+LCPArray::LCPArray()
 {
 }
 
@@ -65,11 +64,9 @@ LCPArray::~LCPArray()
 void
 LCPArray::copy(const LCPArray& source)
 {
+  this->header = source.header;
   this->data = source.data;
   this->offsets = source.offsets;
-
-  this->lcp_size = source.lcp_size;
-  this->branching_factor = source.branching_factor;
 }
 
 void
@@ -77,11 +74,9 @@ LCPArray::swap(LCPArray& another)
 {
   if(this != &another)
   {
+    this->header.swap(another.header);
     this->data.swap(another.data);
     this->offsets.swap(another.offsets);
-
-    std::swap(this->lcp_size, another.lcp_size);
-    std::swap(this->branching_factor, another.branching_factor);
   }
 }
 
@@ -97,11 +92,9 @@ LCPArray::operator=(LCPArray&& source)
 {
   if(this != &source)
   {
+    this->header = std::move(source.header);
     this->data = std::move(source.data);
     this->offsets = std::move(source.offsets);
-
-    this->lcp_size = std::move(source.lcp_size);
-    this->branching_factor = std::move(source.branching_factor);
   }
   return *this;
 }
@@ -112,11 +105,9 @@ LCPArray::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string
   sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
   size_type written_bytes = 0;
 
+  written_bytes += this->header.serialize(out, child, "header");
   written_bytes += this->data.serialize(out, child, "data");
   written_bytes += this->offsets.serialize(out, child, "offsets");
-
-  written_bytes += sdsl::write_member(this->lcp_size, out, child, "lcp_size");
-  written_bytes += sdsl::write_member(this->branching_factor, out, child, "branching_factor");
 
   sdsl::structure_tree::add_size(child, written_bytes);
   return written_bytes;
@@ -125,11 +116,14 @@ LCPArray::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string
 void
 LCPArray::load(std::istream& in)
 {
+  this->header.load(in);
+  if(!(this->header.check()))
+  {
+    std::cerr << "LCP::load(): Invalid header: " << this->header << std::endl;
+  }
+
   this->data.load(in);
   this->offsets.load(in);
-
-  sdsl::read_member(this->lcp_size, in);
-  sdsl::read_member(this->branching_factor, in);
 }
 
 //------------------------------------------------------------------------------
@@ -191,12 +185,11 @@ rmtLevel(const LCPArray& lcp, size_type node)
 
 //------------------------------------------------------------------------------
 
-LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parameters) :
-  branching_factor(parameters.lcp_branching)
+LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parameters)
 {
   double start = readTimer();
 
-  if(graph.size() == 0) { this->lcp_size = 0; return; }
+  if(graph.size() == 0) { return; }
   if(graph.lcp_name.empty())
   {
     std::cerr << "LCPArray::LCPArray(): The input graph does not contain the LCP file" << std::endl;
@@ -210,9 +203,11 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
     std::exit(EXIT_FAILURE);
   }
 
+  this->header.branching = parameters.lcp_branching;
+
   // Determine the number of levels.
-  this->lcp_size = fileSize(in);
-  size_type level_count = 1, level_size = this->lcp_size;
+  this->header.size = fileSize(in);
+  size_type level_count = 1, level_size = this->size();
   while(level_size > 1)
   {
     level_count++; level_size = (level_size + this->branching() - 1) / this->branching();
@@ -220,7 +215,7 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
 
   // Initialize offsets.
   this->offsets = sdsl::int_vector<64>(level_count + 1, 0);
-  level_size = this->lcp_size;
+  level_size = this->size();
   size_type total_size = 0;
   for(size_type level = 0; level < this->levels(); level++)
   {
@@ -231,7 +226,7 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
 
   // Initialize data.
   this->data = sdsl::int_vector<0>(total_size, ~(uint8_t)0, 8);
-  DiskIO::read(in, (const uint8_t*)(this->data.data()), this->lcp_size);
+  DiskIO::read(in, (const uint8_t*)(this->data.data()), this->size());
   in.close();
   for(size_type level = 0; level < this->levels(); level++)
   {

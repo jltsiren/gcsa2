@@ -120,10 +120,10 @@ public:
 
 //------------------------------------------------------------------------------
 
-  inline size_type size() const { return this->lcp_size; }
+  inline size_type size() const { return this->header.size; }
   inline size_type values() const { return this->data.size(); }
   inline size_type levels() const { return this->offsets.size() - 1; }
-  inline size_type branching() const { return this->branching_factor; }
+  inline size_type branching() const { return this->header.branching; }
 
   inline size_type operator[] (size_type i) const { return this->data[i]; }
 
@@ -184,9 +184,9 @@ public:
     in the array. Level 0 is the leaves (the LCP array).
   */
 
+  LCPHeader            header;
   sdsl::int_vector<0>  data;
   sdsl::int_vector<64> offsets;
-  size_type            lcp_size, branching_factor;
 
 private:
   void copy(const LCPArray& source);

@@ -31,6 +31,7 @@ using namespace gcsa;
 //------------------------------------------------------------------------------
 
 void identifyGCSA(const std::string& input_name);
+void identifyLCP(const std::string& input_name);
 
 //------------------------------------------------------------------------------
 
@@ -39,13 +40,44 @@ main(int argc, char** argv)
 {
   if(argc < 2)
   {
-    std::cerr << "Usage: gcsa_format input" << std::endl;
+    std::cerr << "Usage: gcsa_format [options] input" << std::endl;
+    std::cerr << "  -g  Identify a GCSA file (default)" << std::endl;
+    std::cerr << "  -l  Identify an LCP file" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
 
-  std::string input_name = argv[1];
-  identifyGCSA(input_name);
+  int c = 0;
+  bool lcp = false;
+  while((c = getopt(argc, argv, "gl")) != -1)
+  {
+    switch(c)
+    {
+    case 'g':
+      lcp = false; break;
+    case 'l':
+      lcp = true; break;
+    case '?':
+      std::exit(EXIT_FAILURE);
+    default:
+      std::exit(EXIT_FAILURE);
+    }
+  }
+  if(optind >= argc)
+  {
+    std::cerr << "gcsa_format: Input file not specified" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  std::cout << "GCSA file format inspector" << std::endl;
+  std::cout << std::endl;
+  std::cout << "Input: " << argv[optind] << std::endl;
+  std::cout << std::endl;
+
+  if(lcp) { identifyLCP(argv[optind]); }
+  else { identifyGCSA(argv[optind]); }
+
+  std::cout << std::endl;
 
   return 0;
 }
@@ -152,12 +184,6 @@ tryCurrentVersion(std::ifstream& input)
 void
 identifyGCSA(const std::string& input_name)
 {
-  std::cout << "GCSA file format inspector" << std::endl;
-  std::cout << std::endl;
-
-  std::cout << "Input: " << input_name << std::endl;
-  std::cout << std::endl;
-
   std::ifstream input(input_name.c_str(), std::ios_base::binary);
   if(!input)
   {
@@ -171,9 +197,125 @@ identifyGCSA(const std::string& input_name)
     tryVersion0(input);
   }
   input.close();
+}
 
-  std::cout << std::endl;
-  std::cout << std::endl;
+//------------------------------------------------------------------------------
+
+/*
+  This is LCP file format header (actually footer) version 0. It was used in releases 0.6 to 0.7.
+*/
+
+struct LCPHeader_0
+{
+  uint64_t lcp_size;
+  uint64_t branching_factor;
+
+  const static uint32_t VERSION = 0;
+
+  LCPHeader_0();
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+  bool check() const;
+};
+
+LCPHeader_0::LCPHeader_0() :
+  lcp_size(0), branching_factor(0)
+{
+}
+
+size_type
+LCPHeader_0::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+{
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+  size_type written_bytes = 0;
+  written_bytes += sdsl::write_member(this->lcp_size, out, child, "lcp_size");
+  written_bytes += sdsl::write_member(this->branching_factor, out, child, "branching_factor");
+  sdsl::structure_tree::add_size(child, written_bytes);
+  return written_bytes;
+}
+
+void
+LCPHeader_0::load(std::istream& in)
+{
+  sdsl::read_member(this->lcp_size, in);
+  sdsl::read_member(this->branching_factor, in);
+}
+
+bool
+LCPHeader_0::check() const
+{
+  return true;
+}
+
+std::ostream& operator<<(std::ostream& stream, const LCPHeader_0& header)
+{
+  return stream << "LCP header version " << LCPHeader_0::VERSION
+                << ": array size " << header.lcp_size
+                << ", branching factor " << header.branching_factor;
+}
+
+//------------------------------------------------------------------------------
+
+bool
+tryLCPVersion0(std::ifstream& input)
+{
+  std::streampos pos = input.tellg();
+  input.seekg(-(std::streamoff)sizeof(LCPHeader_0), std::ios_base::end);
+  LCPHeader_0 header;
+  header.load(input);
+  input.seekg(pos);
+
+  if(header.check())
+  {
+    std::cout << header << std::endl;
+    return true;
+  }
+  return false;
+}
+
+bool
+tryCurrentLCPVersion(std::ifstream& input)
+{
+  std::streampos pos = input.tellg();
+  LCPHeader header;
+  header.load(input);
+  input.seekg(pos);
+
+  for(uint32_t version = LCPHeader::VERSION; version >= LCPHeader::MIN_VERSION; version--)
+  {
+    if(header.check(version))
+    {
+      std::cout << header << std::endl;
+      return true;
+    }
+  }
+  if(header.checkNew())
+  {
+    std::cout << header << std::endl;
+    std::cout << "Note: The file is newer than this version of GCSA" << std::endl;
+    return true;
+  }
+
+  return false;
+}
+
+void
+identifyLCP(const std::string& input_name)
+{
+  std::ifstream input(input_name.c_str(), std::ios_base::binary);
+  if(!input)
+  {
+    std::cerr << "identifyLCP(): Cannot open input file " << input_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
+  if(!tryCurrentLCPVersion(input))
+  {
+    std::cout << "File format cannot be identified, trying version 0" << std::endl;
+    tryLCPVersion0(input);
+  }
+  input.close();
 }
 
 //------------------------------------------------------------------------------
