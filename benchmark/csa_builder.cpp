@@ -41,17 +41,26 @@ main(int argc, char** argv)
 
   std::string base_name = argv[1];
   std::string index_name = base_name + ".csa";
+  std::string fast_index_name = base_name + ".fcsa";
 
   double start = readTimer();
+  sdsl::cache_config config(false);
   sdsl::csa_wt<sdsl::wt_huff<>, 17> index;
-  sdsl::construct(index, base_name, 1);
+  sdsl::construct(index, base_name, config, 1);
   sdsl::store_to_file(index, index_name);
+  sdsl::csa_wt<sdsl::wt_huff<sdsl::bit_vector_il<>>, 17> fast_index;
+  sdsl::construct(fast_index, base_name, config, 1);
+  sdsl::store_to_file(fast_index, fast_index_name);
+  sdsl::util::delete_all_files(config.file_map);
   double seconds = readTimer() - start;
 
   double megabytes = inMegabytes(sdsl::size_in_bytes(index));
-  double bpc = sdsl::size_in_bytes(index) * 8.0 / index.size();
-  std::cout << "CSA built in " << seconds << " seconds (" << (inMegabytes(index.size()) / seconds) << " MB/s)" << std::endl;
-  std::cout << "Index size: " << megabytes << " MB (" << bpc << " bpc)" << std::endl;
+  double fast_megabytes = inMegabytes(sdsl::size_in_bytes(fast_index));
+  double bpc = inBPC(sdsl::size_in_bytes(index), index.size());
+  double fast_bpc = inBPC(sdsl::size_in_bytes(fast_index), fast_index.size());
+  std::cout << "CSAs built in " << seconds << " seconds (" << (inMegabytes(index.size()) / seconds) << " MB/s)" << std::endl;
+  std::cout << "Standard index size: " << megabytes << " MB (" << bpc << " bpc)" << std::endl;
+  std::cout << "Fast index size: " << fast_megabytes << " MB (" << fast_bpc << " bpc)" << std::endl;
   std::cout << std::endl;
 
   return 0;

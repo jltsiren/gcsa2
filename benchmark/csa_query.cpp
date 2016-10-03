@@ -29,7 +29,18 @@ using namespace gcsa;
 
 //------------------------------------------------------------------------------
 
+typedef sdsl::csa_wt<sdsl::wt_huff<>, 17>                      StandardCSA;
+typedef sdsl::csa_wt<sdsl::wt_huff<sdsl::bit_vector_il<>>, 17> FastCSA;
+
+//------------------------------------------------------------------------------
+
 size_type filter(std::vector<std::string>& patterns);
+
+template<class IndexType>
+void benchmark(const std::string& file_name, const std::string& header,
+  const std::vector<std::string>& patterns, size_type pattern_total);
+
+//------------------------------------------------------------------------------
 
 int
 main(int argc, char** argv)
@@ -49,16 +60,57 @@ main(int argc, char** argv)
   printHeader("Pattern file"); std::cout << pattern_name << std::endl;
   std::cout << std::endl;
 
-  sdsl::csa_wt<sdsl::wt_huff<>, 17> index;
-  std::string csa_name = base_name + ".csa";
-  sdsl::load_from_file(index, csa_name);
-  printHeader("CSA"); std::cout << inMegabytes(sdsl::size_in_bytes(index)) << " MB" << std::endl;
-
   std::vector<std::string> patterns;
   size_type pattern_total = readRows(pattern_name, patterns, true);
   pattern_total -= filter(patterns);
   printHeader("Patterns");
   std::cout << patterns.size() << " (total " << inMegabytes(pattern_total) << " MB)" << std::endl;
+  std::cout << std::endl;
+  std::cout << std::endl;
+
+  std::string csa_name = base_name + ".csa", csa_header = "SSA";
+  benchmark<StandardCSA>(csa_name, csa_header, patterns, pattern_total);
+
+  std::string fast_name = base_name + ".fcsa", fast_header = "SSA-fast";
+  benchmark<FastCSA>(fast_name, fast_header, patterns, pattern_total);
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+
+size_type
+filter(std::vector<std::string>& patterns)
+{
+  size_type tail = 0, filtered = 0;
+  for(size_type i = 0; i < patterns.size(); i++)
+  {
+    const std::string& curr = patterns[i];
+    bool ok = false;
+    for(size_type j = 0; j < curr.length(); j++)
+    {
+      if(curr[j] != 'N') { ok = true; break; }
+    }
+    if(ok) { patterns[tail] = curr; tail++; }
+    else { filtered += curr.length(); }
+  }
+
+  patterns.resize(tail);
+  return filtered;
+}
+
+//------------------------------------------------------------------------------
+
+template<class IndexType>
+void
+benchmark(const std::string& file_name, const std::string& header,
+  const std::vector<std::string>& patterns, size_type pattern_total)
+{
+  IndexType index;
+  sdsl::load_from_file(index, file_name);
+  printHeader(header);
+  std::cout << inMegabytes(sdsl::size_in_bytes(index)) << " MB ("
+            << inBPC(sdsl::size_in_bytes(index), index.size()) << " bpc)" << std::endl;
   std::cout << std::endl;
 
   std::vector<range_type> ranges; ranges.reserve(patterns.size());
@@ -98,29 +150,7 @@ main(int argc, char** argv)
     std::cout << std::endl;
   }
 
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-
-size_type
-filter(std::vector<std::string>& patterns)
-{
-  size_type tail = 0, filtered = 0;
-  for(size_type i = 0; i < patterns.size(); i++)
-  {
-    const std::string& curr = patterns[i];
-    bool ok = false;
-    for(size_type j = 0; j < curr.length(); j++)
-    {
-      if(curr[j] != 'N') { ok = true; break; }
-    }
-    if(ok) { patterns[tail] = curr; tail++; }
-    else { filtered += curr.length(); }
-  }
-
-  patterns.resize(tail);
-  return filtered;
+  std::cout << std::endl;
 }
 
 //------------------------------------------------------------------------------
