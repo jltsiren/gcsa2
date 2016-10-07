@@ -107,6 +107,20 @@ The above methods can be classified in three categories based on the data models
 
 GCSA2 combines ideas from the original GCSA and from succinct de~Bruijn graphs. Conceptually it uses a de~Bruijn graph as a \kmer{k} index of a variation graph. The de~Bruijn graph is \emph{pruned} (compressed structurally) by using strings shorter than $k$ characters as nodes, if the shorter strings identify the start nodes of the corresponding paths uniquely. The pruned graph is encoded with a generalization of the FM\nobreakdash-index. GCSA2 often uses less space (e.g.~less than 1~bit per \kmer{k}) than other de~Bruijn graph-based indexes, which have to store some information for each \kmer{k} explicitly. The index also includes extensions based on suffix trees. The extensions are used for e.g.~finding maximal exact matches in the vg read aligner.
 
+The main differences to the original GCSA are:
+\begin{enumerate}
+
+\item The graph encoding in GCSA2 has been optimized for small alphabets, improving query performance by up to an order of magnitude.
+
+\item The construction algorithm stores the graphs on disk, reducing the memory requirements for building a whole-genome human index from hundreds of gigabytes to tens of gigabytes.
+
+\item GCSA2 can index denser graphs, including cyclic graphs, by limiting maximum query length.
+
+\item GCSA2 extends the functionality of the FM-ideas with suffix tree operations.
+
+\end{enumerate}
+The first two improvements can also be used with the original GCSA. The third point represents a different approach to indexing graphs. It was not possible the with the original GCSA, as the construction algorithm required a prefix-range-sorted graph. The extendend functionality depends on the new construction algorithm and on limiting maximum query length.
+
 This paper describes the GCSA2 data structure. Its uses in the vg toolkit will be discussed in the vg paper.
 
 
@@ -298,8 +312,6 @@ Let $G' = (V', E')$ be a maximally pruned de~Bruijn graph of graph $G = (V, E)$.
 
 \section{GCSA2}
 
-GCSA2 construction starts from paths of length $k$ in the input graph. We build a maximally pruned \orderk{2k}, \orderk{4k}, or \orderk{8k} de~Bruijn graph using a similar \emph{prefix-doubling} algorithm as in the original GCSA \cite{Siren2014}, and encode the result as a GCSA. To avoid excessive memory usage, we keep the paths and the graphs on disk, and read only a single chromosome at a time into memory. The details of the construction algorithm can be found in Appendix~\ref{appendix:construction}.
-
 As in the original GCSA, we sort the nodes of the path graph in lexicographic order, encode the indegrees and outdegrees in bitvectors $\bvIN$ and $\bvOUT$, and store the predecessor labels in $\BWT$. See Figure~\ref{figure:pruned-index} for an example. If lexicographic range $[sp_{i+1}, ep_{i+1}]$ matches suffix $X[i+1, \abs{X}-1]$ of pattern $X$, we can find the range $[sp_{i}, ep_{i}]$ matching suffix $X[i, \abs{X}-1]$ as
 \begin{align*}
 [sp_{in}, ep_{in}] & = [\bvIN.\select(sp_{i+1}, 1) + 1, \bvIN.\select(ep_{i+1}+1, 1)]; \\
@@ -308,14 +320,23 @@ As in the original GCSA, we sort the nodes of the path graph in lexicographic or
 \end{align*}
 In order to support $\locate$ queries, we \emph{sample} the values of a node, if the node has multiple incoming edges or the values cannot be derived from the predecessor. We may also sample other values to improve query performance. The sampled nodes are marked in bitvector $B_{S}$, the number of values in each sample is encoded in unary in bitvector $B_{V}$, and the sampled values are stored in integer array $V_{S}$. A detailed description of the data structure can be found in Appendix~\ref{appendix:gcsa2}.
 
+GCSA2 construction starts from paths of length $k$ in the input graph. We build a maximally pruned \orderk{2k}, \orderk{4k}, or \orderk{8k} de~Bruijn graph using a similar \emph{prefix-doubling} algorithm as in the original GCSA \cite{Siren2014}, and encode the result as a GCSA. To avoid excessive memory usage, we keep the paths and the graphs on disk, and read only a single chromosome at a time into memory. The details of the construction algorithm can be found in Appendix~\ref{appendix:construction}.
+
+We can improve the query performance with (maximally pruned) de~Bruijn graphs by using a \emph{simplified encoding} (see Appendix~\ref{appendix:encoding}). We replace $\BWT$ and bitvector $\bvIN$ with bitvectors $B_{c}$ for all $c \in \Sigma$ such that $B_{c}[j] = 1$ if and only if node $j$ in lexicographic order has a predecessor with label $c$. This simplifies backward searching to
+\begin{align*}
+sp_{out} & = C[X[i]] + B_{X[i]}.\rank(sp_{i+1}, 1); \\
+ep_{out} & = C[X[i]] + B_{X[i]}.\rank(ep_{i+1}+1, 1) - 1;\ \textrm{and} \\
+[sp_{i}, ep_{i}] & = [\bvOUT.\rank(sp_{out}, 1), \bvOUT.\rank(ep_{out}, 1)].
+\end{align*}
+
 The compacted trie of keys resembles a suffix tree. We can simulate it space-efficiently by using the LCP array \cite{Abouelhoda2004,Fischer2009a}, and thus extend GCSA2 to support many suffix tree operations. For example, we can search for \emph{maximal exact matches} by using \LFmapping{} and $\parent$ queries \cite{Ohlebusch2010a}, and use that as a basis for a read aligner similar to BWA-MEM \cite{Li2013}. We can also use \emph{document counting} techniques \cite{Sadakane2007a} to quickly count the number of distinct matches in a lexicographic range. Further details of these extensions can be found in Appendix~\ref{appendix:extensions}.
 
 
 \section{Implementation and Experiments}\label{sect:experiments}
 
-GCSA2 is the path indexing library of vg \cite{Garrison2014-2016}. The implementation is written in C++, and the source code is available on GitHub (\url{https://github.com/jltsiren/gcsa2}). Most index components are encoded using fast non-compressed bitvectors. As GCSA2 uses \emph{SDSL} \cite{Gog2014b} and \emph{libstdc++ parallel mode}, it requires g++ version~4.9 or later to compile.
+GCSA2 is the path indexing library of vg \cite{Garrison2014-2016}. The implementation is written in C++, and the source code is available on GitHub (\url{https://github.com/jltsiren/gcsa2}). It depends on \emph{SDSL} \cite{Gog2014b} and \emph{libstdc++ parallel mode}. We use the simplified encoding (Appendix~\ref{appendix:encoding}) with fast non-compressed bitvectors in most index components. Bitvectors $B_{c}$ for rare characters ($\baseN$, $\#$, and $\$$) are compressed as sparse bitvectors \cite{Okanohara2007}.
 
-We used a system with two 16\nobreakdash-core AMD Opteron 6378 processors and 256~gigabytes of memory for the experiments, and stored all files on a distributed Lustre file system. The system was running Ubuntu~12.04 on Linux kernel~3.2.0. We used vg version~1.3.0 for processing the graphs and GCSA2 version~0.7 for the benchmarks.
+We used a system with two 16\nobreakdash-core AMD Opteron 6378 processors and 256~gigabytes of memory for the experiments, and stored all files on a distributed Lustre file system. The system was running Ubuntu~12.04 on Linux kernel~3.2.0. We used vg version~1.3.0 for processing the graphs and GCSA2 version~0.8 using SDSL version~2.1.1 for the benchmarks. All code was compiled with gcc/g++ version~4.9.2.
 
 \subsection{Construction}
 
@@ -359,43 +380,61 @@ Index construction uses more memory with $k = 32$ than with larger values of $k$
 
 \subsection{Queries}
 
-We extracted \kmer{16}s, \kmer{32}s, \kmer{64}s, and \kmer{128}s from the (non-pruned) vg graphs using \texttt{vg sim}, and queried for them in the \orderk{128} index using a single thread. We also ran the same queries in an FM\nobreakdash-index of the reference. The results can be seen in Table~\ref{table:benchmark}. The FM\nobreakdash-index (\texttt{csa\_wt<>} with SA sample density 17) uses the same SDSL components as GCSA2, allowing us to compare the fundamental techniques and ignore most implementation-specific details.
+We compared the query performance of the \orderk{128} GCSA2 to several FM-indexes for the reference sequence. SSA is the SDSL implementation (\texttt{csa\_wt<>} with SA sample period 17) of the \emph{succinct suffix array} \cite{Maekinen2005}, using a Huffman-shaped wavelet tree on top of the BWT. As the default FM-index in SDSL, it prioritizes query performance over compression. BWA is the FM-index in the \emph{Burrows-Wheeler Aligner} \cite{Li2009} (version~0.7.15 with SA sample period 32). Optimized for DNA sequences, BWA indexes both the reference and its reverse complement.
+
+As building the original GCSA requires around $65n$ bytes of memory for a path graph with $n$ nodes, we could not compare GCSA and GCSA2 directly on a system with 256~gigabytes of memory. Instead, we used \emph{RLCSA} \cite{Maekinen2010} (May~2016 version with SA sample period 32) as a proxy. The RLCSA is an FM-index for repetitive sequence collections using the same basic components as the original GCSA. With a mixed query load, RLCSA is 1.5x to 3x faster than GCSA, depending on algorithmic overhead and the mix of $\find$ and $\locate$ queries \cite{Siren2014}.
+
+We extracted \kmer{16}s, \kmer{32}s, \kmer{64}s, and \kmer{128}s from the (non-pruned) vg graphs using \texttt{vg sim}, filtered out the \kmer{k}s consisting entirely of $\baseN$s, and queried for the remaining \kmer{k}s using a single thread. The results can be seen in Table~\ref{table:benchmark}.
 
 \begin{table}[t!]
 \begin{center}
-\caption{Query benchmarks using an \orderk{128} GCSA and an FM\nobreakdash-index. Index type and pattern length; number of patterns, matching patterns, matching nodes, and distinct occurrences; average time for $[sp, ep] = \find(X)$, $\parent(sp, ep)$, and $\countq(sp, ep)$ queries in microseconds; and average time per value for $\locate(sp, ep)$ queries in microseconds.}\label{table:benchmark}
-\begin{tabular}{c|cccc|cccc}
+\caption{Query benchmarks using an \orderk{128} GCSA2 and various FM\nobreakdash-indexes. Pattern length; the number of patterns; index type; the number matching patterns, matching nodes, and distinct occurrences; the average time for $[sp, ep] = \find(X)$, $\parent(sp, ep)$, and $\countq(sp, ep)$ queries in microseconds; and the average time per value for $\locate(sp, ep)$ queries in microseconds.}\label{table:benchmark}
+\begin{tabular}{cc|cccc|cccc}
 \hline
- & \textbf{Patterns} & \textbf{Found} & \textbf{Nodes} & \textbf{Occs} & $\find()$ & $\parent()$ & $\countq()$ & $\locate()$ \\
+$k$ & \textbf{Patterns} & \textbf{Index} & \textbf{Found} & \textbf{Nodes} & \textbf{Occs} & $\find()$ & $\parent()$ & $\countq()$ & $\locate()$ \\
 \hline
-GCSA:  16 & 351584 & 347453 & 2477M &  872M & 18.3 \textmu{}s & 0.41 \textmu{}s & 0.87 \textmu{}s & 12.1 \textmu{}s \\
-GCSA:  32 & 351555 & 333258 &  112M & 34.3M & 37.9 \textmu{}s & 0.28 \textmu{}s & 0.38 \textmu{}s & 11.1 \textmu{}s \\
-GCSA:  64 & 351567 & 326101 & 2.63M & 1.35M & 76.1 \textmu{}s & 0.26 \textmu{}s & 0.28 \textmu{}s & 5.76 \textmu{}s \\
-GCSA: 128 & 351596 & 316500 & 0.32M & 0.37M &  149 \textmu{}s & 0.26 \textmu{}s & 0.26 \textmu{}s & 5.98 \textmu{}s \\
+ 16 & 351584 & GCSA2 & 347453 & 2477M &  872M & 4.75 \textmu{}s & 0.42 \textmu{}s & 0.87 \textmu{}s & 5.85 \textmu{}s \\
+    &        & SSA   & 301538 &    -- &  782M & 6.00 \textmu{}s &              -- &              -- & 2.43 \textmu{}s \\
+    &        & BWA   & 320764 &    -- & 1564M & 3.64 \textmu{}s &              -- &              -- & 4.65 \textmu{}s \\
+    &        & RLCSA & 301538 &    -- &  782M & 23.7 \textmu{}s &              -- &              -- & 8.12 \textmu{}s \\
 \hline
-FM:    16 & 351584 & 301538 &    -- &  782M & 6.06 \textmu{}s &              -- &              -- & 2.46 \textmu{}s \\
-FM:    32 & 351555 & 153957 &    -- & 26.6M & 10.9 \textmu{}s &              -- &              -- & 2.19 \textmu{}s \\
-FM:    64 & 351567 &  88184 &    -- & 0.84M & 17.2 \textmu{}s &              -- &              -- & 1.91 \textmu{}s \\
-FM:   128 & 351596 &  35678 &    -- & 0.08M & 23.6 \textmu{}s &              -- &              -- & 3.48 \textmu{}s \\
+ 32 & 351555 & GCSA2 & 333258 &  112M & 34.3M & 10.8 \textmu{}s & 0.28 \textmu{}s & 0.38 \textmu{}s & 5.44 \textmu{}s \\
+    &        & SSA   & 153957 &    -- & 26.6M & 10.9 \textmu{}s &              -- &              -- & 2.16 \textmu{}s \\
+    &        & BWA   & 156080 &    -- & 52.9M & 6.57 \textmu{}s &              -- &              -- & 3.19 \textmu{}s \\
+    &        & RLCSA & 153957 &    -- & 26.6M & 47.6 \textmu{}s &              -- &              -- & 5.87 \textmu{}s \\
+\hline
+  64 & 351567 & GCSA2 & 326101 & 2.63M & 1.35M & 22.5 \textmu{}s & 0.26 \textmu{}s & 0.29 \textmu{}s & 2.92 \textmu{}s \\
+     &        & SSA   &  88184 &    -- & 0.84M & 17.1 \textmu{}s &              -- &              -- & 1.89 \textmu{}s \\
+     &        & BWA   &  88786 &    -- & 1.60M & 10.3 \textmu{}s &              -- &              -- & 2.34 \textmu{}s \\
+     &        & RLCSA &  88184 &    -- & 0.84M & 74.3 \textmu{}s &              -- &              -- & 5.97 \textmu{}s \\
+\hline
+ 128 & 351596 & GCSA2 & 316500 & 0.32M & 0.37M & 45.3 \textmu{}s & 0.26 \textmu{}s & 0.26 \textmu{}s & 3.13 \textmu{}s \\
+     &        & SSA   &  35678 &    -- & 0.08M & 23.5 \textmu{}s &              -- &              -- & 3.47 \textmu{}s \\
+     &        & BWA   &  35741 &    -- & 0.12M & 14.0 \textmu{}s &              -- &              -- & 3.46 \textmu{}s \\
+     &        & RLCSA &  35678 &    -- & 0.08M & 91.7 \textmu{}s &              -- &              -- & 12.9 \textmu{}s \\
 \hline
 \end{tabular}
 \end{center}
 \end{table}
 
-With \kmer{16}s, where both indexes match a similar number of patterns, $\find$ queries are about 3x slower in GCSA2 than in the FM\nobreakdash-index. With longer patterns, the difference grows larger, as the query stops early when the index cannot match the pattern. $\select$ queries on bitvector $\bvIN$ are the main source of the difference, as they are much slower than $\rank$ queries. A simplified GCSA encoding (see Appendix~\ref{appendix:encoding}) would make $\find$ queries faster and $\locate$ queries slower.
+Backward searching in an FM-index stops early if there are no matches. In order to compare the $\find$ performance of the indexes reliably, we must hence concentrate on the \kmer{16}s, where the fraction of matching patterns is similar for all indexes. GCSA2 and the fast FM-indexes (SSA and BWA) all have similar performance, while RLCSA is several times slower. As a result, we can estimate that $\find$ queries in GCSA2 are an order of magnitude faster than in GCSA.
 
-When the number of distinct occurrences is high, $\locate$ queries are about 5x slower than in the FM\nobreakdash-index. With less occurrences, unpredictable factors such as SA order sampling in the FM\nobreakdash-index or nodes with multiple values and filtering out duplicates in GCSA2 affect the results. Queries $\parent$ and $\countq$ are both clearly faster than a single step of backward searching.
+When comparing the $\locate$ performance of different FM-indexes, the distribution of the query positions should be close to uniform. Otherwise the biases from e.g.~different suffix array sampling strategies or the variation in the number of distinct occurrences per node in GCSA2 can make the results unreliable. As the \kmer{k}s have been sampled uniformly from the variation graph, we get the best results with the \kmer{16}s, where all indexes can match most of the patterns.
+
+GCSA2 uses denser SA sampling than the other indexes, with effective sample period 10.6. On the average, each sample contains 1.53~values and GCSA2 retrieves each distinct value 2.84~times, making the amount of work comparable to sample period 19.7. SSA with sample period 17 is 2.4x faster than GCSA2, highlighting the slowdown from checking multiple bitvectors $B_{c}$ in $\LF(i)$ queries, as well as from filtering out duplicates. BWA is closer to GCSA2 in $\locate$ performance, which can be explained by sparser sampling than in SSA. RLCSA is slower than the other indexes, but the difference is smaller than with $\find$ queries due to the optimizations for retrieving suffix array ranges. Assuming that $\locate$ queries in GCSA are 3x slower than RLCSA, as GCSA does not have the optimizations, we can estimate that GCSA is 4x slower than GCSA2.
+
+The remaining queries, $\parent$ and $\countq$, take a fraction of a microsecond. As a $\parent$ query takes comparable time to a single step of backward searching, it will not be a bottleneck in finding maximal exact matches. Counting the number of distinct occurrences with a $\countq$ query is clearly faster than retrieving even a single occurrence.
 
 
 \section{Discussion}
 
 GCSA2 is a path index for variation graphs. It uses a de~Bruijn graph as a \kmer{k} index of the variation graph, prunes it by merging redundant subgraphs, and encodes the result with a generalization of the FM\nobreakdash-index. The index supports queries of length up to $k$ exactly and longer queries with false positives. GCSA2 also includes extensions based on suffix trees; other extensions have been considered but not implemented (see Appendix~\ref{appendix:hypertext}). The index is used in the variation graph toolkit vg for e.g.~read alignment based on maximal exact matches.
 
-We can build a whole-genome index overnight on a system with 96~gigabytes of memory and a few hundred gigabytes of fast disk space. The resulting index takes less than 16~gigabytes, or 1.12~bits per \kmer{k} for the \orderk{128} index with extensions. Queries are several times slower than in a similar implementation of the FM\nobreakdash-index for sequences.
+We can build a whole-genome index overnight on a system with 96~gigabytes of memory and a few hundred gigabytes of fast disk space. The resulting index takes less than 16~gigabytes, or 1.12~bits per \kmer{k} for the \orderk{128} index with extensions. Query performance is comparable to that of fast FM-indexes for sequences.
 
-The primary desing goals for GCSA2 were query performance and index size. The index works with arbitrary graphs, supports queries that are long enough to map short reads in one piece, and provides several options for dealing with complex regions. Other path indexes work with a more restricted class of graphs \cite{Siren2014,Huang2013,Kim2015-2016,Maciuca2016}, are at least an order of magnitude slower \cite{Huang2013,Maciuca2016}, require much more space \cite{Bowe2012,Pell2012,Cazaux2014,Marcus2014}, or are theoretical proposals that have never been implemented \cite{Thachuk2013}.
+The primary design goals for GCSA2 were query performance and index size. The index works with arbitrary graphs, supports queries that are long enough to map short reads in one piece without false positives, and provides several options for dealing with complex regions. Other path indexes work with a more restricted class of graphs \cite{Siren2014,Huang2013,Kim2015-2016,Maciuca2016}, are at least an order of magnitude slower \cite{Huang2013,Maciuca2016}, require much more space \cite{Bowe2012,Pell2012,Cazaux2014,Marcus2014}, or are theoretical proposals that have never been implemented \cite{Thachuk2013}.
 
-We may want to determine whether a pattern matches known \emph{haplotypes} or only their recombinations. As GCSA2 does not support this directly, vg checks it afterwards using a separate structure \cite{Novak2016}. The \emph{FM\nobreakdash-index of alignment} \cite{Na2015,Na2016} embeds the haplotypes directly in a GCSA-like index and reports the haplotypes matching the $\find$ query. While the solution depends on the specific properties of the graph, it could be possible to extend it to work with any GCSA.
+We may want to determine whether a pattern matches known \emph{haplotypes} or only their recombinations. As GCSA2 does not support this directly, vg must determine this afterwards using a separate structure \cite{Novak2016}. The \emph{FM\nobreakdash-index of alignment} \cite{Na2015,Na2016} embeds the haplotypes directly in a GCSA-like index and reports the haplotypes matching the $\find$ query. While the solution depends on the specific properties of the graph, it could be possible to extend it to work with any GCSA.
 
 % Maybe in the full version
 %The compressed suffix tree used in GCSA2 may also be useful as a text index, as it is both easy to implement and fast in practice. As long as the average LCP value is low, we can generalize the byte array encoding of the LCP array \cite{Abouelhoda2004} to implement it space-efficiently. We use an array of $m$\nobreakdash-bit integers for the LCP array and the $x$\nobreakdash-ary tree, mark the values that are too large for $m$~bits with the largest possible value, and store them separately.
@@ -513,6 +552,21 @@ Checking whether key $G''.\gkey(u'')$ prefix-matches string $c \cdot G''.\gkey(v
 \emph{Complex regions} of the variation graph must be pruned before indexing. While this happens before index construction begins, the construction algorithm has features that can make the pruning less destructive. Pruning heuristics often create regions that are completely missing from the index. The same mechanism that saves memory by having each chromosome in a separate file can be used to index \emph{overlapping subgraphs} without indexing any paths between them. By having the pruned graph in one file and the reference path in another file, we can guarantee that no region is completely missing from the index. We can also index \emph{selected paths} in complex regions by duplicating nodes for prefix-doubling and mapping the duplicates back to the original nodes during the merging step. If we index the paths corresponding to \emph{known haplotypes} in complex regions, we can guarantee that the index contains all observed variation.
 
 
+\section{Simplified GCSA Encoding}\label{appendix:encoding}
+
+Let $G' = (V', E')$ be a path graph with $G'.\gpred(v', c) \le 1$ for all nodes $v' \in V'$ and characters $c \in \Sigma$. This is true for de~Bruijn graphs, and also for maximally pruned de~Bruijn graphs (Lemmas~\ref{lemma:dbg-maximal} and \ref{lemma:pg-keys}). We can use the simplified encoding of the original GCSA \cite{Siren2014} for the GCSA of such path graphs.
+
+We replace sequences $\BWT$ and $\bvIN$ with \emph{indicator bitvectors} $B_{c}[0, \abs{V'}-1]$ for all $c \in \Sigma$. If node $v' \in V$ has a predecessor with label $c \in \Sigma$, we set $B_{c}[i] = 1$. Backward searching is simplified to:
+\begin{align*}
+sp_{out} & = C[X[i]] + B_{X[i]}.\rank(sp_{i+1}, 1); \\
+ep_{out} & = C[X[i]] + B_{X[i]}.\rank(ep_{i+1}+1, 1) - 1;\ \textrm{and} \\
+[sp_{i}, ep_{i}] & = [\bvOUT.\rank(sp_{out}, 1), \bvOUT.\rank(ep_{out}, 1)].
+\end{align*}
+We replace two expensive queries ($\bvIN.\select()$ and $\BWT.\rank()$) with a cheap $B_{c}.\rank()$.
+
+Computing $G'.\LF(i)$ can more expensive, as we have to look at $B_{c}[i]$ for all $c \in \Sigma$ to determine the character used in the backward step. However, if the alphabet is small, this is still faster than the $\select$ queries in the general encoding. We can further improve the time/space trade-off by compressing the bitvectors $B_{c}$ for rare characters (e.g.~$\baseN$, $\#$, and $\$$) and checking $B_{c}[i]$ first for the frequent characters (e.g.~bases) when computing $G'.\LF(i)$.
+
+
 \section{Suffix Tree of a Path Graph}\label{appendix:extensions}
 
 Let $G' = (V', E')$ be an \orderk{k} path graph, and let $v'_{0}, \dotsc, v'_{\abs{V'}-1}$ be its nodes in lexicographic order by their keys. We define the \emph{LCP array} $\LCP[0, \abs{V'}-1]$ of graph $G'$ as an array, where $\LCP[i]$ is the length of the longest common prefix of keys $G'.\gkey(v'_{i-1})$ and $G'.\gkey(v'_{i})$, with $\LCP[0] = 0$. The following extensions are based on the trie of keys $G'.\gkey(v')$ for all nodes $v' \in V'$, with unary paths compacted in the same way as in the suffix tree. The compacted trie can be considered the \emph{suffix tree} of graph $G'$.
@@ -535,17 +589,6 @@ $$
 G'.\countq(X) = G'.\countq([sp, ep]) = (ep+1-sp) + \sum A[sp, ep] - \sum R[sp, ep-1].
 $$
 The bitvectors are often highly compressible \cite{Gagie2015}, but GCSA already uses one of the compression schemes implicitly when it prunes the de~Bruijn graph.
-
-
-\section{Alternate GCSA Encoding}\label{appendix:encoding}
-
-Let $G' = (V', E')$ be a path graph with $G'.\gpred(v', c) \le 1$ for all nodes $v' \in V'$ and characters $c \in \Sigma$. This is true for de~Bruijn graphs, and also for maximally pruned de~Bruijn graphs (Lemmas~\ref{lemma:dbg-maximal} and \ref{lemma:pg-keys}). We can use the simplified encoding of the original GCSA \cite{Siren2014} for the GCSA of such path graphs.
-
-We replace sequences $\BWT$ and $\bvIN$ with \emph{indicator bitvectors} $B_{c}[0, \abs{V'}-1]$ for all $c \in \Sigma$. If node $v' \in V$ has a predecessor with label $c \in \Sigma$, we set $B_{c}[i] = 1$. Backward searching is now simpler: $[sp_{i}, ep_{i}] = [G'.\LF(sp_{i+1}, c), G'.\LF(ep_{i+1}+1, c) - 1]$, where
-$$
-G'.\LF(i, c) = \bvOUT.\rank(C[c] + B_{c}.\rank(i, 1), 1).
-$$
-We replace two expensive queries ($\bvIN.\select()$ and $\BWT.\rank()$) with a single $\rank$ query on a bitvector. On the other hand, computing $G'.\LF(i)$ is now more expensive, as we have to look at $B_{c}[i]$ for all $c \in \Sigma$ to determine $\BWT[i]$. The alternative is to follow outgoing edges when searching for samples; this requires two $\select$ queries per edge.
 
 
 \section{Using the Hypertext Index}\label{appendix:hypertext}
