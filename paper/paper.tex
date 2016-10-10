@@ -1,9 +1,9 @@
-\documentclass[a4paper,11pt]{llncs}
+\documentclass[twoside,leqno,twocolumn]{article}
+\usepackage{ltexpprt}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 
-\usepackage{fullpage}
 \setlength\tabcolsep{4pt}
 
 \usepackage{amsmath}
@@ -12,8 +12,6 @@
 \usepackage{textgreek}
 \usepackage{microtype}
 
-% hyperref does not work with LNCS
-%\usepackage{hyperref}
 \usepackage{url}
 
 
@@ -69,24 +67,22 @@
 \newcommand{\bvOUT}{\ensuremath{\mathsf{OUT}}}
 
 
-\title{Indexing Variation Graphs\thanks{This work was supported by the Wellcome Trust grant 098051.}}
+\title{Indexing Variation Graphs\thanks{Supported by the Wellcome Trust grant 098051.}}
 
-\author{Jouni Sirén}
-\institute{Wellcome Trust Sanger Institute, UK \\ \email{jouni.siren@iki.fi}}
+\author{Jouni Sirén\thanks{Wellcome Trust Sanger Institute, UK. \texttt{jouni.siren@iki.fi}.}}
+
+\date{}
 
 
 \begin{document}
 
-\thispagestyle{empty}
-\setcounter{page}{0}
 \maketitle
 
-\begin{abstract}
+\begin{abstract}\small\baselineskip=9pt
 Variation graphs, which represent genetic variation within a population, are replacing sequences as reference genomes. Path indexes are one of the most important tools for working with variation graphs. They generalize text indexes to graphs, allowing one to find the paths matching the query string. We propose using de Bruijn graphs as path indexes, compressing them by merging redundant subgraphs, and encoding them with the Burrows-Wheeler transform. The resulting fast, space-efficient, and versatile index is used in the variation graph toolkit vg.
 \end{abstract}
 
 
-\clearpage
 \section{Introduction}
 
 Sequence analysis pipelines typically start with mapping the reads from the sequenced genome to a \emph{reference genome} of the same species. As reference genomes are usually assembled from the genomes of a small number of individuals, they are biased towards those individuals. This \emph{reference bias} may affect the results of subsequent analysis, especially when the sequenced individuals are from different populations than the ones behind the reference genome.
@@ -134,7 +130,11 @@ Sometimes we consider \emph{infinite} character sequences $S = (s_{i})_{i \in Z}
 
 We are primarily interested in sequences over the \emph{DNA} alphabet $\set{\$, \baseA, \baseC, \baseG, \baseT, \baseN}$. Characters $\baseA$, $\baseC$, $\baseG$, and $\baseT$ are called \emph{bases}, while character $\baseN$ represents an arbitrary or unknown base. The alphabet may contain other technical characters in addition to the enmarker $\$$. Each character $c$ of the DNA alphabet has a \emph{complement} $\dnacomp{c}$ defined as $\dnacomp{\baseA} = \baseT$, $\dnacomp{\baseC} = \baseG$, $\dnacomp{\baseG} = \baseC$, $\dnacomp{\baseT} = \baseA$, and $\dnacomp{c} = c$ for other characters $c$. Given a DNA sequence $S$, its \emph{reverse complement} is the sequence $\revcomp{S}$ obtained by reversing the non-technical parts of the sequence and replacing each character with its complement. For example, $\revcomp{\mathtt{GATTACA}\$} = \mathtt{TGTAATC}\$$.
 
-Given string $S[0, n-1]$, we define $S.\rank(i, c)$ as the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define $S.\select(i, c) = \arg \max_{j \le n} S.\rank(j, c) < i$ as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions are used in the SDSL library \cite{Gog2014b}. We assume for convenience that $S.\select(0, c) = -1$.} A \emph{bitvector} is a binary sequence supporting efficient $\rank$/$\select$ queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support $\rank$/$\select$ queries on arbitrary strings.
+Given string $S[0, n-1]$, we define $S.\rank(i, c)$ as the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define
+$$
+S.\select(i, c) = \max \set{ j \le n \mid S.\rank(j, c) < i }
+$$
+as the position of the occurrence of character $c$ with rank $i > 0$.\footnote{These definitions are used in the SDSL library \cite{Gog2014b}. We assume for convenience that $S.\select(0, c) = -1$.} A \emph{bitvector} is a binary sequence supporting efficient $\rank$/$\select$ queries. \emph{Wavelet trees} \cite{Grossi2003} are space-efficient data structures that use bitvectors to support $\rank$/$\select$ queries on arbitrary strings.
 
 Let $S$ be a string and $S'$ be a string or an infinite character sequence over alphabet $\Sigma$. We say that sequences $S$ and $S'$ \emph{prefix-match}, if $S$ is a prefix of $S'$ or $S'$ is a prefix of $S$. Set $\mathcal{S}$ of strings is \emph{prefix-free}, if no two strings $S, S' \in \mathcal{S}$ (with $S \ne S'$) prefix-match.
 
@@ -144,21 +144,21 @@ The \emph{suffix tree} \cite{Weiner1973} is the most fundamental full-text index
 
 \emph{Suffix arrays} (SA) \cite{Manber1993} were introduced as a space-efficient alternative to the suffix tree. The suffix array of text $T[0, n-1]$ is an array of pointers $\SA[0, n-1]$ to the suffixes of the text in \emph{lexicographic order}. We find the occurrences of \emph{pattern} string $X$ in the text in $\Oh{\abs{X} \log n}$ time by using \emph{binary search} in the suffix array. The suffix array requires $n \log n$ bits of space in addition to the $n \log \sigma$ bits used by the text, while its functionality is more limited than that of the suffix tree. See Figure~\ref{figure:indexes} for an example of the suffix array and related structures.
 
-\begin{figure}[t!]
+\begin{figure*}[t!]
 \centering
 \includegraphics{gcsa2_text_indexes.pdf}
 \caption{\protect\LFmapping, BWT, suffix array, and LCP array for text $\mathtt{GCATCATA}\$$.}\label{figure:indexes}
-\end{figure}
+\end{figure*}
 
 The \emph{Burrows-Wheeler transform (BWT)} \cite{Burrows1994} of text $T[0, n-1]$ is a permutation $\BWT[0, n-1]$ such that $\BWT[i] = T[(\SA[i]-1) \bmod n]$. Given the \emph{lexicographic rank} $i$ of suffix $T[\SA[i], n-1]$, we can use \emph{\LFmapping} on the BWT to find the lexicographic rank of the previous suffix $T[(\SA[i]-1) \bmod n, n-1]$. Let
 $$
 \LF(i) = \Carray[\BWT[i]] + \BWT.\rank(i, \BWT[i]),
 $$
-where $\Carray[c]$ is the number of occurrences of characters $c' < c$ in the BWT. Then $\SA[\LF(i)] = (\SA[i]-1) \bmod n$. We can also generalize the definition to any character $c \in \Sigma$:
+where $\Carray[c]$ is the number of occurrences of characters $c' < c$ in the BWT. Then $\SA[\LF(i)] = (\SA[i]-1) \bmod n$. We generalize the definition to any character $c \in \Sigma$:
 $$
 \LF(i, c) = \Carray[c] + \BWT.\rank(i, c).
 $$
-Let $X$ be a string. If there are $i$ suffixes $S'$ of text $T$ such that $S' < X$ in lexicographic order, then there are $\LF(i, c)$ suffixes smaller than string $cX$ in lexicographic order.
+Let $X$ be a string. If there are $i$ suffixes $S'$ of text $T$ such that $S' < X$ in lexicographic order, then there are $\LF(i, c)$ suffixes $S'$ such that $S' < cX$.
 
 We can use the BWT as a space-efficient text index. The \emph{\FMindex} \cite{Ferragina2005a} combines a representation of the BWT supporting $\rank$/$\select$ queries, the $\Carray$ array, and a set of \emph{sampled pointers} from the suffix array. It finds the \emph{lexicographic range} of suffixes matching pattern $X$ (having $X$ as a prefix) with a process called \emph{backward searching}. If the lexicographic range matching suffix $X[i+1, \abs{X}-1]$ of the pattern is $\SA[sp, ep]$, the range matching suffix $X[i, \abs{X}-1]$ is $\SA[\LF(sp, X[i]), \LF(ep+1, X[i]) - 1]$. Matching the entire pattern takes $\Oh{\abs{X}}$ $\rank$ queries.
 
@@ -176,7 +176,7 @@ A \emph{graph} $G = (V, E)$ consists of a set of \emph{nodes} $V = \set{0, \dots
 
 The graphs we use are \emph{labeled} with alphabet $\Sigma$: each node $v \in V$ has a \emph{label} $G.\glabel(v) \in \Sigma$. A \emph{path} in a graph is a sequence of nodes $P = v_{0} \dotsm v_{\abs{P}-1}$ such that $(v_{i}, v_{i+1}) \in E$ for $0 \le i < \abs{P}-1$. We say that $v_{0}$ is the \emph{start} node and $v_{\abs{P}-1}$ is the \emph{end} node of the path. The label of a path is the concatenation of node labels $G.\glabel(P) = G.\glabel(v_{0}) \dotsm G.\glabel(v_{\abs{P}-1})$.
 
-If the graph has nodes with indegree or outdegree $0$, we add a \emph{source} node $s$ and a \emph{sink} node $t$ to it. To distinguish these technical nodes from the actual nodes, we label them with characters $G.\glabel(s) = \#$ and $G.\glabel(t) = \$$, which are not used anywhere else in the graph. We add an edge $(s, v)$ to all nodes $v \in V \setminus \set{s}$ that have no other incoming edges, and an edge $(v, t)$ from all nodes $v \in V \setminus \set{t}$ with no other outgoing edges. We also add edge $(t, s)$ to guarantee that $G.\gindegree(v) \ge 1$ and $G.\goutdegree(v) \ge 1$ for all nodes $v \in V$. However, this edge is not considered a real edge, and no path can cross it.
+If the graph has nodes with indegree or outdegree $0$, we add a \emph{source} node $s$ and a \emph{sink} node $t$ to it. To distinguish these technical nodes from the actual nodes, we label them with characters $G.\glabel(s) = \#$ and $G.\glabel(t) = \$$, which are not used anywhere else in the graph. We add an edge $(s, v)$ to all nodes $v \in V \setminus \set{s}$ with no incoming edges, and an edge $(v, t)$ from all nodes $v \in V \setminus \set{t}$ with no outgoing edges. We also add edge $(t, s)$ to guarantee that $G.\gindegree(v) \ge 1$ and $G.\goutdegree(v) \ge 1$ for all nodes $v \in V$. However, this edge is not considered a real edge, and no path can cross it.
 
 We generalize the definition to infinite paths $P = (v_{i})_{i \in Z}$ in a similar way as we did with infinite character sequences in Section~\ref{sect:strings}. We say that path $P$ is \emph{left-maximal} if it starts at the source node or extends infinitely to the left; \emph{right-maximal} if it ends at the sink node or extends infinitely to the right; and \emph{maximal} if it is both left-maximal and right-maximal.
 
@@ -184,22 +184,22 @@ Given a graph $G = (V, E)$, we may want to reason about the \emph{predecessors} 
 
 We work with de~Bruijn graphs and their generalizations. For that purpose, we define collections of (finite or infinite) sequences suitable for constructing \orderk{k} de~Bruijn graphs.
 
-\begin{definition}[\kcollection{k}]
+\begin{Definition}[\kcollection{k}]
 Let $\mathcal{S}$ be a collection of character sequences over alphabet $\Sigma$, and let $k > 0$ be a parameter value. We say that $\mathcal{S}$ is a \emph{\kcollection{k}}, if each sequence $S \in \mathcal{S}$
 (a) is left-infinite or begins with $\#^{k}$;
 (b) is right-infinite or ends with $\$^{k}$; and
 (c) contains no other occurrences of characters $\#$ and $\$$.
-\end{definition}
+\end{Definition}
 
-\begin{definition}[de~Bruijn graph]
-Let $\mathcal{S}$ be a \kcollection{k} over alphabet $\Sigma$. The \orderk{k} \emph{de~Bruijn graph} of $\mathcal{S}$ is a graph $G = (V, E)$ such that
+\begin{Definition}[de~Bruijn graph]
+Let $k > 0$, and let $\mathcal{S}$ be a \kcollection{k}. The \orderk{k} \emph{de~Bruijn graph} of $\mathcal{S}$ is a graph $G = (V, E)$ such that
 \begin{itemize}
 \item each node $v_{X} \in V$ represents a distinct \kmer{k} $X$ occurring in $\mathcal{S}$, with $G.\glabel(v_{X}) = X[0]$;
 \item each node $v_{X} \in V$ has a \emph{key} $G.\gkey(v_{X}) = X$; and
 \item each edge $(v_{X}, v_{Y}) \in E$ represents a \kmer{k+1} $X[0]Y = XY[k-1]$ occurring in $\mathcal{S}$.
 \end{itemize}
 We use $\#^{k}$ as the source node $s$ and $\$^{k}$ as the sink node $t$, adding the edge $(t, s)$ in the usual way.
-\end{definition}
+\end{Definition}
 
 De~Bruijn graphs have several properties that make them useful for indexing purposes. Node keys prefix-match the labels of all paths starting from the node. This makes it possible to sort the nodes unambiguously by path labels. Every substring of the \kcollection{k} is the label of a path in the de~Bruijn graph, and every path label of length at most $k+1$ is a substring of the collection. In Section~\ref{sect:path-indexes}, we develop an index structure based on a generalization of de~Bruijn graphs.
 
@@ -218,20 +218,24 @@ The proofs of the lemmas in this section can be found in Appendix~\ref{appendix:
 
 \subsection{De Bruijn Graphs as Path Indexes}
 
-The \emph{\kmer{k} index} is the simplest path index. It consists of a set of \emph{key-value pairs} $(X, V_{X})$, where $X \in \Sigma^{k}$ is a \kmer{k} and $V_{X} \subseteq V$ is the set of start nodes of the paths matching the \kmer{k}. If we store the pairs in a hash table, we can quickly search for patterns of length $k$. If we store the pairs as a sorted list, queries become slower, as they require binary search. On the other hand, we gain the ability to search for patterns shorter than $k$ characters. The main drawback of these basic \kmer{k} indexes is their size, as they store the key-value pairs explicitly.
+The \emph{\kmer{k} index} is the simplest path index. It consists of a set of \emph{key-value pairs} $(X, V_{X})$, where $X \in \Sigma^{k}$ is a \kmer{k} and $V_{X} \subseteq V$ is the set of start nodes of the paths matching the \kmer{k}. If we store the pairs in a hash table, we can quickly search for patterns of length $k$. If we store the pairs as a sorted list, queries become slower, as they require binary search. On the other hand, we can also search for patterns shorter than $k$ characters. The main drawback of these basic \kmer{k} indexes is their size, as they store the key-value pairs explicitly.
 
 We can represent \kmer{k} indexes as de~Bruijn graphs. For that purpose, we define the de~Bruijn graph of graph $G = (V, E)$ by using the collection $\mathcal{S}$ of the labels of the maximal paths in the graph. If sequence $S \in \mathcal{S}$ is the label of path $P = (v_{i})_{i \in Z}$ in the graph, we set $\mathcal{S}.\gnode(S, i) = v_{i}$ for all positions $i \in Z$. We transform $\mathcal{S}$ into a \kcollection{k} by inserting characters $\#$ to the beginning of each non-left-infinite sequence when necessary, and characters $\$$ to the end of each non-right-infinite sequence. If $S[i]$ is a $\#$ we inserted, we set $\mathcal{S}.\gnode(S, i) = s:j$, where $s \in V$ is the source node and $j$ is the distance to the nearest non-inserted $\#$ in $S$.
 
-\begin{definition}[De~Bruijn graph of a graph]\label{def:dbg}
+\begin{Definition}[de~Bruijn graph of a graph]\label{def:dbg} ~\\
 Let $G$ be a labeled graph, and let $\mathcal{S}$ be the \kcollection{k} of maximal path labels in $G$. The \orderk{k} de~Bruijn graph of $\mathcal{S}$ is the \orderk{k} de~Bruijn graph of graph $G$.
-\end{definition}
+\end{Definition}
 
-Let $G' = (V', E')$ be a de~Bruijn graph of graph $G = (V, E)$, and let $\mathcal{S}$ be the \kcollection{k} used to define it. We attach a set of nodes of graph $G$ to each node $v' \in V'$ as a \emph{value}: $G'.\gvalue(v) = \set{ \mathcal{S}.\gnode(S, i) \mid S \in \mathcal{S}, S[i, i+k-1] = G'.\gkey(v)}.$ Apart from some technicalities near the source/sink nodes, set $G'.\gvalue(v)$ is the set of start nodes of the paths $P$ matching pattern $G'.\gkey(v)$ in graph $G$. The index produces no \emph{false negatives} (path labels that exist in the input graph but not in the index), regardless of pattern length. There may be \emph{false positives} (path labels that exist in the index but not in the input graph) with patterns longer than $k$, but we can avoid them by \emph{verifying} the results in the input graph. See Figure~\ref{figure:graph-dbg} for an example.
+Let $G' = (V', E')$ be a de~Bruijn graph of graph $G = (V, E)$, and let $\mathcal{S}$ be the \kcollection{k} used to define it. We attach a set of nodes of graph $G$ to each node $v' \in V'$ as a \emph{value} $G'.\gvalue(v)$ defined as the set
+$$
+\set{ \mathcal{S}.\gnode(S, i) \mid S \in \mathcal{S}, S[i, i+k-1] = G'.\gkey(v)}.
+$$
+Apart from some technicalities near the source/sink nodes, $G'.\gvalue(v)$ is the set of start nodes of the paths matching pattern $G'.\gkey(v)$ in graph $G$. The index produces no \emph{false negatives} (path labels that exist in the input graph but not in the index). There may be \emph{false positives} (path labels that exist in the index but not in the input graph) with patterns longer than $k$, but we can avoid them by \emph{verifying} the results in the input graph. See Figure~\ref{figure:graph-dbg} for an example.
 
-\begin{figure}[t!]
+\begin{figure*}[t!]
 \includegraphics[width=\textwidth]{gcsa2_graph_dbg.pdf}
 \caption{Left: Input graph $G = (V, E)$, with each node $v \in V$ labeled with $v:G.\glabel(v)$. Right: The \protect\orderk{3} de~Bruijn graph $G' = (V', E')$ of graph $G$, with each node $v' \in V'$ labeled with $G'.\gkey(v')$ and $G'.\gvalue(v')$. Both: Edges $(t, s)$ are not shown. The highlighted path in the de~Bruijn graph is a false positive, as it consists of two disjoint paths in the input graph.}\label{figure:graph-dbg}
-\end{figure}
+\end{figure*}
 
 We can encode the de~Bruijn graph as a GCSA using $(\log \sigma + 2)(1 + \oh{1})$ bits per \kmer{k}. By using a similar sampling scheme for the values as in the FM-index, we get a \kmer{k} index that uses typically a couple of bytes per \kmer{k} (see the \orderk{32} index in Section~\ref{sect:experiments}). While this is much less than with the basic \kmer{k} indexes, it is still too much for large variation graphs.
 
@@ -239,26 +243,26 @@ We can encode the de~Bruijn graph as a GCSA using $(\log \sigma + 2)(1 + \oh{1})
 
 When a path of length $k' < k$ has a unique label, its extensions become \emph{redundant} nodes in an \orderk{k} de~Bruijn graph, if the path branches after the first $k'$ characters. By using shorter keys when possible, we can build a smaller graph equivalent to the de~Bruijn graph as a path index.
 
-\begin{definition}[Path graph]
-Let $\mathcal{S}$ be the \kcollection{k} of the labels of the maximal paths in graph $G = (V, E)$, and let $\mathcal{K}$ be a prefix-free set of substrings of length $k$ or less from $\mathcal{S}$. Assume that each right-maximal substring $S \in \mathcal{S}$ prefix-matches a string $K \in \mathcal{K}$ and that $\$^{k} \in \mathcal{S}$. The \orderk{k} \emph{path graph} of graph $G$ with \emph{key set} $\mathcal{K}$ is a graph $G' = (V', E')$, where
+\begin{Definition}[Path graph]
+Let $k > 0$, let $\mathcal{S}$ be the \kcollection{k} of the labels of the maximal paths in graph $G = (V, E)$, and let $\mathcal{K}$ be a prefix-free set of substrings of length $k$ or less from $\mathcal{S}$. Assume that each right-maximal substring $S \in \mathcal{S}$ prefix-matches a string $K \in \mathcal{K}$ and that $\$^{k} \in \mathcal{S}$. The \orderk{k} \emph{path graph} of graph $G$ with \emph{key set} $\mathcal{K}$ is a graph $G' = (V', E')$, where
 \begin{itemize}
 \item each node $v_{K} \in V'$ represent a distinct key $K \in \mathcal{K}$, with $G'.\glabel(v_{K}) = K[0]$;
 \item each node has a key $G'.\gkey(v_{K}) = K$ and a value $G'.\gvalue(v_{K}) = V_{K}$, where $V_{K}$ is the set of nodes $\mathcal{S}.\gnode(S, i) \in V$ for $S \in \mathcal{S}$ and positions $i$ such that $S[i, i+\abs{K}-1] = K$; and
 \item each edge $(v_{K}, v_{K'}) \in E'$ represents the occurrence of substring $K[0] K'$ in $\mathcal{S}$ such that strings $K$ and $K[0] K'$ prefix-match.
 \end{itemize}
 We use $\#^{k}$ as the source node $s$ and $\$^{k}$ as the sink node $t$, adding the edge $(t, s)$ in the usual way.
-\end{definition}
+\end{Definition}
 
-\begin{definition}[Path graph as an index]
+\begin{Definition}[Path graph as an index] ~\\
 Let $G = (V, E)$ be a graph, and let $G' = (V', E')$ be a path graph of $G$.
 \begin{itemize}
 \item Pattern $X \in \Sigma^{\ast}$ \emph{matches} node $v \in V'$, if there is a path $P'$ in $G'$ with $G'.\glabel(P') = X$. We use $G'.\find(X)$ to denote the set of nodes $V'_{X} \subseteq V'$ matching the pattern.
 \item If $V'_{X} \subseteq V'$ is the set of nodes matching pattern $X$, the set of \emph{occurrences} for the pattern is $G'.\locate(V'_{X}) = \bigcup_{v' \in V'_{X}} G'.\gvalue(v')$. We use $G'.\locate(X)$ to denote $G'.\locate(G'.\find(X))$.
 \end{itemize}
-\end{definition}
+\end{Definition}
 
 \begin{lemma}[No false negatives]\label{lemma:pg-fn}
-Let $G' = (V', E')$ be a path graph of graph $G = (V, E)$, and let $X \in \patternset$ be a pattern string. Set $G'.\locate(X)$ contains the start nodes of all paths $P$ in graph $G$ with $G.\glabel(P) = X$.
+Let $G' = (V', E')$ be a path graph of $G = (V, E)$, and let $X \in \patternset$ be a pattern. Set $G'.\locate(X)$ contains the start nodes of all paths $P$ in graph $G$ with $G.\glabel(P) = X$.
 \end{lemma}
 
 \begin{lemma}[Context length]\label{lemma:pg-context}
@@ -277,36 +281,36 @@ A path graph may produce false positives with patterns longer than $k'$ characte
 
 We can prune de~Bruijn graphs by merging keys sharing a common prefix, if the values are identical. These pruned de~Bruijn graphs, which arise naturally from GCSA construction, are similar to manifold de Bruijn graphs \cite{Lin2014}. As path indexes, they are equivalent to de~Bruijn graphs with patterns of length up to $k$ characters.
 
-\begin{definition}[Equivalent path graphs]
+\begin{Definition}[Equivalent path graphs]
 Let $G'$ and $G''$ be two path graphs, and let $k > 0$ be a parameter value. We say that graphs $G'$ and $G''$ are \emph{\kequivalent{k}}, if we have $G'.\locate(X) = G''.\locate(X)$ for all patterns $X \in \patternset$ with $1 \le \abs{X} \le k$.
-\end{definition}
+\end{Definition}
 
-\begin{definition}[Pruned de~Bruijn graph]
+\begin{Definition}[Pruned de~Bruijn graph]
 Let $G$ be a graph, and let $G'$ be an \orderk{k} path graph of $G$. Path graph $G'$ is an \orderk{k} \emph{pruned de~Bruijn graph}, if it is \kequivalent{k} to the \orderk{k} de~Bruijn graph of $G$.
-\end{definition}
+\end{Definition}
 
-\begin{lemma}[No short false positives]\label{lemma:dbg-fp}
-Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph of $G$, and let $X \in \patternset$ be a pattern with $1 \le \abs{X} \le k$. Then $G'.\locate(X)$ is a set of start nodes $v\in V$ of paths $P$ matching the pattern in graph $G$.
+\begin{lemma}[No short false positives]\label{lemma:dbg-fp} ~\\
+Let $G = (V, E)$ be a graph, let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph of graph $G$, and let $X \in \patternset$ be a pattern with $1 \le \abs{X} \le k$. Then $G'.\locate(X)$ is a set of start nodes $v\in V$ of paths matching the pattern in graph $G$.
 \end{lemma}
 
 \begin{lemma}[Pruning]\label{lemma:dbg-prune}
-Let $G = (V, G)$ be a graph, let $G' = (V', E')$ be the \orderk{k} pruned de~Bruijn graph of $G$ with key set $\mathcal{K}$, let $K \in \Sigma^{\ast}$ be a string of length $\abs{K} > 0$, and let $V'_{K}$ be the set of nodes $v' \in V'$ having string $K$ as a proper prefix of $G'.\gkey(v')$.
+Let $G = (V, E)$ be a graph, let $G' = (V', E')$ be the \orderk{k} pruned de~Bruijn graph of $G$ with key set $\mathcal{K}$, let $K \in \Sigma^{\ast}$ be a string of length $\abs{K} > 0$, and let $V'_{K}$ be the set of nodes $v' \in V'$ having string $K$ as a proper prefix of $G'.\gkey(v')$.
 If $\abs{V'_{K}} > 0$ and $G'.\gvalue(u') = G'.\gvalue(v')$ for all $u', v' \in V'_{K}$, the path graph with key set $(\mathcal{K} \setminus V'_{K}) \cup \set{K}$ is an \orderk{k} pruned de~Bruijn graph of $G$.
 \end{lemma}
 
 We can compress a de~Bruijn graph structurally by repeatedly merging sets of nodes sharing a common prefix of their keys, as long as the conditions of Lemma~\ref{lemma:dbg-prune} hold. Let $G' = (V', E')$ be an \orderk{k} pruned de~Bruijn graph, and let $G'' = (V'', E'')$ be the same graph after further pruning. Each node $v'' \in V''$ is an \emph{equivalence class} of nodes $V'(v'') \subseteq V'$ corresponding to a shared prefix $G''.\gkey(v'')$ of keys. For all $v' \in V'(v'')$, we have $G'.\gvalue(v') = G''.\gvalue(v'')$. See Figure~\ref{figure:pruned-index} for an example of a pruned de~Bruijn graph.
 
-\begin{figure}[t!]
+\begin{figure*}[t!]
 \includegraphics[width=\textwidth]{gcsa2_pruned_index.pdf}
 \caption{Left: An \protect\orderk{3} pruned de~Bruijn graph $G''$ \protect\kequivalent{3} to the de~Bruijn graph in Figure~\ref{figure:graph-dbg}. Right: GCSA for graph $G''$. Leftward arrows illustrate backward searching, with the red arrows showing it from $\mathtt{T}$ to $\mathtt{AT}$. Rightward arrows mark the samples belonging to each node, with the blue ones showing them for node $\mathtt{CAT}$.}\label{figure:pruned-index}
-\end{figure}
+\end{figure*}
 
-\begin{definition}[Maximally pruned de~Bruijn graph]
+\begin{Definition}[Maximally pruned graph] ~\\
 Let $G'$ be a a pruned de~Bruijn graph of graph $G$ with key set $\mathcal{K}$. We say that $G'$ is \emph{maximally pruned}, if we cannot prune it any further using Lemma~\ref{lemma:dbg-prune}.
-\end{definition}
+\end{Definition}
 
 \begin{lemma}[Maximal pruning]\label{lemma:dbg-maximal}
-Let $G' = (V', E')$ be a maximally pruned de~Bruijn graph of graph $G = (V, E)$. Then $\abs{G'.\gkey(u')} \le \abs{G'.\gkey(v')}+1$ for all edges $(u', v') \in E'$.
+Let $G' = (V', E')$ be a maximally pruned de~Bruijn graph of $G = (V, E)$. Then $\abs{G'.\gkey(u')} \le \abs{G'.\gkey(v')}+1$ for all $(u', v') \in E'$.
 \end{lemma}
 
 
@@ -314,18 +318,21 @@ Let $G' = (V', E')$ be a maximally pruned de~Bruijn graph of graph $G = (V, E)$.
 
 As in the original GCSA, we sort the nodes of the path graph in lexicographic order, encode the indegrees and outdegrees in bitvectors $\bvIN$ and $\bvOUT$, and store the predecessor labels in $\BWT$. See Figure~\ref{figure:pruned-index} for an example. If lexicographic range $[sp_{i+1}, ep_{i+1}]$ matches suffix $X[i+1, \abs{X}-1]$ of pattern $X$, we can find the range $[sp_{i}, ep_{i}]$ matching suffix $X[i, \abs{X}-1]$ as
 \begin{align*}
-[sp_{in}, ep_{in}] & = [\bvIN.\select(sp_{i+1}, 1) + 1, \bvIN.\select(ep_{i+1}+1, 1)]; \\
-[sp_{out}, ep_{out}] & = [\LF(sp_{in}, X[i]), \LF(ep_{in}+1, X[i]) - 1];\ \textrm{and} \\
-[sp_{i}, ep_{i}] & = [\bvOUT.\rank(sp_{out}, 1), \bvOUT.\rank(ep_{out}, 1)].
+[sp_{in}, ep_{in}] = [&\bvIN.\select(sp_{i+1}, 1) + 1, \\
+ & \bvIN.\select(ep_{i+1}+1, 1)]; \\
+[sp_{out}, ep_{out}] = [&\LF(sp_{in}, X[i]), \\
+ & \LF(ep_{in}+1, X[i]) - 1]; \\
+[sp_{i}, ep_{i}] = [&\bvOUT.\rank(sp_{out}, 1), \\
+ & \bvOUT.\rank(ep_{out}, 1)].
 \end{align*}
 In order to support $\locate$ queries, we \emph{sample} the values of a node, if the node has multiple incoming edges or the values cannot be derived from the predecessor. We may also sample other values to improve query performance. The sampled nodes are marked in bitvector $B_{S}$, the number of values in each sample is encoded in unary in bitvector $B_{V}$, and the sampled values are stored in integer array $V_{S}$. A detailed description of the data structure can be found in Appendix~\ref{appendix:gcsa2}.
 
 GCSA2 construction starts from paths of length $k$ in the input graph. We build a maximally pruned \orderk{2k}, \orderk{4k}, or \orderk{8k} de~Bruijn graph using a similar \emph{prefix-doubling} algorithm as in the original GCSA \cite{Siren2014}, and encode the result as a GCSA. To avoid excessive memory usage, we keep the paths and the graphs on disk, and read only a single chromosome at a time into memory. The details of the construction algorithm can be found in Appendix~\ref{appendix:construction}.
 
-We can improve the query performance with (maximally pruned) de~Bruijn graphs by using a \emph{simplified encoding} (see Appendix~\ref{appendix:encoding}). We replace $\BWT$ and bitvector $\bvIN$ with bitvectors $B_{c}$ for all $c \in \Sigma$ such that $B_{c}[j] = 1$ if and only if node $j$ in lexicographic order has a predecessor with label $c$. This simplifies backward searching to
+We can improve the query performance with (maximally pruned) de~Bruijn graphs by using a \emph{simplified encoding} (Appendix~\ref{appendix:encoding}). We replace $\BWT$ and $\bvIN$ with bitvectors $B_{c}$ for all $c \in \Sigma$, such that $B_{c}[j] = 1$ if and only if node $j$ in lexicographic order has a predecessor with label $c$. This simplifies backward searching to
 \begin{align*}
 sp_{out} & = C[X[i]] + B_{X[i]}.\rank(sp_{i+1}, 1); \\
-ep_{out} & = C[X[i]] + B_{X[i]}.\rank(ep_{i+1}+1, 1) - 1;\ \textrm{and} \\
+ep_{out} & = C[X[i]] + B_{X[i]}.\rank(ep_{i+1}+1, 1) - 1; \\
 [sp_{i}, ep_{i}] & = [\bvOUT.\rank(sp_{out}, 1), \bvOUT.\rank(ep_{out}, 1)].
 \end{align*}
 
@@ -334,47 +341,47 @@ The compacted trie of keys resembles a suffix tree. We can simulate it space-eff
 
 \section{Implementation and Experiments}\label{sect:experiments}
 
-GCSA2 is the path indexing library of vg \cite{Garrison2014-2016}. The implementation is written in C++, and the source code is available on GitHub (\url{https://github.com/jltsiren/gcsa2}). It depends on \emph{SDSL} \cite{Gog2014b} and \emph{libstdc++ parallel mode}. We use the simplified encoding (Appendix~\ref{appendix:encoding}) with fast non-compressed bitvectors in most index components. Bitvectors $B_{c}$ for rare characters ($\baseN$, $\#$, and $\$$) are compressed as sparse bitvectors \cite{Okanohara2007}.
+GCSA2 is the path indexing library of vg \cite{Garrison2014-2016}. The implementation is written in C++, and the source code is available on GitHub.\footnote{\url{https://github.com/jltsiren/gcsa2}} It depends on \emph{SDSL} \cite{Gog2014b} and \emph{libstdc++ parallel mode}. We use the simplified encoding (Appendix~\ref{appendix:encoding}) with fast non-compressed bitvectors in most index components. Bitvectors $B_{c}$ for rare characters ($\baseN$, $\#$, and $\$$) are compressed as sparse bitvectors \cite{Okanohara2007}.
 
 We used a system with two 16\nobreakdash-core AMD Opteron 6378 processors and 256~gigabytes of memory for the experiments, and stored all files on a distributed Lustre file system. The system was running Ubuntu~12.04 on Linux kernel~3.2.0. We used vg version~1.3.0 for processing the graphs and GCSA2 version~0.8 using SDSL version~2.1.1 for the benchmarks. All code was compiled with gcc/g++ version~4.9.2.
 
 \subsection{Construction}
 
-The vg \emph{variation graphs} use strings as node labels. A node can be traversed in both forward and reverse complement orientations, and edges may cross between the orientations. For indexing, the graph is implicitly converted into an input graph with single-character labels. We always sample the input graph nodes corresponding to the initial offsets of variation graph node labels.
+\emph{Variation graphs}, as defined in vg, use strings as node labels. A node can be traversed in both forward and reverse complement orientations, and edges may cross between the orientations. For indexing, the graph is implicitly converted into an input graph with single-character labels. We always sample the input graph nodes corresponding to the initial offsets of variation graph node labels.
 
 We built vg graphs from the human reference genome (GRCh37) and 1000~Genomes Project variation \cite{1000GP2015}. To avoid excessive growth, we removed paths where \kmer{16}s crossed more than $4$ nontrivial edges with \texttt{vg mod -p -l -e 4}, and subgraphs shorter than $100$ bases with \texttt{vg mod -S -l 100}. We extracted all paths of length $16$ from the forward strands of the graphs. There were a total of 4.80~billion paths with 1.53~billion distinct labels. We then built GCSA with 1\nobreakdash--3 doubling steps, producing \orderk{32}, \orderk{64}, and \orderk{128} indexes.
 
 Tables~\ref{table:construction} and \ref{table:indexes} show construction requirements and index sizes, respectively. We can build a whole-genome index overnight using less than 96~gigabytes of memory, including disk cache. The index contains $1.031^{k} \cdot 2.348$~billion \kmer{k}s, but the path graph only uses 4.4\nobreakdash--5.8~billion nodes to represent them. For $k = 128$, GCSA2 requires 0.68~bits per \kmer{k}, out of which 0.32~bits is used for the path graph. Extensions based on suffix trees increase the size to 1.12~bits per \kmer{k}.
 
-\begin{table}[t!]
+\begin{table}
 \begin{center}
-\caption{GCSA2 construction. Order of the path graph; construction time in hours; peak memory and disk usage in gigabytes; and disk I/O volume for reading and writing in terabytes.}\label{table:construction}
 \begin{tabular}{c|ccc|cc}
 \hline
-\textbf{Order} & \textbf{Time} & \textbf{Memory} & \textbf{Disk} & \textbf{Read} & \textbf{Write} \\
+$k$ & \textbf{Time} & \textbf{Memory} & \textbf{Disk} & \textbf{Read} & \textbf{Write} \\
 \hline
  32 & 8.62 h & 63.1 GB & 387 GB & 1.37 TB & 0.88 TB \\
  64 & 12.1 h & 55.9 GB & 415 GB & 2.03 TB & 1.51 TB \\
 128 & 16.1 h & 56.6 GB & 478 GB & 2.78 TB & 2.25 TB \\
 \hline
 \end{tabular}
+\caption{GCSA2 construction. Order of the path graph; construction time in hours; peak memory and disk usage in gigabytes; and disk I/O volume for reading and writing in terabytes.}\label{table:construction}
 \end{center}
 \end{table}
 
-\begin{table}[t!]
+\begin{table*}[t]
 \begin{center}
-\caption{GCSA2 index sizes. Order $k$ of the path graph; number of \kmer{k}s and nodes in the path graph in billions; index size in gigabytes and in bits per \kmer{k} for the graph ($\BWT$, $\bvIN$, and $\bvOUT$), the index (the graph, $B_{S}$, $B_{V}$, and $V_{S}$), and the index with the extensions from Appendix~\ref{appendix:extensions}.}\label{table:indexes}
 \begin{tabular}{c|cc|c|c|c}
 \hline
-\textbf{Order} & \textbf{\kmer{k}s} & \textbf{Nodes} & \textbf{Graph} & \textbf{Index} & \textbf{With extensions} \\
+$k$ & \textbf{\kmer{k}s} & \textbf{Nodes} & \textbf{Graph} & \textbf{Index} & \textbf{With extensions} \\
 \hline
  32 & 6.20G & 4.37G & 3.28 GB / 4.55 bits & 9.97 GB / 13.8 bits & 13.6 GB / 18.9 bits \\
  64 & 16.7G & 5.24G & 3.93 GB / 2.03 bits & 9.19 GB / 4.74 bits & 14.1 GB / 7.27 bits \\
 128 &  116G & 5.73G & 4.29 GB / 0.32 bits & 9.17 GB / 0.68 bits & 15.2 GB / 1.12 bits \\
 \hline
 \end{tabular}
+\caption{GCSA2 index sizes. Order of the path graph; number of \kmer{k}s and nodes in the path graph in billions; index size in gigabytes and in bits per \kmer{k} for the graph ($B_{c}$ and $\bvOUT$), the index (the graph, $B_{S}$, $B_{V}$, and $V_{S}$), and the index with the extensions from Appendix~\ref{appendix:extensions}.}\label{table:indexes}
 \end{center}
-\end{table}
+\end{table*}
 
 Index construction uses more memory with $k = 32$ than with larger values of $k$. The \orderk{32} path graph has more nodes, where we cannot derive the values from the predecessor node. As we sample more values, we need more memory in the final phase of construction. With larger values of $k$, the path graph resembles the input graph better, and we sample less values. For the same reason, index size decreases with large values of $k$, even though the graph requires more space.
 
@@ -384,11 +391,10 @@ We compared the query performance of the \orderk{128} GCSA2 to several FM-indexe
 
 As building the original GCSA requires around $65n$ bytes of memory for a path graph with $n$ nodes, we could not compare GCSA and GCSA2 directly on a system with 256~gigabytes of memory. Instead, we used \emph{RLCSA} \cite{Maekinen2010} (May~2016 version with SA sample period 32) as a proxy. The RLCSA is an FM-index for repetitive sequence collections using the same basic components as the original GCSA. With a mixed query load, RLCSA is 1.5x to 3x faster than GCSA, depending on algorithmic overhead and the mix of $\find$ and $\locate$ queries \cite{Siren2014}.
 
-We extracted \kmer{16}s, \kmer{32}s, \kmer{64}s, and \kmer{128}s from the (non-pruned) vg graphs using \texttt{vg sim}, filtered out the \kmer{k}s consisting entirely of $\baseN$s, and queried for the remaining \kmer{k}s using a single thread. The results can be seen in Table~\ref{table:benchmark}.
+We extracted \kmer{k}s for $k \in \set{16, 32, 64, 128}$ from the (non-pruned) vg graphs by using \texttt{vg sim}, filtered out \kmer{k}s consisting entirely of $\baseN$s, and queried for the remaining \kmer{k}s using a single thread. The results can be seen in Table~\ref{table:benchmark}.
 
-\begin{table}[t!]
+\begin{table*}[t]
 \begin{center}
-\caption{Query benchmarks using an \orderk{128} GCSA2 and various FM\nobreakdash-indexes. Pattern length; the number of patterns; index type; the number matching patterns, matching nodes, and distinct occurrences; the average time for $[sp, ep] = \find(X)$, $\parent(sp, ep)$, and $\countq(sp, ep)$ queries in microseconds; and the average time per value for $\locate(sp, ep)$ queries in microseconds.}\label{table:benchmark}
 \begin{tabular}{cc|cccc|cccc}
 \hline
 $k$ & \textbf{Patterns} & \textbf{Index} & \textbf{Found} & \textbf{Nodes} & \textbf{Occs} & $\find()$ & $\parent()$ & $\countq()$ & $\locate()$ \\
@@ -414,8 +420,9 @@ $k$ & \textbf{Patterns} & \textbf{Index} & \textbf{Found} & \textbf{Nodes} & \te
      &        & RLCSA &  35678 &    -- & 0.08M & 91.7 \textmu{}s &              -- &              -- & 12.9 \textmu{}s \\
 \hline
 \end{tabular}
+\caption{Query benchmarks using an \orderk{128} GCSA2 and various FM\nobreakdash-indexes. Pattern length; number of patterns; index type; number matching patterns, matching nodes, and distinct occurrences; average time for $[sp, ep] = \find(X)$, $\parent(sp, ep)$, and $\countq(sp, ep)$ queries in microseconds; and average time per value for $\locate(sp, ep)$ queries in microseconds.}\label{table:benchmark}
 \end{center}
-\end{table}
+\end{table*}
 
 Backward searching in an FM-index stops early if there are no matches. In order to compare the $\find$ performance of the indexes reliably, we must hence concentrate on the \kmer{16}s, where the fraction of matching patterns is similar for all indexes. GCSA2 and the fast FM-indexes (SSA and BWA) all have similar performance, while RLCSA is several times slower. As a result, we can estimate that $\find$ queries in GCSA2 are an order of magnitude faster than in GCSA.
 
@@ -443,42 +450,45 @@ We may want to determine whether a pattern matches known \emph{haplotypes} or on
 \paragraph{Acknowledgements.} The author thanks Erik Garrison, Richard Durbin, and Adam Novak for the fruitful discussions while developing the GCSA2 index.
 
 
-\bibliographystyle{splncs03}
+\bibliographystyle{abbrv}
 \bibliography{paper}
 
 
-\clearpage
 \appendix
 \section{Proofs of Lemmas}\label{appendix:proofs}
 
 \begin{proof}[Lemma~\ref{lemma:pg-fn}: No false negatives]
-Let $\mathcal{S}$ be the \kcollection{k} used for building the path graph, and let $P$ be a path starting from node $v_{0} \in V$ with $G.\glabel(P) = X$. The collection contains a sequence $S \in \mathcal{S}$ such that $S[i, i+\abs{X}-1] = X$ and $\mathcal{S}.\gnode(S, i) = v_{0}$.
+Let $\mathcal{S}$ be the \kcollection{k} used for building the path graph, and let $P$ be a path starting from $v_{0} \in V$ with $G.\glabel(P) = X$. The collection contains a sequence $S \in \mathcal{S}$ such that $S[i, i+\abs{X}-1] = X$ and $\mathcal{S}.\gnode(S, i) = v_{0}$.
 
 For all positions $j$ with $i \le j \le i+\abs{X}-1$, there is a node $v'_{j} \in V'$ with $G'.\glabel(v'_{j}) = S[j]$ and $G'.\gkey(v'_{j}) = S[j, j+\abs{G'.\gkey(v'_{j})}-1]$.
-By definition, the path graph has an edge $(v'_{j}, v'_{j+1}) \in E'$ for $i \le j < i+\abs{X}-1$.
+By definition, path graph $G'$ has an edge $(v'_{j}, v'_{j+1}) \in E'$ for all such positions $j$.
 Hence $P' = v'_{i} \dotsm v'_{i+\abs{X}-1}$ is a path in $G'$ with $G'.\glabel(P') = X$.
 As path $P'$ starts from node $v'_{i} \in V'$, node $v'_{i}$ is included in the set $G'.\find(X)$.
-Furthermore, $v_{0} = \mathcal{S}.\gnode(S, i) \in G'.\gvalue(v'_{i}) \subseteq G'.\locate(X)$. \qed
+Furthermore, $v_{0} = \mathcal{S}.\gnode(S, i) \in G'.\gvalue(v'_{i}) \subseteq G'.\locate(X)$.
 \end{proof}
 
 \begin{proof}[Lemma~\ref{lemma:pg-context}: Context length]
 If $\abs{X} \le 1$, the statement is true by definition for $m = \abs{X}$. Now let $M_{i+1} = G'.\find(X[i+1, \abs{X}-1])$ bet the set of all nodes $v' \in V'$ such that substring $X[i+1, i+m]$ is a prefix of key $G'.\gkey(v')$, and assume that the set is nonempty.
 
-Consider the set $M_{i} = \bigcup_{v' \in M_{i+1}} G'.\gpred(v', X[i]) = G'.\find(X[i, \abs{X}-1])$. There is an edge $(u', v') \in E'$ if and only if key $G'.\gkey(u')$ prefix-matches string $G'.\glabel(u') \cdot G'.\gkey(v')$. Hence key $G'.\gkey(u')$ prefix-matches string $X[i, i+m]$ for all nodes $u' \in M_{i}$.
+Consider the set
+$$
+M_{i} = \bigcup_{v' \in M_{i+1}} G'.\gpred(v', X[i]) = G'.\find(X[i, \abs{X}-1]).
+$$
+There is an edge $(u', v') \in E'$ if and only if key $G'.\gkey(u')$ prefix-matches string $G'.\glabel(u') \cdot G'.\gkey(v')$. Hence key $G'.\gkey(u')$ prefix-matches string $X[i, i+m]$ for all nodes $u' \in M_{i}$.
 
 Now let $u' \in V'$ be a node with key $G'.\gkey(u')$ prefix-matching string $X[i, i+m]$. If the key is a prefix of string $X[i, i+m]$, there is an edge $(u', v') \in E'$ to all nodes $v' \in M_{i+1}$, and hence $u' \in M_{i}$. Otherwise let $S[j, j+\abs{G'.\gkey(u')}-1]$ be a substring represented by node $u'$ in the \kcollection{k} used for building the path graph. As $S[j+1, j+m] = X[i+1, i+m]$, the substring starting at $S[j+1]$ is represented by a node $v' \in M_{i+1}$, and hence $u' \in M_{i}$.
 
-Set $M_{i}$ is the set of all nodes $u' \in V'$ such that substring $X[i, i+m]$ is a prefix of key $G'.\gkey(u')$. If $\abs{M_{i}} > 1$, string $X[i, i+m]$ is a proper prefix of key $G'.\gkey(u')$ for all nodes $u' \in M_{i}$ due to the prefix-free property, and we can continue with context length $m+1$. Otherwise the context length becomes $\min(m+1, \abs{G'.\gkey(u')})$ for the only node $u' \in M_{i}$. \qed
+Set $M_{i}$ is the set of all nodes $u' \in V'$ such that substring $X[i, i+m]$ is a prefix of key $G'.\gkey(u')$. If $\abs{M_{i}} > 1$, string $X[i, i+m]$ is a proper prefix of key $G'.\gkey(u')$ for all nodes $u' \in M_{i}$ due to the prefix-free property, and we can continue with context length $m+1$. Otherwise the context length becomes $\min(m+1, \abs{G'.\gkey(u')})$ for the only node $u' \in M_{i}$.
 \end{proof}
 
 \begin{proof}[Lemma~\ref{lemma:pg-keys}: Short keys]
 (a) If node $v'$ has multiple predecessors with label $c$, the keys of the predecessors must be longer than string $c \cdot G'.\gkey(v')$, as the key set is prefix-free.
 
-(b) By the construction in the proof of Lemma~\ref{lemma:pg-context}, the context length for pattern $X$ in graph $G'$ is $\min(\abs{X}, \abs{G'.\gkey(v')})$. \qed
+(b) By the construction in the proof of Lemma~\ref{lemma:pg-context}, the context length for pattern $X$ in graph $G'$ is $\min(\abs{X}, \abs{G'.\gkey(v')})$.
 \end{proof}
 
 \begin{proof}[Lemma~\ref{lemma:dbg-fp}: No short false positives]
-We may assume without loss of generality that graph $G'$ is a de~Bruijn graph. Let $v' \in G'.\find(X)$ be a node. By Lemma~\ref{lemma:pg-keys}, pattern $X$ prefix-matches key $G'.\gkey(v')$. For every node $v \in G'.\gvalue(v')$, there is a substring $S[i, i+k-1] = G'.\gkey(v'_{0})$ in the \kcollection{k} $\mathcal{S}$ used for building graph $G'$, with $\mathcal{S}.\gnode(S, i) = v$. Prefix $S[i, i+\abs{X}-1] = X$ of the substring corresponds to a path with label $X$ starting from node $v$ in graph $G$. \qed
+We may assume without loss of generality that graph $G'$ is a de~Bruijn graph. Let $v' \in G'.\find(X)$ be a node. By Lemma~\ref{lemma:pg-keys}, pattern $X$ prefix-matches key $G'.\gkey(v')$. For every node $v \in G'.\gvalue(v')$, there is a substring $S[i, i+k-1] = G'.\gkey(v'_{0})$ in the \kcollection{k} $\mathcal{S}$ used for building graph $G'$, with $\mathcal{S}.\gnode(S, i) = v$. Prefix $S[i, i+\abs{X}-1] = X$ of the substring corresponds to a path with label $X$ starting from node $v$ in graph $G$.
 \end{proof}
 
 \begin{proof}[Lemma~\ref{lemma:dbg-prune}: Pruning]
@@ -490,7 +500,7 @@ Now let $P'' = v''_{0} \dotsm v''_{\abs{X}-1}$ be a path matching pattern $X$ in
 
 Let $Y$ be the longer of strings $G''.\gkey(v''_{j})$ and $X[j] \cdot G''.\gkey(v''_{j+1})$. As $Y$ is a substring of $\mathcal{S}$, there is a node $v_{j} \in V_{d}$ such that key $G_{d}.\gkey(v_{j})$ prefix-matches $Y$. Key $G_{d}.\gkey(v_{j})$ has both $X[j, \abs{X}-1]$ and $G''.\gkey(v''_{j})$ as its prefixes, and hence $v_{j} \in V_{d}(v''_{j})$. When $j = 0$, we can extend key $G_{d}.\gkey(v_{0})$ to get a path starting from $v_{0}$ and matching $X$ in graph $G_{d}$.
 
-Given $v_{0} \in G_{d}.\find(X)$, we can build a path $P'' = v''_{0} \dotsm v''_{\abs{X}-1}$ matching the pattern in graph $G''$, with $v_{0} \in V_{d}(v''_{0})$. We can also start from path $P''$ and determine the node $v_{0}$. As $G_{d}.\gvalue(v_{0}) = G''.\gvalue(v''_{0})$, we have $G_{d}.\locate(X) = G''.\locate(X)$. \qed
+Given a node $v_{0} \in G_{d}.\find(X)$, we can build a path $P'' = v''_{0} \dotsm v''_{\abs{X}-1}$ matching the pattern in graph $G''$, with $v_{0} \in V_{d}(v''_{0})$. We can also start from path $P''$ and determine the node $v_{0}$. As $G_{d}.\gvalue(v_{0}) = G''.\gvalue(v''_{0})$, we have $G_{d}.\locate(X) = G''.\locate(X)$.
 \end{proof}
 
 \begin{proof}[Lemma~\ref{lemma:dbg-maximal}: Maximal pruning]
@@ -500,7 +510,7 @@ Assume that $\abs{G'.\gkey(u')} > \abs{G'.\gkey(v')}+1$ for an edge $(u', v') \i
 
 Let $S[i, i+\abs{G'.\gkey(u')}-1] = G'.\gkey(u')$ be a substring in the \kcollection{k}. Because graph $G'$ is a pruned de~Bruijn graph and because of the assumption on key lengths, the set of nodes $\mathcal{S}.\gnode(S, i+1)$ over all occurrences of substring $G'.\gkey(u')$ in the \kcollection{k} is $G'.\gvalue(v')$. As node $u'$ has no other successors, set $G'.\gvalue(u')$ is the union of sets $G.\gpred(v, G'.\glabel(u'))$ over all nodes $v \in G'.\gvalue(v')$.
 
-The above is true for all nodes $x' \in G'.\gpred(v', G'.\glabel(u'))$. Hence we can prune graph $G'$ further using string $G'.\glabel(u') \cdot G'.\gkey(v')$ as the new key in Lemma~\ref{lemma:dbg-prune}. \qed
+The above is true for all $x' \in G'.\gpred(v', G'.\glabel(u'))$. Hence we can prune graph $G'$ further using string $G'.\glabel(u') \cdot G'.\gkey(v')$ as the new key in Lemma~\ref{lemma:dbg-prune}.
 \end{proof}
 
 
@@ -514,9 +524,12 @@ The range of outgoing edges $(u', v') \in E'$ from node $u' \in V'$ with lexicog
 
 We use \emph{backward searching} for query $G'.\find(X)$. Let $X \in \patternset$ be a pattern. If $\abs{X} = 0$, query $G'.\find(X)$ returns the lexicographic range $[0, \abs{V'}-1]$ containing all nodes. Now assume that $\abs{X} \ge 1$ and that $G'.\find(X[i+1, \abs{X}-1]) = [sp_{i+1}, ep_{i+1}]$. We want to find the lexicographic range $G'.\find(X[i, \abs{X}-1])$, which is the union of sets $G'.\gpred(v', X[i])$ over nodes $v' \in G'.\find(X[i+1, \abs{X}-1])$. We map the node range $[sp_{i+1}, ep_{i+1}]$ to the range $[sp_{in}, ep_{in}]$ of incoming edges; the incoming edges to the corresponding range of outgoing edges $[sp_{out}, ep_{out}]$; and the outgoing edges to the range $[sp_{i}, ep_{i}] = G'.\find(X[i, \abs{X}-1])$:
 \begin{align*}
-[sp_{in}, ep_{in}] & = [\bvIN.\select(sp_{i+1}, 1) + 1, \bvIN.\select(ep_{i+1}+1, 1)]; \\
-[sp_{out}, ep_{out}] & = [\LF(sp_{in}, X[i]), \LF(ep_{in}+1, X[i]) - 1];\ \textrm{and} \\
-[sp_{i}, ep_{i}] & = [\bvOUT.\rank(sp_{out}, 1), \bvOUT.\rank(ep_{out}, 1)].
+[sp_{in}, ep_{in}] = [&\bvIN.\select(sp_{i+1}, 1) + 1, \\
+ & \bvIN.\select(ep_{i+1}+1, 1)]; \\
+[sp_{out}, ep_{out}] = [&\LF(sp_{in}, X[i]), \\
+ & \LF(ep_{in}+1, X[i]) - 1]; \\
+[sp_{i}, ep_{i}] = [&\bvOUT.\rank(sp_{out}, 1), \\
+ & \bvOUT.\rank(ep_{out}, 1)].
 \end{align*}
 We can think this as a generalization of \LFmapping: $[sp_{i}, ep_{i}] = G'.\LF([sp_{i+1}, ep_{i+1}], X[i])$.
 
@@ -531,7 +544,7 @@ Let $B_{S}[0, \abs{V'}-1]$ be a bitvector. If we have sampled the values for the
 
 \section{Index Construction}\label{appendix:construction}
 
-GCSA construction \cite{Siren2014} is based on the original \emph{prefix-doubling} algorithm for suffix array construction \cite{Manber1993}. The original GCSA started from paths of length $1$ in the input graph, and then repeatedly \emph{joined} paths of length $k$ into paths of length $2k$, until each path had a distinct label. The resulting path graph was essentially an unlimited-order pruned de~Bruijn graph and supported queries of arbitrary length.
+GCSA construction \cite{Siren2014} is based on the \emph{prefix-doubling} algorithm for suffix array construction \cite{Manber1993}. The original GCSA started from paths of length $1$ in the input graph, and then repeatedly \emph{joined} paths of length $k$ into paths of length $2k$, until each path had a distinct label. The resulting path graph was essentially an \orderk{\infty} pruned de~Bruijn graph and supported queries of any length.
 
 We use a variant of that algorithm with GCSA2. Let $G = (V, E)$ be the input graph. We extract all paths of length $k$ (typically with $k = 16$) from graph $G$. For each path $P = v_{0} \dotsm v_{\abs{P}-1}$, we store several fields. \emph{Key} $P.\gkey$ encodes $G.\glabel(P)$ as a sequence of lexicographic ranks of \kmer{k}s. If $\abs{P}$ is not an integer multiple of $k$, the key consists of the \kmer{k} ranks for the lexicographically smallest \kmer{(\lceil \abs{P}/k \rceil \cdot k)} having $G.\glabel(P)$ as a prefix, followed by the rank of the last \kmer{k} in the largest such \kmer{(\lceil \abs{P}/k \rceil \cdot k)}. \emph{Value} $P.\gvalue$ is the start node $v_{0}$ of the path. We store the set of \emph{predecessor labels} $\set{c \in \Sigma \mid \abs{G.\gpred(v_{0}, c)} > 0}$ as $P.\gpred$. For each possible \emph{extension node} $v \in \set{v \in V \mid (v_{\abs{P}-1}, v) \in E}$, we create a separate copy of the path and store the node as $P.\gext = v$.
 
@@ -559,12 +572,12 @@ Let $G' = (V', E')$ be a path graph with $G'.\gpred(v', c) \le 1$ for all nodes 
 We replace sequences $\BWT$ and $\bvIN$ with \emph{indicator bitvectors} $B_{c}[0, \abs{V'}-1]$ for all $c \in \Sigma$. If node $v' \in V$ has a predecessor with label $c \in \Sigma$, we set $B_{c}[i] = 1$. Backward searching is simplified to:
 \begin{align*}
 sp_{out} & = C[X[i]] + B_{X[i]}.\rank(sp_{i+1}, 1); \\
-ep_{out} & = C[X[i]] + B_{X[i]}.\rank(ep_{i+1}+1, 1) - 1;\ \textrm{and} \\
+ep_{out} & = C[X[i]] + B_{X[i]}.\rank(ep_{i+1}+1, 1) - 1; \\
 [sp_{i}, ep_{i}] & = [\bvOUT.\rank(sp_{out}, 1), \bvOUT.\rank(ep_{out}, 1)].
 \end{align*}
-We replace two expensive queries ($\bvIN.\select()$ and $\BWT.\rank()$) with a cheap $B_{c}.\rank()$.
+Two expensive queries ($\bvIN.\select()$ and $\BWT.\rank()$) are replaced with a cheap $B_{c}.\rank()$.
 
-Computing $G'.\LF(i)$ can more expensive, as we have to look at $B_{c}[i]$ for all $c \in \Sigma$ to determine the character used in the backward step. However, if the alphabet is small, this is still faster than the $\select$ queries in the general encoding. We can further improve the time/space trade-off by compressing the bitvectors $B_{c}$ for rare characters (e.g.~$\baseN$, $\#$, and $\$$) and checking $B_{c}[i]$ first for the frequent characters (e.g.~bases) when computing $G'.\LF(i)$.
+Computing $G'.\LF(i)$ can expensive, as we have to look at $B_{c}[i]$ for all $c \in \Sigma$ to determine the character used in the backward step. However, if the alphabet is small, this is still faster than the $\select$ queries in the general encoding. We can further improve the time/space trade-off by compressing the bitvectors $B_{c}$ for rare characters (e.g.~$\baseN$, $\#$, and $\$$) and checking $B_{c}[i]$ first for the frequent characters (e.g.~bases) when computing $G'.\LF(i)$.
 
 
 \section{Suffix Tree of a Path Graph}\label{appendix:extensions}
@@ -577,17 +590,18 @@ If we build an $x$\nobreakdash-ary tree over the LCP array of graph $G'$, with e
 
 BWA-MEM \cite{Li2013} aligns reads to a reference genome by finding \emph{maximal exact matches} between the read and the reference. It stores both the reference and its reverse complement in the same index, allowing it to extend the pattern in both directions. GCSA cannot use similar techniques, as we cannot guarantee that the length of the lexicographic range matching pattern $X$ is the same as the length of the range matching its reverse complement $\revcomp{X}$ (that the key set contains key $K$ if and only if it contains key $\revcomp{K}$). However, we can search for maximal exact matches using \LFmapping{} and the $\parent$ operation \cite{Ohlebusch2010a}.
 
-In an ordinary FM\nobreakdash-index, the length of a lexicographic range tells the number of distinct pointers in the range. In GCSA, each node $v' \in V'$ may have multiple values (pointers), and a value may occur in multiple nodes. As $\locate$ queries can be slow, we need another way to support efficient \emph{counting queries}. The problem is similar to determining the \emph{document frequency} of a pattern. Given a collection of documents, the document frequency of pattern $X$ is the number of distinct documents that contain occurrences of the pattern. We can use a bitvector of length $2n-d-1$, where $n$ is the total size of the document collection and $d$ is the number of documents, to compute document frequencies efficiently \cite{Sadakane2007a}.
+In an ordinary FM\nobreakdash-index, the length of a lexicographic range tells the number of distinct pointers in the range. In GCSA, each node $v' \in V'$ may have multiple values (pointers), and a value may occur in multiple nodes. As $\locate$ queries can be slow, we need another way to support efficient \emph{counting queries}. The problem is similar to determining the \emph{document frequency} of a pattern. Given a collection of documents, the document frequency of pattern $X$ is the number of distinct documents that contain occurrences of the pattern. We can use a bitvector of length $2n-d-1$, where $n$ is the total size of the document collection and $d$ is the number of documents, to compute the frequencies efficiently \cite{Sadakane2007a}.
 
-Let $v$ be a suffix tree node corresponding to lexicographic range $[sp, ep]$, and let $\countq(v)$ be the document frequency of the label $\ell(v)$. If nodes $v_{0}, \dotsc, v_{m-1}$ are the children of node $v$, the number of \emph{redundant} documents in them is $R(v) = \sum_{i=0}^{m-1} \countq(v_{i}) - \countq(v)$. We create an array $R[0, n-2]$ based on the \emph{inorder traversal} of the suffix tree. If the $i$th internal node we encounter is our first visit to node $v$, we set $R[i] = R(v)$. We set $R[j] = 0$ for any subsequent visits to the same node. Range $R[sp, ep-1]$ covers the internal nodes in the subtree with node $v$ as the root. We can determine document frequencies as $\countq(v) = (ep+1-sp) - \sum R[sp, ep-1]$. If we encode array $R$ in unary, with value $x$ becoming $0^{x} 1$, we get a bitvector $B_{R}$, where we can compute the sums with $\select$ queries:
+Let $v$ be a suffix tree node corresponding to lexicographic range $[sp, ep]$, and let $\countq(v)$ be the document frequency of the label $\ell(v)$. If nodes $v_{0}, \dotsc, v_{m-1}$ are the children of node $v$, the number of \emph{redundant} documents in them is $R(v) = \sum_{i=0}^{m-1} \countq(v_{i}) - \countq(v)$. We create an array $R[0, n-2]$ based on the \emph{inorder traversal} of the suffix tree. If the $i$th internal node we encounter is our first visit to node $v$, we set $R[i] = R(v)$. We set $R[j] = 0$ for any subsequent visits to the same node. Range $R[sp, ep-1]$ covers the internal nodes in the subtree with node $v$ as the root. We can determine document frequencies as $\countq(v) = (ep+1-sp) - \sum R[sp, ep-1]$. If we encode array $R$ in unary, with value $x$ becoming $0^{x} 1$, we get a bitvector $B_{R}$, where we can compute sums $\sum_{i=a}^{b} R[i]$ with $\select$ queries as
 $$
-\sum R[a, b] = (B_{R}.\select(b+1, 1) - b) - (B_{R}.\select(a, 1) + 1 - a).
+(B_{R}.\select(b+1, 1) - b) - (B_{R}.\select(a, 1) + 1 - a).
 $$
 
 For value counting, we use array $R$ to store the number of redundant values as above. We use another array $A[0, \abs{V'}-1]$ to store the number of additional values in each node $v'_{i} \in V'$ as $A[i] = \abs{G'.\gvalue(v'_{i})}-1$, and encode it as a bitvector $B_{A}$ in the same way as array $R$ above. The number of distinct values in range $[sp,ep] = G'.\find(X)$ for a pattern $X$ is
-$$
-G'.\countq(X) = G'.\countq([sp, ep]) = (ep+1-sp) + \sum A[sp, ep] - \sum R[sp, ep-1].
-$$
+\begin{align*}
+G'.\countq(X) & = G'.\countq([sp, ep]) \\
+ & = \sum_{i = sp}^{ep} (A[i] + 1) - \sum_{i = sp}^{ep - 1} R[i].
+\end{align*}
 The bitvectors are often highly compressible \cite{Gagie2015}, but GCSA already uses one of the compression schemes implicitly when it prunes the de~Bruijn graph.
 
 
@@ -595,8 +609,8 @@ The bitvectors are often highly compressible \cite{Gagie2015}, but GCSA already 
 
 The hypertext index \cite{Thachuk2013} is based on graphs $G = (V, E)$, where the label $G.\glabel(v)$ of a node $v \in V$ is a string over alphabet $\Sigma$. The labels are indexed in FM\nobreakdash-index $F$, while the reverse labels are indexed in FM\nobreakdash-index $R$. When we search for a pattern $X \in \Sigma^{\ast}$ of length $\abs{X} \ge 2$, some of the matches may cross edges. In order to find matches crossing one edge, we search for suffixes $X[i, \abs{X}-1]$ in the forward index $F$ and the reverses of prefixes $X[0, i-1]$ in the reverse index $R$, for all $1 \le i \le \abs{X}-1$. For each value of $i$, we combine the partial matches into complete matches with a two-dimensional range query in the edge matrix $E$, using the lexicographic ranges for the reverse of $X[0, i-1]$ and for $X[i, \abs{X}-1]$ as the query ranges.
 
-We often have to prune complex regions of the input graph before indexing it with GCSA. This causes false negatives: paths that exist in the input graph but not in the index. We can avoid the false negatives with a generalization of the hypertext index. Instead of pruning the input graph heuristically, we create a primary graph based on known haplotypes and build a GCSA index for both strands of the graph. We then create a matrix of additional edges corresponding to potential \emph{recombinations} in the path graph, always crossing from the reverse complement strand to the forward strand. We search for pattern $X$ and its reverse complement $\revcomp{X}$ in the index, and combine the results $\find(X[i, \abs{X}-1])$ and $\find(\revcomp{X}[\abs{X}-i, \abs{X}-1])$ with a range query.
+We often have to prune complex regions of the input graph before indexing it. This causes false negatives: paths that exist in the input graph but not in the index. We can avoid the false negatives with a generalization of the hypertext index. Instead of pruning the input graph heuristically, we create a primary graph based on known haplotypes and build a GCSA index for both strands of the graph. We then create a matrix of additional edges corresponding to potential \emph{recombinations} in the path graph, always crossing from the reverse complement strand to the forward strand. We search for pattern $X$ and its reverse complement $\revcomp{X}$ in the index, and combine the results $\find(X[i, \abs{X}-1])$ and $\find(\revcomp{X}[\abs{X}-i, \abs{X}-1])$ with a range query.
 
-While graphs are a natural formalism for representing genetic variation, they cannot adequately represent certain types of \emph{rearrangements}. For example, if sequence $S$ can occur in different positions of the genome (e.g.~$ASBC$ and $ABSC$), we can have a single copy or multiple copies of $S$ in the graph. Neither option is particularly good in a reference genome. With a single copy, we create paths in the reference that do not correspond to any valid genome. With the second option, we duplicate sequences that are not only identical but also functionally the same. One solution is to switch from graphs to \emph{context-free grammars}. As long as the grammar is non-nested, we can handle it with the hypertext index. We build a hypertext index for a high level graph, where each node is labeled with a nonterminal symbol, while each nonterminal expands into a subgraph indexed in GCSA.
+While graphs are a natural formalism for representing genetic variation, they cannot adequately represent certain types of \emph{rearrangements}. For example, if sequence $S$ can occur in different positions of the genome (e.g.~$ASBC$ and $ABSC$), we can have a single copy or multiple copies of $S$ in the graph. Neither option is good in a reference genome. With a single copy, we create paths in the reference that do not correspond to any valid genome. With the second option, we duplicate sequences that are not only identical but also functionally the same. One solution is to use \emph{context-free grammars}. As long as the grammar is non-nested, we can handle it with the hypertext index. We build a hypertext index for a high level graph, where each node is labeled with a nonterminal symbol, while each nonterminal expands into a subgraph indexed in GCSA.
 
 \end{document}
