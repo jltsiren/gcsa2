@@ -115,7 +115,7 @@ The main differences to the original GCSA are:
 \item GCSA2 extends the functionality of the FM-index with suffix tree operations.
 
 \end{enumerate}
-The first two improvements can also be used with the original GCSA. The third point represents a different approach to indexing graphs. It was not possible the with the original GCSA, as the construction algorithm required a prefix-range-sorted graph. The extendend functionality depends on the new construction algorithm and on limiting maximum query length.
+The first two improvements can also be used with the original GCSA. The third point represents a different approach to indexing graphs. It was not possible the with the original GCSA, as the construction algorithm required a prefix-range-sorted graph. The extended functionality depends on the new construction algorithm and on limiting maximum query length.
 
 This paper describes the GCSA2 data structure. Its uses in the vg toolkit will be discussed in the vg paper.
 
@@ -128,7 +128,7 @@ A \emph{string} $S[0, n-1] = s_{0} \dotsm s_{n-1}$ of length $\abs{S} = n$ is a 
 
 Sometimes we consider \emph{infinite} character sequences $S = (s_{i})_{i \in Z}$, where set $Z$ is a contiguous infinite subset of $\mathbb{Z}$. The notion of substring generalizes to infinite sequences in a natural way. A substring of an infinite sequence $S$ is \emph{left-infinite} if it extends infinitely to the left, and \emph{right-infinite} if it extends infinitely to the right. A substring of a finite or infinite sequence $S$ is \emph{left-maximal} if it is left-infinite or a prefix, and \emph{right-maximal} if it is right-infinite or a suffix.
 
-We are primarily interested in sequences over the \emph{DNA} alphabet $\set{\$, \baseA, \baseC, \baseG, \baseT, \baseN}$. Characters $\baseA$, $\baseC$, $\baseG$, and $\baseT$ are called \emph{bases}, while character $\baseN$ represents an arbitrary or unknown base. The alphabet may contain other technical characters in addition to the enmarker $\$$. Each character $c$ of the DNA alphabet has a \emph{complement} $\dnacomp{c}$ defined as $\dnacomp{\baseA} = \baseT$, $\dnacomp{\baseC} = \baseG$, $\dnacomp{\baseG} = \baseC$, $\dnacomp{\baseT} = \baseA$, and $\dnacomp{c} = c$ for other characters $c$. Given a DNA sequence $S$, its \emph{reverse complement} is the sequence $\revcomp{S}$ obtained by reversing the non-technical parts of the sequence and replacing each character with its complement. For example, $\revcomp{\mathtt{GATTACA}\$} = \mathtt{TGTAATC}\$$.
+We are primarily interested in sequences over the \emph{DNA} alphabet $\set{\$, \baseA, \baseC, \baseG, \baseT, \baseN}$. Characters $\baseA$, $\baseC$, $\baseG$, and $\baseT$ are called \emph{bases}, while character $\baseN$ represents an arbitrary or unknown base. The alphabet may contain other technical characters in addition to the endmarker $\$$. Each character $c$ of the DNA alphabet has a \emph{complement} $\dnacomp{c}$ defined as $\dnacomp{\baseA} = \baseT$, $\dnacomp{\baseC} = \baseG$, $\dnacomp{\baseG} = \baseC$, $\dnacomp{\baseT} = \baseA$, and $\dnacomp{c} = c$ for other characters $c$. Given a DNA sequence $S$, its \emph{reverse complement} is the sequence $\revcomp{S}$ obtained by reversing the non-technical parts of the sequence and replacing each character with its complement. For example, $\revcomp{\mathtt{GATTACA}\$} = \mathtt{TGTAATC}\$$.
 
 Given a string $S[0, n-1]$, we define $S.\rank(i, c)$ as the number of occurrences of character $c$ in the prefix $S[0, i-1]$. We also define
 $$
