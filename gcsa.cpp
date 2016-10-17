@@ -821,11 +821,12 @@ GCSA::locateInternal(size_type path_node, std::vector<node_type>& results) const
     steps++;
   }
 
-  range_type sample_range = this->sampleRange(path_node);
-  for(size_type i = sample_range.first; i <= sample_range.second; i++)
+  size_type sample = this->firstSample(path_node);
+  do
   {
-    results.push_back(this->sample(i) + steps);
+    results.push_back(this->sample(sample) + steps); sample++;
   }
+  while(!(this->lastSample(sample - 1)));
 }
 
 //------------------------------------------------------------------------------

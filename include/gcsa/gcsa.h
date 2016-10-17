@@ -198,6 +198,14 @@ public:
     return sample_range;
   }
 
+  inline size_type firstSample(size_type path_node) const
+  {
+    path_node = this->sampled_path_rank(path_node);
+    return (path_node > 0 ? this->sample_select(path_node) + 1 : 0);
+  }
+
+  inline bool lastSample(size_type i) const { return this->samples[i]; }
+
   inline node_type sample(size_type i) const { return this->stored_samples[i]; }
 
 //------------------------------------------------------------------------------
