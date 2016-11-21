@@ -16,7 +16,13 @@ The maximum resident size reported by `getrusage()` is in kilobytes in Linux and
 
 There are some verification/debugging options in `build_gcsa`. To enable them, uncomment the line `VERIFY_FLAGS=-DVERIFY_CONSTRUCTION` in the makefile and select the debugging options in `build_gcsa.cpp`.
 
-## References
+## Citing GCSA2
+
+Jouni Sirén: **Indexing Variation Graphs**.
+Accepted to ALENEX 2017.
+[arXiv:1604.06605](http://arxiv.org/abs/1604.06605), 2017.
+
+## Other references
 
 Jouni Sirén, Niko Välimäki, and Veli Mäkinen: **Indexing Graphs for Path Queries with Applications in Genome Research**.
 IEEE/ACM Transactions on Computational Biology and Bioinformatics 11(2):375-388, 2014.
@@ -25,7 +31,3 @@ IEEE/ACM Transactions on Computational Biology and Bioinformatics 11(2):375-388,
 Alexander Bowe, Taku Onodera, Kunihiko Sadakane, and Tetsuo Shibuya: **Succinct de Bruijn Graphs**.
 Proc. WABI 2012, Springer LNCS 7534, pp. 225-235, Ljubljana, Slovenia, September 10-12, 2012.
 [DOI: 10.1007/978-3-642-33122-0_18](http://dx.doi.org/10.1007/978-3-642-33122-0_18)
-
-Jouni Sirén: **Indexing Variation Graphs**.
-Accepted to ALENEX 2017.
-[arXiv:1604.06605](http://arxiv.org/abs/1604.06605), 2017.
