@@ -34,7 +34,8 @@
 
 #include <sdsl/wavelet_trees.hpp>
 
-// FIXME Later: Use named critical sections.
+// FIXME Later: Get rid of OpenMP.
+#include <atomic>
 #include <omp.h>
 
 namespace gcsa
@@ -217,8 +218,9 @@ size_type writeVolume();  // Only for GCSA construction.
 
 struct TempFile
 {
-  static std::string temp_dir;
-  const static std::string DEFAULT_TEMP_DIR;
+  static std::atomic<size_type> counter;
+  static std::string            temp_dir;
+  const static std::string      DEFAULT_TEMP_DIR;
 
   static void setDirectory(const std::string& directory);
   static std::string getName(const std::string& name_part);

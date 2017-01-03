@@ -300,7 +300,7 @@ struct PathGraph
   size_type unique, redundant, unsorted, nondeterministic;
 
   const static size_type UNKNOWN = ~(size_type)0;
-  const static std::string PREFIX;  // .gcsa
+  const static std::string PREFIX;  // gcsa
 
   PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists);
   PathGraph(size_type file_count, size_type path_order, size_type steps);
@@ -352,7 +352,7 @@ struct MergedGraph
   std::vector<size_type> next_from; // Where to find the corresponding additional from nodes.
 
   const static size_type UNKNOWN = ~(size_type)0;
-  const static std::string PREFIX;  // .gcsa
+  const static std::string PREFIX;  // gcsa
 
   MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, const LCP& kmer_lcp, size_type size_limit);
   ~MergedGraph();

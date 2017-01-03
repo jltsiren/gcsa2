@@ -112,6 +112,8 @@ writeVolume()
 
 //------------------------------------------------------------------------------
 
+std::atomic<size_type> TempFile::counter(0);
+
 const std::string TempFile::DEFAULT_TEMP_DIR = ".";
 std::string TempFile::temp_dir = TempFile::DEFAULT_TEMP_DIR;
 
@@ -132,7 +134,7 @@ TempFile::getName(const std::string& name_part)
   return temp_dir + '/' + name_part + '_'
     + std::string(hostname) + '_'
     + sdsl::util::to_string(sdsl::util::pid()) + '_'
-    + sdsl::util::to_string(sdsl::util::id());
+    + sdsl::util::to_string(counter++);
 }
 
 void
