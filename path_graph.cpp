@@ -659,7 +659,7 @@ PathRange::PathRange(size_type start, size_type stop, range_type _left_lcp, Path
 
 //------------------------------------------------------------------------------
 
-const std::string PathGraph::PREFIX = ".gcsa";
+const std::string PathGraph::PREFIX = "gcsa";
 
 PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 {
@@ -984,7 +984,7 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 
 //------------------------------------------------------------------------------
 
-const std::string MergedGraph::PREFIX = ".gcsa";
+const std::string MergedGraph::PREFIX = "gcsa";
 
 struct SameFromSet
 {
