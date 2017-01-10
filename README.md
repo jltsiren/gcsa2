@@ -19,9 +19,8 @@ There are some verification/debugging options in `build_gcsa`. To enable them, u
 ## Citing GCSA2
 
 Jouni Sirén: **Indexing Variation Graphs**.
-Accepted to ALENEX 2017.
-[arXiv:1604.06605](http://arxiv.org/abs/1604.06605), 2017.
-
+Proc. ALENEX 2017, SIAM, pp. 13-27, Barcelona, Spain, January 17-18, 2017.
+[DOI: 10.1137/1.9781611974768.2](http://dx.doi.org/10.1137/1.9781611974768.2)
 ## Other references
 
 Jouni Sirén, Niko Välimäki, and Veli Mäkinen: **Indexing Graphs for Path Queries with Applications in Genome Research**.
