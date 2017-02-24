@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016 Genome Research Ltd.
+  Copyright (c) 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -196,7 +196,7 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
     std::exit(EXIT_FAILURE);
   }
 
-  std::ifstream in(graph.lcp_name.c_str(), std::ios_base::binary);
+  std::ifstream in(graph.lcp_name, std::ios_base::binary);
   if(!in)
   {
     std::cerr << "LCPArray::LCPArray(): Cannot open LCP file " << graph.lcp_name << std::endl;
@@ -226,7 +226,11 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
 
   // Initialize data.
   this->data = sdsl::int_vector<0>(total_size, ~(uint8_t)0, 8);
-  DiskIO::read(in, (const uint8_t*)(this->data.data()), this->size());
+  if(!DiskIO::read(in, (const uint8_t*)(this->data.data()), this->size()))
+  {
+    std::cerr << "LCPArray::LCPArray(): Unexpected EOF in " << graph.lcp_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   in.close();
   for(size_type level = 0; level < this->levels(); level++)
   {

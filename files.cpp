@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Genome Research Ltd.
+  Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -70,7 +70,7 @@ readText(std::istream& in, std::vector<KMer>& kmers, const Alphabet& alpha, bool
   {
     std::string line;
     std::getline(in, line);
-    if(in.eof()) { break; }
+    if(!in) { break; }
 
     std::vector<std::string> tokens;
     if(!tokenize(line, tokens)) { continue; }
@@ -111,7 +111,7 @@ readBinary(std::istream& in, std::vector<KMer>& kmers, bool append)
   while(true)
   {
     GraphFileHeader header(in);
-    if(in.eof()) { break; }
+    if(!in) { break; }
     if(header.flags != 0)
     {
       std::cerr << "readBinary(): Invalid flags in section " << section << ": " << header.flags << std::endl;
@@ -136,7 +136,11 @@ readBinary(std::istream& in, std::vector<KMer>& kmers, bool append)
 
     size_type old_size = kmers.size();
     kmers.resize(old_size + header.kmer_count);
-    DiskIO::read(in, kmers.data() + old_size, header.kmer_count);
+    if(!DiskIO::read(in, kmers.data() + old_size, header.kmer_count))
+    {
+      std::cerr << "readBinary(): Unexpected EOF" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
     section++;
   }
 
@@ -289,7 +293,7 @@ InputGraph::build()
       while(true)
       {
         GraphFileHeader header(input);
-        if(input.eof()) { break; }
+        if(!input) { break; }
         this->kmer_count += header.kmer_count;
         this->setK(header.kmer_length, file);
         this->sizes[file] += header.kmer_count;
@@ -302,7 +306,7 @@ InputGraph::build()
       {
         std::string line;
         std::getline(input, line);
-        if(input.eof()) { break; }
+        if(!input) { break; }
         range_type temp = parseKMer(line);
         this->setK(temp.first, file);
         this->kmer_count += temp.second; this->sizes[file] += temp.second;

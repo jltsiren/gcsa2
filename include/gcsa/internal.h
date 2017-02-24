@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Genome Research Ltd.
+  Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -53,17 +53,25 @@ struct DiskIO
   static std::atomic<size_type> read_volume, write_volume;
 
   template<class Element>
-  inline static void read(std::istream& in, Element* data, size_type n = 1)
+  inline static bool read(std::istream& in, Element* data, size_type n = 1)
   {
-    read_volume += n * sizeof(Element);
-    in.read((char*)data, n * sizeof(Element));
+    size_type bytes = n * sizeof(Element);
+    in.read((char*)data, bytes);
+    size_type read_bytes = in.gcount();
+    read_volume += read_bytes;
+    return (read_bytes == bytes);
   }
 
   template<class Element>
   inline static void write(std::ostream& out, const Element* data, size_type n = 1)
   {
-    write_volume += n * sizeof(Element);
     out.write((const char*)data, n * sizeof(Element));
+    if(out.fail())
+    {
+      std::cerr << "DiskIO::write(): Write failed" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    write_volume += n * sizeof(Element);
   }
 };
 
@@ -487,7 +495,11 @@ ReadBuffer<Element>::fill()
 
   size_type read_buffer_size = READ_BUFFER_SIZE;  // avoid direct use
   this->read_buffer.resize(std::min(read_buffer_size, this->size() - this->file_offset));
-  DiskIO::read(this->file, this->read_buffer.data(), this->read_buffer.size());
+  if(!DiskIO::read(this->file, this->read_buffer.data(), this->read_buffer.size()))
+  {
+    std::cerr << "ReadBuffer::fill(): Unexpected EOF" << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   this->file_offset += this->read_buffer.size();
 
   return (this->file_offset >= this->size());
@@ -513,7 +525,11 @@ ReadBuffer<Element>::forceRead()
   {
     size_type read_buffer_size = READ_BUFFER_SIZE;  // avoid direct use
     this->read_buffer.resize(std::min(read_buffer_size, this->size() - this->file_offset));
-    DiskIO::read(this->file, this->read_buffer.data(), this->read_buffer.size());
+    if(!DiskIO::read(this->file, this->read_buffer.data(), this->read_buffer.size()))
+    {
+      std::cerr << "ReadBuffer::forceRead(): Unexpected EOF" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
     this->file_offset += this->read_buffer.size();
   }
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Genome Research Ltd.
+  Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -971,8 +971,16 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 
   std::ifstream path_file, rank_file;
   this->open(path_file, rank_file, file);
-  DiskIO::read(path_file, paths.data(), this->path_counts[file]);
-  DiskIO::read(rank_file, labels.data(), this->rank_counts[file]);
+  if(!DiskIO::read(path_file, paths.data(), this->path_counts[file]))
+  {
+    std::cerr << "PathGraph::read(): Unexpected EOF in " << this->path_names[file] << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  if(!DiskIO::read(rank_file, labels.data(), this->rank_counts[file]))
+  {
+    std::cerr << "PathGraph::read(): Unexpected EOF in " << this->rank_names[file] << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   path_file.close(); rank_file.close();
 
   if(Verbosity::level >= Verbosity::FULL)
