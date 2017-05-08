@@ -232,7 +232,7 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
     std::exit(EXIT_FAILURE);
   }
   in.close();
-  for(size_type level = 0; level < this->levels(); level++)
+  for(size_type level = 0; level + 1 < this->levels(); level++)
   {
     for(size_type i = this->offsets[level]; i < this->offsets[level + 1]; i++)
     {
