@@ -191,6 +191,8 @@ GraphFileHeader::GraphFileHeader(size_type kmers, size_type length) :
 
 GraphFileHeader::GraphFileHeader(std::istream& in)
 {
+  // No error checks here. If "in" is not ok after this, it means that there are no more
+  // sections in the file.
   DiskIO::read(in, this);
 }
 
@@ -519,7 +521,7 @@ GCSAHeader::swap(GCSAHeader& another)
 
 std::ostream& operator<<(std::ostream& stream, const GCSAHeader& header)
 {
-  return stream << "GCSA header version " << header.version << ": "
+  return stream << "GCSA version " << header.version << ": "
                 << header.path_nodes << " path nodes, "
                 << header.edges << " edges, order " << header.order;
 }
@@ -584,7 +586,7 @@ LCPHeader::swap(LCPHeader& another)
 
 std::ostream& operator<<(std::ostream& stream, const LCPHeader& header)
 {
-  return stream << "LCP header version " << header.version
+  return stream << "LCP version " << header.version
                 << ": array size " << header.size
                 << ", branching factor " << header.branching;
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Genome Research Ltd.
+  Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -24,6 +24,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <sstream>
 
 #include <sys/resource.h>
 #include <unistd.h>
@@ -58,6 +59,29 @@ Verbosity::levelName()
       return "full"; break;
   }
   return "unknown";
+}
+
+//------------------------------------------------------------------------------
+
+std::string
+Version::str(bool verbose)
+{
+  std::ostringstream ss;
+  if(verbose) { ss << "GCSA2 version "; }
+  else { ss << "v"; }
+  ss << MAJOR_VERSION << "." << MINOR_VERSION << "." << PATCH_VERSION;
+  if(verbose) { ss << " (GCSA version " << GCSA_VERSION << ", LCP version " << LCP_VERSION << ")"; }
+  return ss.str();
+}
+
+void
+Version::print(std::ostream& out, const std::string& tool_name, bool verbose, size_type new_lines)
+{
+  out << tool_name;
+  if(verbose) { out << std::endl; }
+  else { out << " "; }
+  out << str(verbose);
+  for(size_type i = 0; i < new_lines; i++) { out << std::endl; }
 }
 
 //------------------------------------------------------------------------------

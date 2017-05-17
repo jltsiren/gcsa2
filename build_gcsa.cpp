@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Genome Research Ltd.
+  Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -38,19 +38,10 @@ using namespace gcsa;
 
 #ifdef VERIFY_CONSTRUCTION
 //#define VERIFY_GRAPH
-//#define VERIFY_MAPPER
 //#define LOAD_INDEX
 #endif
 
-//------------------------------------------------------------------------------
-
-#ifdef VERIFY_MAPPER
-#include <gcsa/dbg.h>
-#include <gcsa/path_graph.h>
-#endif
-
 bool verifyGraph(const InputGraph& input_graph);
-void verifyMapper(const InputGraph& graph);
 
 //------------------------------------------------------------------------------
 
@@ -61,6 +52,7 @@ main(int argc, char** argv)
 {
   if(argc < 2)
   {
+    Version::print(std::cerr, "GCSA2 builder");
     std::cerr << "Usage: build_gcsa [options] base_name [base_name2 ..]" << std::endl;
     std::cerr << "  -b    Read the input in binary format (default)" << std::endl;
     std::cerr << "  -B N  Set LCP branching factor to N (default " << ConstructionParameters::LCP_BRANCHING << ")" << std::endl;
@@ -123,8 +115,7 @@ main(int argc, char** argv)
     lcp_file = std::string(argv[optind]) + LCPArray::EXTENSION;
   }
 
-  std::cout << "GCSA builder" << std::endl;
-  std::cout << std::endl;
+  Version::print(std::cout, "GCSA2 builder");
   for(int i = optind; i < argc; i++)
   {
     printHeader("Input", INDENT);
@@ -155,6 +146,7 @@ main(int argc, char** argv)
   LCPArray lcp;
 #ifdef LOAD_INDEX
   sdsl::load_from_file(index, index_file);
+  sdsl::load_from_file(lcp, lcp_file);
 #else
   {
     double start = readTimer();
@@ -203,6 +195,8 @@ main(int argc, char** argv)
 }
 
 //------------------------------------------------------------------------------
+
+#ifdef VERIFY_GRAPH
 
 bool
 verifyGraph(const InputGraph& input_graph)
@@ -286,57 +280,6 @@ verifyGraph(const InputGraph& input_graph)
   return ok;
 }
 
-//------------------------------------------------------------------------------
-
-#ifdef VERIFY_MAPPER
-void
-verifyMapper(const InputGraph& graph)
-{
-  std::vector<key_type> keys; graph.read(keys);
-  DeBruijnGraph mapper(keys, graph.k(), graph.alpha);
-  if(Verbosity::level >= Verbosity::EXTENDED)
-  {
-    std::cerr << "build_gcsa: verifyMapper(): Mapper has " << mapper.size() << " nodes, "
-              << mapper.edge_count() << " edges" << std::endl;
-    std::cerr << "build_gcsa: verifyMapper(): Mapper size: " << sdsl::size_in_bytes(mapper) << " bytes" << std::endl;
-  }
-
-  bool ok = true;
-  for(size_type i = 0; i < keys.size(); i++)
-  {
-    std::string kmer = Key::decode(keys[i], graph.k(), graph.alpha);
-    size_type endmarker_pos = kmer.find('$'); // The actual kmer ends at the first endmarker.
-    if(endmarker_pos != std::string::npos) { kmer = kmer.substr(0, endmarker_pos + 1); }
-    range_type range = mapper.find(kmer);
-    if(range != range_type(i, i))
-    {
-      std::cerr << "build_gcsa: verifyMapper(): find(" << kmer << ") = " << range
-                << ", expected " << range_type(i, i) << std::endl;
-      ok = false;
-    }
-  }
-  std::cout << "Mapper verification " << (ok ? "complete" : "failed") << std::endl;
-
-
-  ok = true;
-  LCP lcp(keys, graph.k());
-  for(size_type i = 1; i < keys.size(); i++)
-  {
-    std::string left = Key::decode(keys[i - 1], graph.k(), graph.alpha);
-    std::string right = Key::decode(keys[i], graph.k(), graph.alpha);
-    size_type real_lcp = 0;
-    while(real_lcp < graph.k() && left[real_lcp] == right[real_lcp]) { real_lcp++; }
-    if(lcp.kmer_lcp[i] != real_lcp)
-    {
-      std::cerr << "build_gcsa: verifyMapper(): lcp(" << left << ", " << right << ") = " << real_lcp
-                << ", got " << lcp.kmer_lcp[i] << std::endl;
-      ok = false;
-    }
-  }
-  std::cout << "LCP verification " << (ok ? "complete" : "failed") << std::endl;
-
-  std::cout << std::endl;
-}
 #endif
 
 //------------------------------------------------------------------------------

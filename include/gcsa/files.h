@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Genome Research Ltd.
+  Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -138,7 +138,7 @@ struct GCSAHeader
   uint64_t flags;
 
   const static uint32_t TAG = 0x6C5A6C5A;
-  const static uint32_t VERSION = 3;
+  const static uint32_t VERSION = Version::GCSA_VERSION;
   const static uint32_t MIN_VERSION = 1;
 
   const static uint64_t COMPRESSED = 0x1; // Not in use.
@@ -174,7 +174,7 @@ struct LCPHeader
   uint64_t flags;
 
   const static uint32_t TAG = 0x6C5A7C94;
-  const static uint32_t VERSION = 1;
+  const static uint32_t VERSION = Version::LCP_VERSION;
   const static uint32_t MIN_VERSION = 1;
 
   LCPHeader();

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016 Genome Research Ltd.
+  Copyright (c) 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -34,6 +34,7 @@ main(int argc, char** argv)
 {
   if(argc < 2)
   {
+    Version::print(std::cerr, "CSA builder");
     std::cerr << "Usage: csa_builder base_name" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
@@ -42,6 +43,7 @@ main(int argc, char** argv)
   std::string base_name = argv[1];
   std::string index_name = base_name + ".csa";
   std::string fast_index_name = base_name + ".fcsa";
+  Version::print(std::cout, "CSA builder");
 
   double start = readTimer();
   sdsl::cache_config config(false);

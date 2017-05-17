@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016 Genome Research Ltd.
+  Copyright (c) 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -36,6 +36,7 @@ main(int argc, char** argv)
 {
   if(argc < 3)
   {
+    Version::print(std::cerr, "GCSA2 query benchmark");
     std::cerr << "usage: query_gcsa base_name patterns" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
@@ -43,8 +44,7 @@ main(int argc, char** argv)
 
   std::string base_name = argv[1];
   std::string pattern_name = argv[2];
-  std::cout << "GCSA2 query benchmark" << std::endl;
-  std::cout << std::endl;
+  Version::print(std::cout, "GCSA2 query benchmark");
   printHeader("Base name"); std::cout << base_name << std::endl;
   printHeader("Pattern file"); std::cout << pattern_name << std::endl;
   std::cout << std::endl;

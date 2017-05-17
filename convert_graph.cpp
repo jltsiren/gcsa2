@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Genome Research Ltd.
+  Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -40,9 +40,7 @@ main(int argc, char** argv)
   }
   else
   {
-    std::cout << "GCSA input converter" << std::endl;
-    std::cout << std::endl;
-
+    Version::print(std::cout, "GCSA2 input graph converter");
     InputGraph graph(argc - 1, argv + 1, false);
     for(size_type i = 0; i < graph.files(); i++)
     {

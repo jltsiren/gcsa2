@@ -143,6 +143,21 @@ struct Verbosity
 
 //------------------------------------------------------------------------------
 
+struct Version
+{
+  static std::string str(bool verbose = false);
+  static void print(std::ostream& out, const std::string& tool_name, bool verbose = false, size_type new_lines = 2);
+
+  const static size_type MAJOR_VERSION = 1;
+  const static size_type MINOR_VERSION = 0;
+  const static size_type PATCH_VERSION = 0;
+
+  const static size_type GCSA_VERSION  = 3;
+  const static size_type LCP_VERSION   = 1;
+};
+
+//------------------------------------------------------------------------------
+
 template<class IntegerType>
 inline size_type
 bit_length(IntegerType val)

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016 Genome Research Ltd.
+  Copyright (c) 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
 
@@ -43,6 +43,7 @@ main(int argc, char** argv)
 {
   if(argc < 2)
   {
+    Version::print(std::cerr, "Kmer counter");
     std::cerr << "usage: count_kmers [options] base_name [base_name2]" << std::endl;
     std::cerr << "  -f    Force counting kmers longer than the order of the index" << std::endl;
     std::cerr << "  -k N  Set the length of the kmers to N (default " << DEFAULT_K << ")" << std::endl;
@@ -89,8 +90,7 @@ main(int argc, char** argv)
   std::string left_name = argv[optind];
   std::string right_name = (compare ? argv[optind + 1] : "");
 
-  std::cout << "Kmer counter" << std::endl;
-  std::cout << std::endl;
+  Version::print(std::cout, "Kmer counter");
   if(compare)
   {
     std::cout << "Left name:   " << left_name << std::endl;
