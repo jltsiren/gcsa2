@@ -384,7 +384,7 @@ Key::decode(key_type key, size_type kmer_length, const Alphabet& alpha)
   for(size_type i = 1; i <= kmer_length; i++)
   {
     res[kmer_length - i] = alpha.comp2char[key & CHAR_MASK];
-    key >>= CHAR_WIDTH;
+    key >>= GCSA_CHAR_WIDTH;
   }
 
   return res;
@@ -394,7 +394,7 @@ void
 Key::lastChars(const std::vector<key_type>& keys, sdsl::int_vector<0>& last_char)
 {
   sdsl::util::clear(last_char);
-  last_char = sdsl::int_vector<0>(keys.size(), 0, CHAR_WIDTH);
+  last_char = sdsl::int_vector<0>(keys.size(), 0, GCSA_CHAR_WIDTH);
   for(size_type i = 0; i < keys.size(); i++) { last_char[i] = Key::last(keys[i]); }
 }
 

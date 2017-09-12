@@ -292,7 +292,7 @@ typedef std::uint64_t key_type;
 
 struct Key
 {
-  const static size_type CHAR_WIDTH = 3;
+  const static size_type GCSA_CHAR_WIDTH = 3;
   const static key_type  CHAR_MASK = 0x7;
   const static size_type MAX_LENGTH = 16;
   const static key_type  PRED_SUCC_MASK = 0xFFFF;
@@ -303,7 +303,7 @@ struct Key
     key_type value = 0;
     for(size_type i = 0; i < kmer.length(); i++)
     {
-      value = (value << CHAR_WIDTH) | alpha.char2comp[kmer[i]];
+      value = (value << GCSA_CHAR_WIDTH) | alpha.char2comp[kmer[i]];
     }
     value = (value << 8) | pred;
     value = (value << 8) | succ;
@@ -326,12 +326,12 @@ struct Key
   inline static size_type lcp(key_type a, key_type b, size_type kmer_length)
   {
     size_type res = 0;
-    key_type mask = CHAR_MASK << (CHAR_WIDTH * kmer_length);
+    key_type mask = CHAR_MASK << (GCSA_CHAR_WIDTH * kmer_length);
     a = label(a); b = label(b);
 
     while(mask > 0)
     {
-      mask >>= CHAR_WIDTH;
+      mask >>= GCSA_CHAR_WIDTH;
       if((a & mask) != (b & mask)) { break; }
       res++;
     }
