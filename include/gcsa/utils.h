@@ -22,8 +22,8 @@
   SOFTWARE.
 */
 
-#ifndef _GCSA_UTILS_H
-#define _GCSA_UTILS_H
+#ifndef GCSA_UTILS_H
+#define GCSA_UTILS_H
 
 #include <algorithm>
 #include <cassert>
@@ -409,4 +409,4 @@ LF(const BWTType& bwt, const AlphabetType& alpha, range_type range, comp_type co
 
 } // namespace gcsa
 
-#endif // _GCSA_UTILS_H
+#endif // GCSA_UTILS_H

@@ -22,8 +22,8 @@
   SOFTWARE.
 */
 
-#ifndef _GCSA_GCSA_H
-#define _GCSA_GCSA_H
+#ifndef GCSA_GCSA_H
+#define GCSA_GCSA_H
 
 #include <gcsa/files.h>
 
@@ -277,4 +277,4 @@ private:
 
 } // namespace gcsa
 
-#endif // _GCSA_GCSA_H
+#endif // GCSA_GCSA_H

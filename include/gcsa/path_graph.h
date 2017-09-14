@@ -22,8 +22,8 @@
   SOFTWARE.
 */
 
-#ifndef _GCSA_PATH_GRAPH_H
-#define _GCSA_PATH_GRAPH_H
+#ifndef GCSA_PATH_GRAPH_H
+#define GCSA_PATH_GRAPH_H
 
 #include <gcsa/dbg.h>
 #include <gcsa/files.h>
@@ -382,4 +382,4 @@ struct MergedGraph
 
 } // namespace gcsa
 
-#endif // _GCSA_UTILS_H
+#endif // GCSA_UTILS_H

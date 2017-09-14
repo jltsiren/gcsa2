@@ -22,8 +22,8 @@
   SOFTWARE.
 */
 
-#ifndef _GCSA_LCP_H
-#define _GCSA_LCP_H
+#ifndef GCSA_LCP_H
+#define GCSA_LCP_H
 
 #include <gcsa/files.h>
 
@@ -196,4 +196,4 @@ private:
 
 } // namespace gcsa
 
-#endif // _GCSA_LCP_H
+#endif // GCSA_LCP_H

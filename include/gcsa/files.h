@@ -22,8 +22,8 @@
   SOFTWARE.
 */
 
-#ifndef _GCSA_FILES_H
-#define _GCSA_FILES_H
+#ifndef GCSA_FILES_H
+#define GCSA_FILES_H
 
 #include <gcsa/support.h>
 
@@ -193,4 +193,4 @@ std::ostream& operator<<(std::ostream& stream, const LCPHeader& header);
 
 } // namespace gcsa
 
-#endif // _GCSA_UTILS_H
+#endif // GCSA_UTILS_H

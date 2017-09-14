@@ -22,8 +22,8 @@
   SOFTWARE.
 */
 
-#ifndef _GCSA_SUPPORT_H
-#define _GCSA_SUPPORT_H
+#ifndef GCSA_SUPPORT_H
+#define GCSA_SUPPORT_H
 
 #include <gcsa/utils.h>
 
@@ -420,4 +420,4 @@ operator< (key_type key, const KMer& kmer)
 
 } // namespace gcsa
 
-#endif // _GCSA_SUPPORT_H
+#endif // GCSA_SUPPORT_H

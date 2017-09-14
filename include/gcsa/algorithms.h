@@ -22,8 +22,8 @@
   SOFTWARE.
 */
 
-#ifndef _GCSA_ALGORITHMS_H
-#define _GCSA_ALGORITHMS_H
+#ifndef GCSA_ALGORITHMS_H
+#define GCSA_ALGORITHMS_H
 
 #include <gcsa/gcsa.h>
 #include <gcsa/lcp.h>
@@ -92,4 +92,4 @@ std::array<size_type, 3> compareKMers(const GCSA& left, const GCSA& right, size_
 
 } // namespace gcsa
 
-#endif // _GCSA_ALGORITHMS_H
+#endif // GCSA_ALGORITHMS_H

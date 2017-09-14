@@ -22,8 +22,8 @@
   SOFTWARE.
 */
 
-#ifndef _GCSA_INTERNAL_H
-#define _GCSA_INTERNAL_H
+#ifndef GCSA_INTERNAL_H
+#define GCSA_INTERNAL_H
 
 #include <map>
 
@@ -624,4 +624,4 @@ WriteBuffer<Element>::close()
 
 } // namespace gcsa
 
-#endif // _GCSA_INTERNAL_H
+#endif // GCSA_INTERNAL_H
