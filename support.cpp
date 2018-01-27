@@ -189,7 +189,7 @@ Alphabet::load(std::istream& in)
 //------------------------------------------------------------------------------
 
 NodeMapping::NodeMapping() :
-  first_node(0), next_node(0)
+  first_node(~(size_type)0), next_node(~(size_type)0)
 {
 }
 
