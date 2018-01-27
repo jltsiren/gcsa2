@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -183,6 +184,105 @@ Alphabet::load(std::istream& in)
   this->C.load(in);
   sdsl::read_member(this->sigma, in);
   sdsl::read_member(this->fast_chars, in);
+}
+
+//------------------------------------------------------------------------------
+
+NodeMapping::NodeMapping() :
+  first_node(0), next_node(0)
+{
+}
+
+NodeMapping::NodeMapping(const NodeMapping& source)
+{
+  this->copy(source);
+}
+
+NodeMapping::NodeMapping(NodeMapping&& source)
+{
+  *this = std::move(source);
+}
+
+NodeMapping::~NodeMapping()
+{
+}
+
+NodeMapping::NodeMapping(size_type first_node_id) :
+  first_node(first_node_id), next_node(first_node_id)
+{
+}
+
+void
+NodeMapping::copy(const NodeMapping& source)
+{
+  this->first_node = source.first_node;
+  this->next_node = source.next_node;
+  this->mapping = source.mapping;
+}
+
+void
+NodeMapping::swap(NodeMapping& source)
+{
+  if(this != &source)
+  {
+    std::swap(this->first_node, source.first_node);
+    std::swap(this->next_node, source.next_node);
+    this->mapping.swap(source.mapping);
+  }
+}
+
+NodeMapping&
+NodeMapping::operator=(const NodeMapping& source)
+{
+  if(this != &source) { this->copy(source); }
+  return *this;
+}
+
+NodeMapping&
+NodeMapping::operator=(NodeMapping&& source)
+{
+  if(this != &source)
+  {
+    this->first_node = source.first_node;
+    this->next_node = source.next_node;
+    this->mapping = std::move(source.mapping);
+  }
+  return *this;
+}
+
+NodeMapping::size_type
+NodeMapping::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const
+{
+  sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+  size_type written_bytes = 0;
+  written_bytes += sdsl::write_member(this->first_node, out, child, "first_node");
+  written_bytes += sdsl::write_member(this->next_node, out, child, "next_node");
+
+  // Serialize the data.
+  size_type data_bytes = this->mapping.size() * sizeof(size_type);
+  sdsl::structure_tree_node* data_node = sdsl::structure_tree::add_child(child, "mapping", "std::vector<gcsa::size_type>");
+  out.write(reinterpret_cast<const char*>(this->mapping.data()), data_bytes);
+  sdsl::structure_tree::add_size(data_node, data_bytes);
+  written_bytes += data_bytes;
+
+  sdsl::structure_tree::add_size(child, written_bytes);
+  return written_bytes;
+}
+
+void
+NodeMapping::load(std::istream& in)
+{
+  sdsl::read_member(this->first_node, in);
+  sdsl::read_member(this->next_node, in);
+  this->mapping.resize(this->next_node - this->first_node);
+  in.read(reinterpret_cast<char*>(this->mapping.data()), this->size() * sizeof(size_type));
+}
+
+size_type
+NodeMapping::insert(size_type node_id)
+{
+  this->mapping.push_back(node_id);
+  return this->next_node++;
 }
 
 //------------------------------------------------------------------------------

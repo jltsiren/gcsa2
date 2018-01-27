@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -139,6 +140,59 @@ characterCounts(const ByteVector& sequence, const sdsl::int_vector<8>& char2comp
 //------------------------------------------------------------------------------
 
 /*
+  NodeMapping is intended for index construction in situations, where one wants to use one set of
+  node ids for prefix-doubling and merging and another set for locate() queries. This can be
+  useful when we simplify complex regions in the original graph by transforming them into a set of
+  disjoint paths in the input graph. With NodeMapping, the index is built for the input graph, but
+  it maps to the original graph.
+
+  The mapping exists for all nodes from 'first_node' (inclusive) to 'next_node' (exclusive). Note
+  that NodeMapping deals with node ids in the original graph, not with node ids in the input
+  graph.
+
+  NodeMapping is used during index construction after the final merging step. Using it during
+  merging would produce a smaller index, but it requires special properties from the graph.
+  Consider paths AB and CD, where subpaths B and D start from nodes u and v, respectively. If u
+  and v map to node w, B and D might be merged into a single node, and the index would contain
+  paths AD and CB. In some cases, the index would fail, if similar merging does not happen at
+  adjacent positions.
+*/
+
+class NodeMapping
+{
+public:
+  typedef gcsa::size_type size_type;
+
+  NodeMapping();
+  NodeMapping(const NodeMapping& source);
+  NodeMapping(NodeMapping&& source);
+  ~NodeMapping();
+
+  explicit NodeMapping(size_type first_node_id);
+
+  void swap(NodeMapping& another);
+  NodeMapping& operator=(const NodeMapping& source);
+  NodeMapping& operator=(NodeMapping&& source);
+
+  size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+  void load(std::istream& in);
+
+  size_type              first_node, next_node;
+  std::vector<size_type> mapping;
+
+  size_type size() const { return this->mapping.size(); }
+  size_type operator[](size_type i) const { return this->mapping[(i < this->first_node ? i : i - this->first_node)]; }
+
+  // Adds a mapping from the return value to 'node_id'.
+  size_type insert(size_type node_id);
+
+private:
+  void copy(const NodeMapping& source);
+};  // class NodeMapping
+
+//------------------------------------------------------------------------------
+
+/*
   The core part of Sadakane's document counting structure. Essentially just unary encoding
   of array A of non-negative integers. Query count(sp, ep) returns A[sp] + ... + A[ep].
 */
@@ -167,7 +221,7 @@ public:
   bit_vector                data;
   bit_vector::select_1_type select;
 
-  inline size_type count(size_type sp, size_type ep) const
+  size_type count(size_type sp, size_type ep) const
   {
     return (this->select(ep + 1) - ep) - (sp > 0 ? this->select(sp) + 1 - sp : 0);
   }
@@ -239,9 +293,9 @@ public:
   sd_vector::select_1_type value_select;
 
   // The number of nonzero values.
-  inline size_type items() const { return this->filter_rank(this->filter.size()); }
+  size_type items() const { return this->filter_rank(this->filter.size()); }
 
-  inline size_type count(size_type sp, size_type ep) const
+  size_type count(size_type sp, size_type ep) const
   {
     sp = this->filter_rank(sp);     // Closed lower bound for ranks of filtered values.
     ep = this->filter_rank(ep + 1); // Open upper bound for ranks of filtered values.
@@ -297,7 +351,7 @@ struct Key
   const static size_type MAX_LENGTH = 16;
   const static key_type  PRED_SUCC_MASK = 0xFFFF;
 
-  inline static key_type encode(const Alphabet& alpha, const std::string& kmer,
+  static key_type encode(const Alphabet& alpha, const std::string& kmer,
     byte_type pred, byte_type succ)
   {
     key_type value = 0;
@@ -312,18 +366,18 @@ struct Key
 
   static std::string decode(key_type key, size_type kmer_length, const Alphabet& alpha);
 
-  inline static size_type label(key_type key) { return (key >> 16); }
-  inline static byte_type predecessors(key_type key) { return (key >> 8) & 0xFF; }
-  inline static byte_type successors(key_type key) { return key & 0xFF; }
-  inline static comp_type last(key_type key) { return (key >> 16) & CHAR_MASK; }
+  static size_type label(key_type key) { return (key >> 16); }
+  static byte_type predecessors(key_type key) { return (key >> 8) & 0xFF; }
+  static byte_type successors(key_type key) { return key & 0xFF; }
+  static comp_type last(key_type key) { return (key >> 16) & CHAR_MASK; }
 
-  inline static key_type merge(key_type key1, key_type key2) { return (key1 | (key2 & PRED_SUCC_MASK)); }
-  inline static key_type replace(key_type key, size_type kmer_val)
+  static key_type merge(key_type key1, key_type key2) { return (key1 | (key2 & PRED_SUCC_MASK)); }
+  static key_type replace(key_type key, size_type kmer_val)
   {
     return (kmer_val << 16) | (key & PRED_SUCC_MASK);
   }
 
-  inline static size_type lcp(key_type a, key_type b, size_type kmer_length)
+  static size_type lcp(key_type a, key_type b, size_type kmer_length)
   {
     size_type res = 0;
     key_type mask = CHAR_MASK << (GCSA_CHAR_WIDTH * kmer_length);
@@ -363,12 +417,12 @@ struct Node
   const static size_type ORIENTATION_MASK = 0x400;
   const static size_type OFFSET_MASK      = 0x3FF;
 
-  inline static node_type encode(size_type node_id, size_type node_offset)
+  static node_type encode(size_type node_id, size_type node_offset)
   {
     return (node_id << ID_OFFSET) | node_offset;
   }
 
-  inline static node_type encode(size_type node_id, size_type node_offset, bool reverse_complement)
+  static node_type encode(size_type node_id, size_type node_offset, bool reverse_complement)
   {
     return encode(node_id, node_offset) | (reverse_complement ? ORIENTATION_MASK : 0);
   }
@@ -376,9 +430,9 @@ struct Node
   static node_type encode(const std::string& token);
   static std::string decode(node_type node);
 
-  inline static size_type id(node_type node) { return node >> ID_OFFSET; }
-  inline static bool rc(node_type node) { return node & ORIENTATION_MASK; }
-  inline static size_type offset(node_type node) { return node & OFFSET_MASK; }
+  static size_type id(node_type node) { return node >> ID_OFFSET; }
+  static bool rc(node_type node) { return node & ORIENTATION_MASK; }
+  static size_type offset(node_type node) { return node & OFFSET_MASK; }
 };
 
 //------------------------------------------------------------------------------
@@ -396,14 +450,13 @@ struct KMer
   {
   }
 
-  inline bool
-  operator< (const KMer& another) const
+  bool operator< (const KMer& another) const
   {
     return (Key::label(this->key) < Key::label(another.key));
   }
 
-  inline bool sorted() const { return (this->to == ~(node_type)0); }
-  inline void makeSorted() { this->to = ~(node_type)0; }
+  bool sorted() const { return (this->to == ~(node_type)0); }
+  void makeSorted() { this->to = ~(node_type)0; }
 
   static byte_type chars(const std::string& token, const Alphabet& alpha);
 };
