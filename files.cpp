@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -258,13 +259,13 @@ markSourceSinkNodes(std::vector<KMer>& kmers)
 const std::string InputGraph::BINARY_EXTENSION = ".graph";
 const std::string InputGraph::TEXT_EXTENSION = ".gcsa2";
 
-InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format, const Alphabet& alphabet) :
+InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format, const Alphabet& alphabet, const std::string& mapping_name) :
   filenames(files), lcp_name(), alpha(alphabet), binary(binary_format)
 {
-  this->build();
+  this->build(mapping_name);
 }
 
-InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format, const Alphabet& alphabet) :
+InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format, const Alphabet& alphabet, const std::string& mapping_name) :
   lcp_name(), alpha(alphabet), binary(binary_format)
 {
   for(size_type file = 0; file < file_count; file++)
@@ -272,7 +273,7 @@ InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_form
     std::string filename = std::string(base_names[file]) + (this->binary ? BINARY_EXTENSION : TEXT_EXTENSION);
     this->filenames.push_back(filename);
   }
-  this->build();
+  this->build(mapping_name);
 }
 
 InputGraph::~InputGraph()
@@ -281,7 +282,7 @@ InputGraph::~InputGraph()
 }
 
 void
-InputGraph::build()
+InputGraph::build(const std::string& mapping_name)
 {
   this->kmer_count = 0; this->kmer_length = UNKNOWN;
   this->sizes = std::vector<size_type>(this->files(), 0);
@@ -316,6 +317,18 @@ InputGraph::build()
 
     }
     input.close();
+  }
+
+  if(!(mapping_name.empty()))
+  {
+    std::ifstream in(mapping_name, std::ios_base::binary);
+    if(!in)
+    {
+      std::cerr << "InputGraph::InputGraph(): Cannot open node mapping file " << mapping_name << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    this->mapping.load(in);
+    in.close();
   }
 
   if(Verbosity::level >= Verbosity::BASIC)

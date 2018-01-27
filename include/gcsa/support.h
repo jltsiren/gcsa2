@@ -181,7 +181,7 @@ public:
   std::vector<size_type> mapping;
 
   size_type size() const { return this->mapping.size(); }
-  size_type operator[](size_type i) const { return this->mapping[(i < this->first_node ? i : i - this->first_node)]; }
+  size_type operator() (size_type i) const { return this->mapping[(i < this->first_node ? i : i - this->first_node)]; }
 
   // Adds a mapping from the return value to 'node_id'.
   size_type insert(size_type node_id);
@@ -433,6 +433,9 @@ struct Node
   static size_type id(node_type node) { return node >> ID_OFFSET; }
   static bool rc(node_type node) { return node & ORIENTATION_MASK; }
   static size_type offset(node_type node) { return node & OFFSET_MASK; }
+
+  // Replace the node ids according to the mapping.
+  static void map(std::vector<node_type>& nodes, const NodeMapping& mapping);
 };
 
 //------------------------------------------------------------------------------

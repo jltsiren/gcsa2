@@ -539,6 +539,15 @@ Node::decode(node_type node)
   return ss.str();
 }
 
+void
+Node::map(std::vector<node_type>& nodes, const NodeMapping& mapping)
+{
+  for(node_type& node : nodes)
+  {
+    node = encode(mapping(id(node)), offset(node), rc(node));
+  }
+}
+
 //------------------------------------------------------------------------------
 
 KMer::KMer()
