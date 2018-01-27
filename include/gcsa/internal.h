@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -56,7 +57,7 @@ struct DiskIO
   inline static bool read(std::istream& in, Element* data, size_type n = 1)
   {
     size_type bytes = n * sizeof(Element);
-    in.read((char*)data, bytes);
+    in.read(reinterpret_cast<char*>(data), bytes);
     size_type read_bytes = in.gcount();
     read_volume += read_bytes;
     return (read_bytes == bytes);
@@ -65,7 +66,7 @@ struct DiskIO
   template<class Element>
   inline static void write(std::ostream& out, const Element* data, size_type n = 1)
   {
-    out.write((const char*)data, n * sizeof(Element));
+    out.write(reinterpret_cast<const char*>(data), n * sizeof(Element));
     if(out.fail())
     {
       std::cerr << "DiskIO::write(): Write failed" << std::endl;

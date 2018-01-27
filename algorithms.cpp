@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -22,9 +23,10 @@
   SOFTWARE.
 */
 
+#include <gcsa/algorithms.h>
+
 #include <stack>
 
-#include <gcsa/algorithms.h>
 #include <gcsa/internal.h>
 
 namespace gcsa

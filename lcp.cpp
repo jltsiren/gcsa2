@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -22,10 +23,11 @@
   SOFTWARE.
 */
 
+#include <gcsa/lcp.h>
+
 #include <stack>
 
 #include <gcsa/internal.h>
-#include <gcsa/lcp.h>
 
 namespace gcsa
 {
@@ -226,7 +228,7 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
 
   // Initialize data.
   this->data = sdsl::int_vector<0>(total_size, ~(uint8_t)0, 8);
-  if(!DiskIO::read(in, (const uint8_t*)(this->data.data()), this->size()))
+  if(!DiskIO::read(in, reinterpret_cast<uint8_t*>(this->data.data()), this->size()))
   {
     std::cerr << "LCPArray::LCPArray(): Unexpected EOF in " << graph.lcp_name << std::endl;
     std::exit(EXIT_FAILURE);

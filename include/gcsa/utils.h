@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -177,7 +178,7 @@ inline size_type fnv1a_hash(byte_type b, size_type seed)
 
 inline size_type fnv1a_hash(size_type val, size_type seed)
 {
-  byte_type* chars = (byte_type*)&val;
+  byte_type* chars = reinterpret_cast<byte_type*>(&val);
   for(size_type i = 0; i < 8; i++) { seed = fnv1a_hash(chars[i], seed); }
   return seed;
 }

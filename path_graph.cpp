@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -22,10 +23,9 @@
   SOFTWARE.
 */
 
-#include <deque>
-
-#include <gcsa/internal.h>
 #include <gcsa/path_graph.h>
+
+#include <deque>
 
 namespace gcsa
 {

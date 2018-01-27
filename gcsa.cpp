@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -303,8 +304,8 @@ MergedGraphReader::init(const MergedGraph& graph, size_type comp)
   this->from = graph.next_from[comp];
   this->seek();
 
-  this->mapper = 0;
-  this->last_char = 0;
+  this->mapper = nullptr;
+  this->last_char = nullptr;
 }
 
 void

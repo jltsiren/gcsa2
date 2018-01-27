@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -27,6 +28,7 @@
 
 #include <gcsa/dbg.h>
 #include <gcsa/files.h>
+#include <gcsa/internal.h>
 
 namespace gcsa
 {
