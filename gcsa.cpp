@@ -275,7 +275,7 @@ struct MergedGraphReader
   */
   bool intersect(const PathLabel& first, const PathLabel& last, size_type offset);
 
-  void fromNodes(std::vector<node_type>& results);
+  void fromNodes(std::vector<node_type>& results, const NodeMapping& mapping);
 };
 
 void
@@ -411,7 +411,7 @@ MergedGraphReader::intersect(const PathLabel& first, const PathLabel& last, size
 }
 
 void
-MergedGraphReader::fromNodes(std::vector<node_type>& results)
+MergedGraphReader::fromNodes(std::vector<node_type>& results, const NodeMapping& mapping)
 {
   results.clear();
   results.push_back(this->paths[this->path].from);
@@ -423,6 +423,7 @@ MergedGraphReader::fromNodes(std::vector<node_type>& results)
   }
   this->from = old_pointer;
 
+  Node::map(results, mapping);
   removeDuplicates(results, false);
 }
 
@@ -579,7 +580,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
       highest ST node we have encountered after the previous occurrence. We then
       increment the redundant array at the first encounter with that node.
     */
-    reader[0].fromNodes(curr_from);
+    reader[0].fromNodes(curr_from, graph.mapping);
     occurrences.increment(i, curr_from.size() - 1);
     lcp_array.seek(i);
     size_type curr_lcp = lcp_array[i] + (i > 0 ? 1 : 0); // Handle LCP[0] as -1.
@@ -616,7 +617,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
     // Sample if the from nodes cannot be derived from the only predecessor.
     if(!sample_this)
     {
-      reader[pred_comp + 1].fromNodes(pred_from);
+      reader[pred_comp + 1].fromNodes(pred_from, graph.mapping);
       if(pred_from.size() != curr_from.size()) { sample_this = true; }
       else
       {

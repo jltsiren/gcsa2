@@ -50,7 +50,7 @@ namespace gcsa
 
   Returns false if index verification fails, and true otherwise.
 */
-bool verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, size_type kmer_length);
+bool verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, size_type kmer_length, const NodeMapping& mapping = NodeMapping());
 bool verifyIndex(const GCSA& index, const LCPArray* lcp, const InputGraph& graph);
 
 //------------------------------------------------------------------------------

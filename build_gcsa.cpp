@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2018 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -59,6 +60,7 @@ main(int argc, char** argv)
     std::cerr << "  -d N  Doubling steps (default and max " << ConstructionParameters::DOUBLING_STEPS << ")" << std::endl;
     std::cerr << "  -D X  Use X as the directory for temporary files (default: " << TempFile::DEFAULT_TEMP_DIR << ")" << std::endl;
     std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << ConstructionParameters::SIZE_LIMIT << ")" << std::endl;
+    std::cerr << "  -m X  Use node mapping from file X" << std::endl;
     std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
     std::cerr << "  -t    Read the input in text format" << std::endl;
     std::cerr << "  -T N  Set the number of threads to N (default and max " << omp_get_max_threads() << " on this system)" << std::endl;
@@ -70,9 +72,9 @@ main(int argc, char** argv)
 
   int c = 0;
   bool binary = true, verify = false;
-  std::string index_file, lcp_file;
+  std::string index_file, lcp_file, mapping_file;
   ConstructionParameters parameters;
-  while((c = getopt(argc, argv, "bB:d:D:l:o:tT:vV:")) != -1)
+  while((c = getopt(argc, argv, "bB:d:D:l:m:o:tT:vV:")) != -1)
   {
     switch(c)
     {
@@ -86,6 +88,8 @@ main(int argc, char** argv)
       TempFile::setDirectory(optarg); break;
     case 'l':
       parameters.setLimit(std::stoul(optarg)); break;
+    case 'm':
+      mapping_file = optarg; break;
     case 'o':
       index_file = std::string(optarg) + GCSA::EXTENSION;
       lcp_file = std::string(optarg) + LCPArray::EXTENSION;
@@ -123,6 +127,10 @@ main(int argc, char** argv)
     if(binary) { std::cout << InputGraph::BINARY_EXTENSION << " (binary format)" << std::endl; }
     else { std::cout << InputGraph::TEXT_EXTENSION << " (text format)" << std::endl; }
   }
+  if(!(mapping_file.empty()))
+  {
+    printHeader("Node mapping", INDENT); std::cout << mapping_file << std::endl;
+  }
   printHeader("Output", INDENT); std::cout << index_file << ", " << lcp_file << std::endl;
   printHeader("Doubling steps", INDENT); std::cout << parameters.doubling_steps << std::endl;
   printHeader("Size limit", INDENT); std::cout << inGigabytes(parameters.size_limit) << " GB" << std::endl;
@@ -132,7 +140,7 @@ main(int argc, char** argv)
   printHeader("Verbosity", INDENT); std::cout << Verbosity::levelName() << std::endl;
   std::cout << std::endl;
 
-  InputGraph graph(argc - optind, argv + optind, binary);
+  InputGraph graph(argc - optind, argv + optind, binary, Alphabet(), mapping_file);
 
 #ifdef VERIFY_GRAPH
   if(!(verifyGraph(graph))) { std::exit(EXIT_FAILURE); }

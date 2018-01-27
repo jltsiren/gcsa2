@@ -80,11 +80,11 @@ bool
 verifyIndex(const GCSA& index, const LCPArray* lcp, const InputGraph& graph)
 {
   std::vector<KMer> kmers; graph.read(kmers);
-  return verifyIndex(index, lcp, kmers, graph.k());
+  return verifyIndex(index, lcp, kmers, graph.k(), graph.mapping);
 }
 
 bool
-verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, size_type kmer_length)
+verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, size_type kmer_length, const NodeMapping& mapping)
 {
   double start = readTimer();
 
@@ -168,6 +168,7 @@ verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, si
       // count()
       std::vector<node_type> expected;
       for(size_type j = i; j < next; j++) { expected.push_back(kmers[j].from); }
+      Node::map(expected, mapping);
       removeDuplicates(expected, false);
       size_type unique_count = index.count(range);
       if(unique_count != expected.size())
