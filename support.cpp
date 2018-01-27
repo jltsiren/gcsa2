@@ -261,7 +261,7 @@ NodeMapping::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::str
   // Serialize the data.
   size_type data_bytes = this->mapping.size() * sizeof(size_type);
   sdsl::structure_tree_node* data_node = sdsl::structure_tree::add_child(child, "mapping", "std::vector<gcsa::size_type>");
-  out.write(reinterpret_cast<const char*>(this->mapping.data()), data_bytes);
+  if(this->size() > 0) { out.write(reinterpret_cast<const char*>(this->mapping.data()), data_bytes); }
   sdsl::structure_tree::add_size(data_node, data_bytes);
   written_bytes += data_bytes;
 
@@ -275,7 +275,7 @@ NodeMapping::load(std::istream& in)
   sdsl::read_member(this->first_node, in);
   sdsl::read_member(this->next_node, in);
   this->mapping.resize(this->next_node - this->first_node);
-  in.read(reinterpret_cast<char*>(this->mapping.data()), this->size() * sizeof(size_type));
+  if(this->size() > 0) { in.read(reinterpret_cast<char*>(this->mapping.data()), this->size() * sizeof(size_type)); }
 }
 
 size_type
