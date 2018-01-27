@@ -542,6 +542,7 @@ Node::decode(node_type node)
 void
 Node::map(std::vector<node_type>& nodes, const NodeMapping& mapping)
 {
+  if(mapping.empty()) { return; }
   for(node_type& node : nodes)
   {
     node = encode(mapping(id(node)), offset(node), rc(node));

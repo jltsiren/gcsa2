@@ -181,6 +181,7 @@ public:
   std::vector<size_type> mapping;
 
   size_type size() const { return this->mapping.size(); }
+  bool empty() const { return (this->size() == 0); }
   size_type operator() (size_type i) const { return (i < this->first_node ? i : this->mapping[i - this->first_node]); }
 
   // Adds a mapping from the return value to 'node_id'.
