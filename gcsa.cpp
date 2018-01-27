@@ -455,9 +455,11 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   sdsl::sd_vector<> key_exists(builder);
   sdsl::util::clear(keys);
 
-  // Determine the existing from nodes.
-  std::vector<node_type> from_node_buffer;;
-  graph.readFrom(from_node_buffer);
+  // Determine the existing from nodes. Because the information is only used for index
+  // construction, we use NodeMapping to map the node ids used for construction to the
+  // node ids reported by locate().
+  std::vector<node_type> from_node_buffer;
+  graph.readFrom(from_node_buffer, true);
   sdsl::sd_vector<> from_nodes(from_node_buffer.begin(), from_node_buffer.end());
   sdsl::sd_vector<>::rank_1_type from_rank;
   sdsl::util::init_support(from_rank, &(from_nodes));

@@ -448,7 +448,7 @@ InputGraph::readKeys(std::vector<key_type>& keys) const
 }
 
 void
-InputGraph::readFrom(std::vector<node_type>& from_nodes) const
+InputGraph::readFrom(std::vector<node_type>& from_nodes, bool use_mapping) const
 {
   sdsl::util::clear(from_nodes);
   from_nodes.reserve(this->size());
@@ -463,6 +463,7 @@ InputGraph::readFrom(std::vector<node_type>& from_nodes) const
       from_nodes.push_back(kmers[i].from);
     }
   }
+  if(use_mapping) { Node::map(from_nodes, this->mapping); }
   removeDuplicates(from_nodes, true);
 
   if(Verbosity::level >= Verbosity::BASIC)
