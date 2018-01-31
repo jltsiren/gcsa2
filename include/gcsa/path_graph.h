@@ -44,7 +44,7 @@ struct PathLabel
   typedef std::uint32_t rank_type;
 
   // This should be at least 1 << ConstructionParameters::DOUBLING_STEPS.
-  const static size_type LABEL_LENGTH = 8;
+  const static size_type LABEL_LENGTH = 16;
 
   // Labels starting with NO_RANK will be after real labels in lexicographic order.
   // We also use NO_RANK for padding last labels.
@@ -107,9 +107,8 @@ struct PathNode
     From low-order to high-order bits:
 
     8 bits   which predecessor comp values exist
-    4 bits   length of the kmer rank sequences representing the path label range
-    4 bits   lcp of the above sequences
-    8 bits   unused
+    8 bits   length of the kmer rank sequences representing the path label range
+    8 bits   lcp of the above sequences
     40 bits  pointer to the label data
   */
   size_type fields;
@@ -130,19 +129,19 @@ struct PathNode
   }
 
   // Order is the length of the kmer rank sequences representing the path label range.
-  inline size_type order() const { return ((this->fields >> 8) & 0xF); }
+  inline size_type order() const { return ((this->fields >> 8) & 0xFF); }
   inline void setOrder(size_type new_order)
   {
-    this->fields &= ~(size_type)0xF00;
+    this->fields &= ~(size_type)0xFF00;
     this->fields |= new_order << 8;
   }
 
   // LCP is the length of the common prefix of kmer rank sequences.
-  inline size_type lcp() const { return ((this->fields >> 12) & 0xF); }
+  inline size_type lcp() const { return ((this->fields >> 16) & 0xFF); }
   inline void setLCP(size_type new_lcp)
   {
-    this->fields &= ~(size_type)0xF000;
-    this->fields |= new_lcp << 12;
+    this->fields &= ~(size_type)0xFF0000;
+    this->fields |= new_lcp << 16;
   }
 
   inline size_type pointer() const { return (this->fields >> 24); }

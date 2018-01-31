@@ -37,9 +37,16 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+/*
+  Known bottlenecks for increasing the maximum number of doubling steps:
+  - PathNode has enough space for 7 steps, or 8 steps if we store order - 1 instead of order.
+  - PathLabel always reserves space for a maximum-length rank sequence.
+  - The LCP array is generated as a byte array, limiting prefix-doubling to 4 steps.
+*/
+
 struct ConstructionParameters
 {
-  const static size_type DOUBLING_STEPS = 3;
+  const static size_type DOUBLING_STEPS = 4;
   const static size_type SIZE_LIMIT     = 500;    // Gigabytes.
   const static size_type ABSOLUTE_LIMIT = 16384;  // Gigabytes.
   const static size_type LCP_BRANCHING  = 64;
