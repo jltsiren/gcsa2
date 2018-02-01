@@ -2,11 +2,11 @@
 
 This is a reimplementation of the Generalized Compressed Suffix Array (GCSA), a BWT-based index for directed graphs. The implementation is based on the [Succinct Data Structures Library 2.0](https://github.com/simongog/sdsl-lite) (SDSL). To compile, set `SDSL_DIR` in the Makefile to point to your SDSL directory. As the implementation uses C++11, OpenMP, and libstdc++ parallel mode, you need g++ 4.7 or newer to compile.
 
-[The old implementation](https://jltsiren.kapsi.fi/gcsa) indexed all paths in a directed acyclic graph, which had to be determinized before index construction. This implementation indexes paths of length up to 128 in any graph. The upper bound on path length should limit the combinatorial explosion often occurring in graphs containing regions with a lot of branching.
+[The old implementation](https://jltsiren.kapsi.fi/gcsa) indexed all paths in a directed acyclic graph, which had to be determinized before index construction. This implementation indexes paths of length up to 256 in any graph. The upper bound on path length should limit the combinatorial explosion often occurring in graphs containing regions with a lot of branching.
 
-The input to index construction is a set of paths of length *k* in the input graph. The prefix-doubling algorithm transforms the input into an order-*8k* (order-*2k*, order-*4k*) pruned de Bruijn graph for paths in the input graph. A pruned de Bruijn graph differs from a de Bruijn graph in that its nodes may have shorter labels than the order of the graph, if the shorter labels uniquely determine the start nodes of the corresponding paths in the input graph. As such, pruned de Bruijn graphs are usually smaller than proper de Bruijn graphs.
+The input to index construction is a set of paths of length *k* in the input graph. The prefix-doubling algorithm transforms the input into an order-*8k* (order-*2k*, order-*4k*, order-*16k*) pruned de Bruijn graph for paths in the input graph. A pruned de Bruijn graph differs from a de Bruijn graph in that its nodes may have shorter labels than the order of the graph, if the shorter labels uniquely determine the start nodes of the corresponding paths in the input graph. As such, pruned de Bruijn graphs are usually smaller than proper de Bruijn graphs.
 
-At the moment, GCSA2 is being developed as a part of [vg](https://github.com/vgteam/vg). The only implemented construction option is based on extracting *k*-mers from vg. Later, GCSA2 should become a more general graph indexing library.
+GCSA2 is being developed as a part of [vg](https://github.com/vgteam/vg). The only implemented construction option is based on extracting *k*-mers from vg.
 
 See [the wiki](https://github.com/jltsiren/gcsa2/wiki) for further documentation.
 
@@ -21,6 +21,7 @@ There are some verification/debugging options in `build_gcsa`. To enable them, u
 Jouni Sirén: **Indexing Variation Graphs**.
 Proc. ALENEX 2017, SIAM, pp. 13-27, Barcelona, Spain, January 17-18, 2017.
 [DOI: 10.1137/1.9781611974768.2](https://doi.org/10.1137/1.9781611974768.2)
+
 ## Other references
 
 Jouni Sirén, Niko Välimäki, and Veli Mäkinen: **Indexing Graphs for Path Queries with Applications in Genome Research**.
