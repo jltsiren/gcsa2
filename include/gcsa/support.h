@@ -46,7 +46,8 @@ namespace gcsa
 
 struct ConstructionParameters
 {
-  const static size_type DOUBLING_STEPS = 4;
+  const static size_type DOUBLING_STEPS = 3;
+  const static size_type MAX_STEPS      = 4;
   const static size_type SIZE_LIMIT     = 500;    // Gigabytes.
   const static size_type ABSOLUTE_LIMIT = 16384;  // Gigabytes.
   const static size_type LCP_BRANCHING  = 64;

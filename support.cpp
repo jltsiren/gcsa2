@@ -39,7 +39,7 @@ ConstructionParameters::ConstructionParameters() :
 void
 ConstructionParameters::setSteps(size_type steps)
 {
-  this->doubling_steps = Range::bound(steps, 1, DOUBLING_STEPS);
+  this->doubling_steps = Range::bound(steps, 1, MAX_STEPS);
 }
 
 void

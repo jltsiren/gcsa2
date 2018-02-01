@@ -57,7 +57,7 @@ main(int argc, char** argv)
     std::cerr << "Usage: build_gcsa [options] base_name [base_name2 ..]" << std::endl;
     std::cerr << "  -b    Read the input in binary format (default)" << std::endl;
     std::cerr << "  -B N  Set LCP branching factor to N (default " << ConstructionParameters::LCP_BRANCHING << ")" << std::endl;
-    std::cerr << "  -d N  Doubling steps (default and max " << ConstructionParameters::DOUBLING_STEPS << ")" << std::endl;
+    std::cerr << "  -d N  Doubling steps (default " << ConstructionParameters::DOUBLING_STEPS << ", max " << ConstructionParameters::MAX_STEPS << ")" << std::endl;
     std::cerr << "  -D X  Use X as the directory for temporary files (default: " << TempFile::DEFAULT_TEMP_DIR << ")" << std::endl;
     std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << ConstructionParameters::SIZE_LIMIT << ")" << std::endl;
     std::cerr << "  -m X  Use node mapping from file X" << std::endl;

@@ -43,7 +43,7 @@ struct PathLabel
 {
   typedef std::uint32_t rank_type;
 
-  // This should be at least 1 << ConstructionParameters::DOUBLING_STEPS.
+  // This should be at least 1 << ConstructionParameters::MAX_STEPS.
   const static size_type LABEL_LENGTH = 16;
 
   // Labels starting with NO_RANK will be after real labels in lexicographic order.
