@@ -190,7 +190,9 @@ public:
 
   size_type size() const { return this->mapping.size(); }
   bool empty() const { return (this->size() == 0); }
-  size_type operator() (size_type i) const { return (i < this->first_node ? i : this->mapping[i - this->first_node]); }
+  size_type begin() const { return this->first_node; }
+  size_type end() const { return this->next_node; }
+  size_type operator() (size_type i) const { return (i < this->begin() ? i : this->mapping[i - this->begin()]); }
 
   // Adds a mapping from the return value to 'node_id'.
   size_type insert(size_type node_id);
