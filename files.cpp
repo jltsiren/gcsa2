@@ -453,7 +453,7 @@ InputGraph::readFrom(std::vector<node_type>& from_nodes, bool use_mapping) const
   sdsl::util::clear(from_nodes);
   from_nodes.reserve(this->size());
 
-  // Read the from nodes.
+  // Read the start nodes.
   for(size_type file = 0; file < this->files(); file++)
   {
     std::vector<KMer> kmers;
@@ -468,7 +468,7 @@ InputGraph::readFrom(std::vector<node_type>& from_nodes, bool use_mapping) const
 
   if(Verbosity::level >= Verbosity::BASIC)
   {
-    std::cerr << "InputGraph::readFrom(): " << from_nodes.size() << " unique from nodes" << std::endl;
+    std::cerr << "InputGraph::readFrom(): " << from_nodes.size() << " unique start nodes" << std::endl;
   }
 }
 

@@ -455,7 +455,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   sdsl::sd_vector<> key_exists(builder);
   sdsl::util::clear(keys);
 
-  // Determine the existing from nodes. Because the information is only used for index
+  // Determine the existing start nodes. Because the information is only used for index
   // construction, we use NodeMapping to map the node ids used for construction to the
   // node ids reported by locate().
   std::vector<node_type> from_node_buffer;
@@ -573,7 +573,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
     }
 
     /*
-      Get the from nodes and update the occurrences/redundant arrays.
+      Get the start nodes and update the occurrences/redundant arrays.
 
       We traverse the ST in inorder using the LCP array. For each internal node, we
       record the LCP value and the first and the last times (positions) we have
@@ -616,7 +616,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
       if(curr_from[k] % parameters.sample_period == 0) { sample_this = true; break; }
     }
 
-    // Sample if the from nodes cannot be derived from the only predecessor.
+    // Sample if the start nodes cannot be derived from the only predecessor.
     if(!sample_this)
     {
       reader[pred_comp + 1].fromNodes(pred_from, graph.mapping);

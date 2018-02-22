@@ -556,7 +556,7 @@ PathGraphMerger::extendRange(FromComparator& comp)
     const PathRange& next_range = this->ranges[curr];
     if(next_range.from >= this->size()) { break; }
 
-    // Is this a suffix tree node with the same from nodes as range and lcp > range.left_lcp?
+    // Is this a suffix tree node with the same start nodes as range and lcp > range.left_lcp?
     if(!(comp(next_range.range()))) { break; }
     parent_lcp = std::min(parent_lcp, next_range.left_lcp);
     if(parent_lcp <= range.left_lcp) { break; }
@@ -1104,7 +1104,7 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
   if(Verbosity::level >= Verbosity::EXTENDED)
   {
     std::cerr << "MergedGraph::MergedGraph(): " << this->size() << " paths with "
-              << this->ranks() << " ranks and " << this->extra() << " additional from nodes" << std::endl;
+              << this->ranks() << " ranks and " << this->extra() << " additional start nodes" << std::endl;
     std::cerr << "MergedGraph::MergedGraph(): " << inGigabytes(this->bytes()) << " GB" << std::endl;
   }
 }

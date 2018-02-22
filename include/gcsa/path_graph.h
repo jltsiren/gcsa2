@@ -338,7 +338,7 @@ struct PathGraph
 
 /*
   A merged graph is a path graph with the path nodes in one file, the labels in another
-  file, and the additional from nodes in a third file. The PathNodes are sorted by their
+  file, and the additional start nodes in a third file. The PathNodes are sorted by their
   labels and their label pointers are set correctly.
 */
 
@@ -350,7 +350,7 @@ struct MergedGraph
   size_type order;
 
   std::vector<size_type> next;      // paths[next[comp]] is the first path starting with comp.
-  std::vector<size_type> next_from; // Where to find the corresponding additional from nodes.
+  std::vector<size_type> next_from; // Where to find the corresponding additional start nodes.
 
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // gcsa
