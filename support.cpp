@@ -32,7 +32,7 @@ namespace gcsa
 
 ConstructionParameters::ConstructionParameters() :
   doubling_steps(DOUBLING_STEPS), size_limit(SIZE_LIMIT * GIGABYTE),
-  lcp_branching(LCP_BRANCHING)
+  sample_period(SAMPLE_PERIOD), lcp_branching(LCP_BRANCHING)
 {
 }
 
@@ -46,6 +46,12 @@ void
 ConstructionParameters::setLimit(size_type gigabytes)
 {
   this->size_limit = Range::bound(gigabytes, 1, ABSOLUTE_LIMIT) * GIGABYTE;
+}
+
+void
+ConstructionParameters::setSamplePeriod(size_type period)
+{
+  this->sample_period = std::max((size_type)1, period);
 }
 
 void

@@ -55,16 +55,21 @@ main(int argc, char** argv)
   {
     Version::print(std::cerr, "GCSA2 builder");
     std::cerr << "Usage: build_gcsa [options] base_name [base_name2 ..]" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "Input/output options:" << std::endl;
     std::cerr << "  -b    Read the input in binary format (default)" << std::endl;
-    std::cerr << "  -B N  Set LCP branching factor to N (default " << ConstructionParameters::LCP_BRANCHING << ")" << std::endl;
+    std::cerr << "  -t    Read the input in text format" << std::endl;
+    std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
+    std::cerr << "Index construction options:" << std::endl;
     std::cerr << "  -d N  Doubling steps (default " << ConstructionParameters::DOUBLING_STEPS << ", max " << ConstructionParameters::MAX_STEPS << ")" << std::endl;
+    std::cerr << "  -m X  Use node mapping from file X" << std::endl;
+    std::cerr << "  -s N  Use sample period N (default " << ConstructionParameters::SAMPLE_PERIOD << ")" << std::endl;
+    std::cerr << "  -B N  Set LCP branching factor to N (default " << ConstructionParameters::LCP_BRANCHING << ")" << std::endl;
+    std::cerr << "  -v    Verify the index by querying it with the kmers" << std::endl;
+    std::cerr << "Other options:" << std::endl;
     std::cerr << "  -D X  Use X as the directory for temporary files (default: " << TempFile::DEFAULT_TEMP_DIR << ")" << std::endl;
     std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << ConstructionParameters::SIZE_LIMIT << ")" << std::endl;
-    std::cerr << "  -m X  Use node mapping from file X" << std::endl;
-    std::cerr << "  -o X  Use X as the base name for output (default: the first input)" << std::endl;
-    std::cerr << "  -t    Read the input in text format" << std::endl;
     std::cerr << "  -T N  Set the number of threads to N (default and max " << omp_get_max_threads() << " on this system)" << std::endl;
-    std::cerr << "  -v    Verify the index by querying it with the kmers" << std::endl;
     std::cerr << "  -V N  Set verbosity level to N (default " << Verbosity::DEFAULT << ")" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
@@ -74,32 +79,34 @@ main(int argc, char** argv)
   bool binary = true, verify = false;
   std::string index_file, lcp_file, mapping_file;
   ConstructionParameters parameters;
-  while((c = getopt(argc, argv, "bB:d:D:l:m:o:tT:vV:")) != -1)
+  while((c = getopt(argc, argv, "bto:d:m:s:B:vD:l:T:V:")) != -1)
   {
     switch(c)
     {
     case 'b':
       binary = true; break;
-    case 'B':
-      parameters.setLCPBranching(std::stoul(optarg)); break;
-    case 'd':
-      parameters.setSteps(std::stoul(optarg)); break;
-    case 'D':
-      TempFile::setDirectory(optarg); break;
-    case 'l':
-      parameters.setLimit(std::stoul(optarg)); break;
-    case 'm':
-      mapping_file = optarg; break;
+    case 't':
+      binary = false; break;
     case 'o':
       index_file = std::string(optarg) + GCSA::EXTENSION;
       lcp_file = std::string(optarg) + LCPArray::EXTENSION;
       break;
-    case 't':
-      binary = false; break;
-    case 'T':
-      omp_set_num_threads(Range::bound(std::stoul(optarg), 1, omp_get_max_threads())); break;
+    case 'd':
+      parameters.setSteps(std::stoul(optarg)); break;
+    case 'm':
+      mapping_file = optarg; break;
+    case 's':
+      parameters.setSamplePeriod(std::stoul(optarg)); break;
+    case 'B':
+      parameters.setLCPBranching(std::stoul(optarg)); break;
     case 'v':
       verify = true; break;
+    case 'D':
+      TempFile::setDirectory(optarg); break;
+    case 'l':
+      parameters.setLimit(std::stoul(optarg)); break;
+    case 'T':
+      omp_set_num_threads(Range::bound(std::stoul(optarg), 1, omp_get_max_threads())); break;
     case 'V':
       Verbosity::set(std::stoul(optarg)); break;
     case '?':
@@ -133,10 +140,11 @@ main(int argc, char** argv)
   }
   printHeader("Output", INDENT); std::cout << index_file << ", " << lcp_file << std::endl;
   printHeader("Doubling steps", INDENT); std::cout << parameters.doubling_steps << std::endl;
-  printHeader("Size limit", INDENT); std::cout << inGigabytes(parameters.size_limit) << " GB" << std::endl;
+  printHeader("Sample period", INDENT); std::cout << parameters.sample_period << std::endl;
   printHeader("Branching factor", INDENT); std::cout << parameters.lcp_branching << std::endl;
-  printHeader("Threads", INDENT); std::cout << omp_get_max_threads() << std::endl;
   printHeader("Temp directory", INDENT); std::cout << TempFile::temp_dir << std::endl;
+  printHeader("Size limit", INDENT); std::cout << inGigabytes(parameters.size_limit) << " GB" << std::endl;
+  printHeader("Threads", INDENT); std::cout << omp_get_max_threads() << std::endl;
   printHeader("Verbosity", INDENT); std::cout << Verbosity::levelName() << std::endl;
   std::cout << std::endl;
 

@@ -607,13 +607,13 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
       Simple cases for sampling the node:
       - multiple predecessors
       - at the beginning of the source node with no real predecessors
-      - at the beginning of a node in the original graph (makes the previous case redundant)
+      - if a from node is divisible by the sample period
     */
     if(indegree > 1) { sample_this = true; }
     if(reader[0].paths[reader[0].path].hasPredecessor(Alphabet::SINK_COMP)) { sample_this = true; }
     for(size_type k = 0; k < curr_from.size(); k++)
     {
-      if(Node::offset(curr_from[k]) == 0) { sample_this = true; break; }
+      if(curr_from[k] % parameters.sample_period == 0) { sample_this = true; break; }
     }
 
     // Sample if the from nodes cannot be derived from the only predecessor.
