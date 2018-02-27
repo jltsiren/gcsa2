@@ -10,12 +10,6 @@ GCSA2 is being developed as a part of [vg](https://github.com/vgteam/vg). The on
 
 See [the wiki](https://github.com/jltsiren/gcsa2/wiki) for further documentation.
 
-## Compilation options
-
-The maximum resident size reported by `getrusage()` is in kilobytes in Linux and in bytes in OS X. By default, the implementation assumes Linux-like behavior. To get the correct memory usage reports in OS X, uncomment the line `RUSAGE_FLAGS=-DRUSAGE_IN_BYTES` in the makefile.
-
-There are some verification/debugging options in `build_gcsa`. To enable them, uncomment the line `VERIFY_FLAGS=-DVERIFY_CONSTRUCTION` in the makefile and select the debugging options in `build_gcsa.cpp`.
-
 ## Citing GCSA2
 
 Jouni Sirén: **Indexing Variation Graphs**.

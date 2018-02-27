@@ -1,9 +1,5 @@
 SDSL_DIR=../sdsl-lite
 
-# In OS X, getrusage() returns maximum resident set size in bytes.
-# In Linux, the value is in kilobytes, so this line should be commented out.
-#RUSAGE_FLAGS=-DRUSAGE_IN_BYTES
-
 # This enables various debugging options in build_gcsa.
 #VERIFY_FLAGS=-DVERIFY_CONSTRUCTION
 
@@ -14,7 +10,7 @@ ifneq (clang,$(findstring clang,$(shell $(CXX) --version)))
 PARALLEL_FLAGS+=-D_GLIBCXX_PARALLEL
 endif
 
-OTHER_FLAGS=$(RUSAGE_FLAGS) $(VERIFY_FLAGS) $(PARALLEL_FLAGS)
+OTHER_FLAGS=$(VERIFY_FLAGS) $(PARALLEL_FLAGS)
 
 include $(SDSL_DIR)/Make.helper
 CXX_FLAGS=$(MY_CXX_FLAGS) $(OTHER_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(INC_DIR) -Iinclude

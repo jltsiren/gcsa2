@@ -118,7 +118,7 @@ memoryUsage()
 {
   rusage usage;
   getrusage(RUSAGE_SELF, &usage);
-#ifdef RUSAGE_IN_BYTES
+#if defined(__APPLE__) && defined(__MACH__)
   return usage.ru_maxrss;
 #else
   return KILOBYTE * usage.ru_maxrss;
