@@ -31,6 +31,7 @@ namespace gcsa
 
 std::atomic<size_type> DiskIO::read_volume(0);
 std::atomic<size_type> DiskIO::write_volume(0);
+const size_type DiskIO::block_size = MEGABYTE;
 
 //------------------------------------------------------------------------------
 

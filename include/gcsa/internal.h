@@ -46,33 +46,43 @@ namespace gcsa
 
 /*
   Utility methods for disk I/O and read/write volume measurement. These methods don't use
-  mutexes / critical sections for performance reasons.
+  mutexes / critical sections for performance reasons. Reads and writes are done in
+  blocks of 1048576 elements to avoid the bug with large reads in GCC / macOS.
 */
 
 struct DiskIO
 {
   static std::atomic<size_type> read_volume, write_volume;
+  const static size_type block_size;
 
   template<class Element>
-  inline static bool read(std::istream& in, Element* data, size_type n = 1)
+  static bool read(std::istream& in, Element* data, size_type n = 1)
   {
-    size_type bytes = n * sizeof(Element);
-    in.read(reinterpret_cast<char*>(data), bytes);
-    size_type read_bytes = in.gcount();
-    read_volume += read_bytes;
-    return (read_bytes == bytes);
+    for(size_type offset = 0; offset < n; offset += block_size)
+    {
+      size_type bytes = std::min(block_size, n - offset) * sizeof(Element);
+      in.read(reinterpret_cast<char*>(data + offset), bytes);
+      size_type read_bytes = in.gcount();
+      read_volume += read_bytes;
+      if(read_bytes < bytes) { return false; }
+    }
+    return true;
   }
 
   template<class Element>
-  inline static void write(std::ostream& out, const Element* data, size_type n = 1)
+  static void write(std::ostream& out, const Element* data, size_type n = 1)
   {
-    out.write(reinterpret_cast<const char*>(data), n * sizeof(Element));
-    if(out.fail())
+    for(size_type offset = 0; offset < n; offset += block_size)
     {
-      std::cerr << "DiskIO::write(): Write failed" << std::endl;
-      std::exit(EXIT_FAILURE);
+      size_type bytes = std::min(block_size, n - offset) * sizeof(Element);
+      out.write(reinterpret_cast<const char*>(data + offset), bytes);
+      if(out.fail())
+      {
+        std::cerr << "DiskIO::write(): Write failed" << std::endl;
+        std::exit(EXIT_FAILURE);
+      }
+      write_volume += bytes;
     }
-    write_volume += n * sizeof(Element);
   }
 };
 
