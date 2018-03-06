@@ -27,6 +27,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <set>
 #include <sstream>
 
 #include <sys/resource.h>
@@ -139,40 +140,62 @@ writeVolume()
 
 //------------------------------------------------------------------------------
 
-std::atomic<size_type> TempFile::counter(0);
-
-const std::string TempFile::DEFAULT_TEMP_DIR = ".";
-std::string TempFile::temp_dir = TempFile::DEFAULT_TEMP_DIR;
-
-void
-TempFile::setDirectory(const std::string& directory)
+namespace TempFile
 {
-  if(directory.empty()) { temp_dir = DEFAULT_TEMP_DIR; }
-  else if(directory[directory.length() - 1] != '/') { temp_dir = directory; }
-  else { temp_dir = directory.substr(0, directory.length() - 1); }
-}
+  size_type counter = 0;
 
-std::string
-TempFile::getName(const std::string& name_part)
-{
-  char hostname[32];
-  gethostname(hostname, 32); hostname[31] = 0;
+  const std::string DEFAULT_TEMP_DIR = ".";
+  std::string temp_dir = DEFAULT_TEMP_DIR;
 
-  return temp_dir + '/' + name_part + '_'
-    + std::string(hostname) + '_'
-    + sdsl::util::to_string(sdsl::util::pid()) + '_'
-    + sdsl::util::to_string(counter++);
-}
-
-void
-TempFile::remove(std::string& filename)
-{
-  if(!(filename.empty()))
+  // By storing the filenames in a static object, we can delete the remaining
+  // temporary files when std::exit() is called.
+  struct Handler
   {
-    std::remove(filename.c_str());
-    filename.clear();
+    std::set<std::string> filenames;
+    ~Handler()
+    {
+      for(auto& filename : this->filenames)
+      {
+        std::remove(filename.c_str());
+      }
+    }
+  } handler;
+
+  void
+  setDirectory(const std::string& directory)
+  {
+    if(directory.empty()) { temp_dir = DEFAULT_TEMP_DIR; }
+    else if(directory[directory.length() - 1] != '/') { temp_dir = directory; }
+    else { temp_dir = directory.substr(0, directory.length() - 1); }
   }
-}
+
+  std::string
+  getName(const std::string& name_part)
+  {
+    char hostname[32];
+    gethostname(hostname, 32); hostname[31] = 0;
+
+    std::string filename = temp_dir + '/' + name_part + '_'
+      + std::string(hostname) + '_'
+      + sdsl::util::to_string(sdsl::util::pid()) + '_'
+      + sdsl::util::to_string(counter);
+    handler.filenames.insert(filename);
+    counter++;
+
+    return filename;
+  }
+
+  void
+  remove(std::string& filename)
+  {
+    if(!(filename.empty()))
+    {
+      std::remove(filename.c_str());
+      handler.filenames.erase(filename);
+      filename.clear();
+    }
+  }
+} // namespace TempFile
 
 size_type
 readRows(const std::string& filename, std::vector<std::string>& rows, bool skip_empty_rows)

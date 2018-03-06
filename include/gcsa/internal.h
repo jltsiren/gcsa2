@@ -29,6 +29,7 @@
 #include <map>
 
 // C++ threads for DiskIO, ReadBuffer.
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -56,21 +57,21 @@ struct DiskIO
   const static size_type block_size;
 
   template<class Element>
-  static bool read(std::istream& in, Element* data, size_type n = 1)
+  static bool read(std::istream& in, Element* data, size_type n = 1, bool update = true)
   {
     for(size_type offset = 0; offset < n; offset += block_size)
     {
       size_type bytes = std::min(block_size, n - offset) * sizeof(Element);
       in.read(reinterpret_cast<char*>(data + offset), bytes);
       size_type read_bytes = in.gcount();
-      read_volume += read_bytes;
+      if(update) { read_volume += read_bytes; }
       if(read_bytes < bytes) { return false; }
     }
     return true;
   }
 
   template<class Element>
-  static void write(std::ostream& out, const Element* data, size_type n = 1)
+  static void write(std::ostream& out, const Element* data, size_type n = 1, bool update = true)
   {
     for(size_type offset = 0; offset < n; offset += block_size)
     {
@@ -81,7 +82,7 @@ struct DiskIO
         std::cerr << "DiskIO::write(): Write failed" << std::endl;
         std::exit(EXIT_FAILURE);
       }
-      write_volume += bytes;
+      if(update) { write_volume += bytes; }
     }
   }
 };
