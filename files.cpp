@@ -153,6 +153,12 @@ readBinary(std::istream& in, std::vector<KMer>& kmers, bool append)
 void
 writeBinary(std::ostream& out, std::vector<KMer>& kmers, size_type kmer_length)
 {
+  if(kmer_length == 0 || kmer_length > Key::MAX_LENGTH)
+  {
+    std::cerr << "writeBinary(): Invalid kmer length: " << kmer_length << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+
   GraphFileHeader header(kmers.size(), kmer_length);
   header.serialize(out);
   DiskIO::write(out, kmers.data(), header.kmer_count);
