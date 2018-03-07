@@ -50,6 +50,12 @@ ConstructionParameters::setLimit(size_type gigabytes)
 }
 
 void
+ConstructionParameters::setLimitBytes(size_type bytes)
+{
+  this->size_limit = Range::bound(bytes, 1, ABSOLUTE_LIMIT * GIGABYTE);
+}
+
+void
 ConstructionParameters::setSamplePeriod(size_type period)
 {
   this->sample_period = std::max((size_type)1, period);

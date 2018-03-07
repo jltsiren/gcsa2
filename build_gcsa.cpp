@@ -68,7 +68,7 @@ main(int argc, char** argv)
     std::cerr << "  -v    Verify the index by querying it with the kmers" << std::endl;
     std::cerr << "Other options:" << std::endl;
     std::cerr << "  -D X  Use X as the directory for temporary files (default: " << TempFile::DEFAULT_TEMP_DIR << ")" << std::endl;
-    std::cerr << "  -l N  Limit the size of the graph to N gigabytes (default " << ConstructionParameters::SIZE_LIMIT << ")" << std::endl;
+    std::cerr << "  -l N  Limit disk space usage to N gigabytes (default " << ConstructionParameters::SIZE_LIMIT << ")" << std::endl;
     std::cerr << "  -T N  Set the number of threads to N (default and max " << omp_get_max_threads() << " on this system)" << std::endl;
     std::cerr << "  -V N  Set verbosity level to N (default " << Verbosity::DEFAULT << ")" << std::endl;
     std::cerr << std::endl;

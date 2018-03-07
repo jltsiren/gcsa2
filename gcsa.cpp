@@ -489,8 +489,8 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
       std::cerr << "GCSA::GCSA(): Step " << step << " (path length " << path_graph.k() << " -> "
                 << (2 * path_graph.k()) << ")" << std::endl;
     }
-    path_graph.prune(lcp, parameters.size_limit);
-    path_graph.extend(parameters.size_limit);
+    path_graph.prune(lcp, parameters.size_limit - path_graph.bytes());
+    path_graph.extend(parameters.size_limit - path_graph.bytes());
   }
   if(Verbosity::level >= Verbosity::EXTENDED)
   {
@@ -505,7 +505,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   {
     std::cerr << "GCSA::GCSA(): Merging the paths" << std::endl;
   }
-  MergedGraph merged_graph(path_graph, mapper, lcp, parameters.size_limit);
+  MergedGraph merged_graph(path_graph, mapper, lcp, parameters.size_limit - path_graph.bytes());
   this->header.path_nodes = merged_graph.size();
   this->header.order = merged_graph.k();
   path_graph.clear();

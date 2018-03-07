@@ -48,7 +48,7 @@ struct ConstructionParameters
 {
   const static size_type DOUBLING_STEPS = 4;
   const static size_type MAX_STEPS      = 4;
-  const static size_type SIZE_LIMIT     = 500;    // Gigabytes.
+  const static size_type SIZE_LIMIT     = 2048;   // Gigabytes.
   const static size_type ABSOLUTE_LIMIT = 16384;  // Gigabytes.
   const static size_type SAMPLE_PERIOD  = 64;
   const static size_type LCP_BRANCHING  = 64;
@@ -56,6 +56,7 @@ struct ConstructionParameters
   ConstructionParameters();
   void setSteps(size_type steps);
   void setLimit(size_type gigabytes);
+  void setLimitBytes(size_type bytes);
   void setSamplePeriod(size_type period);
   void setLCPBranching(size_type factor);
 

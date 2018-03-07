@@ -324,7 +324,12 @@ struct PathGraph
     return this->size() * sizeof(PathNode) + this->ranks() * sizeof(PathNode::rank_type);
   }
 
-  // Size limits are in bytes.
+  /*
+    The size limit (in bytes) is the space available for the new graph. The current graph is
+    not taken into account, so you may want to use something like:
+
+      path_graph.prune(lcp, total_size_limit - path_graph.bytes())
+  */
   void prune(const LCP& lcp, size_type size_limit);
   void extend(size_type size_limit);
 
@@ -355,6 +360,12 @@ struct MergedGraph
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // gcsa
 
+  /*
+    The size limit (in bytes) is the space available for the new graph. The current graph is
+    not taken into account, so you may want to use something like:
+
+      MergedGraph merged_graph(source, mapper, kmer_lcp, total_size_limit - source.bytes())
+  */
   MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, const LCP& kmer_lcp, size_type size_limit);
   ~MergedGraph();
 
