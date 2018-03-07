@@ -57,6 +57,7 @@ struct ConstructionParameters
   void setSteps(size_type steps);
   void setLimit(size_type gigabytes);
   void setLimitBytes(size_type bytes);
+  void reduceLimit(size_type bytes);
   void setSamplePeriod(size_type period);
   void setLCPBranching(size_type factor);
 

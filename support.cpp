@@ -56,6 +56,13 @@ ConstructionParameters::setLimitBytes(size_type bytes)
 }
 
 void
+ConstructionParameters::reduceLimit(size_type bytes)
+{
+  if(bytes > this->size_limit) { this->size_limit = 0; }
+  else { this->size_limit -= bytes; }
+}
+
+void
 ConstructionParameters::setSamplePeriod(size_type period)
 {
   this->sample_period = std::max((size_type)1, period);
