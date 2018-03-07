@@ -205,7 +205,7 @@ LCPArray::LCPArray(const InputGraph& graph, const ConstructionParameters& parame
     std::exit(EXIT_FAILURE);
   }
 
-  this->header.branching = parameters.lcp_branching;
+  this->header.branching = parameters.getLCPBranching();
 
   // Determine the number of levels.
   this->header.size = fileSize(in);

@@ -435,7 +435,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
 
   if(graph.size() == 0) { return; }
   size_type bytes_required = graph.size() * (sizeof(PathNode) + 2 * sizeof(PathNode::rank_type));
-  if(bytes_required > parameters.size_limit)
+  if(bytes_required > parameters.getLimitBytes())
   {
     std::cerr << "GCSA::GCSA(): The input is too large: " << (bytes_required / GIGABYTE_DOUBLE) << " GB" << std::endl;
     std::cerr << "GCSA::GCSA(): Construction aborted" << std::endl;
@@ -482,15 +482,15 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   {
     std::cerr << "GCSA::GCSA(): Prefix-doubling from path length " << path_graph.k() << std::endl;
   }
-  for(size_type step = 1; step <= parameters.doubling_steps; step++)
+  for(size_type step = 1; step <= parameters.getSteps(); step++)
   {
     if(Verbosity::level >= Verbosity::BASIC)
     {
       std::cerr << "GCSA::GCSA(): Step " << step << " (path length " << path_graph.k() << " -> "
                 << (2 * path_graph.k()) << ")" << std::endl;
     }
-    path_graph.prune(lcp, parameters.size_limit - path_graph.bytes());
-    path_graph.extend(parameters.size_limit - path_graph.bytes());
+    path_graph.prune(lcp, parameters.getLimitBytes() - path_graph.bytes());
+    path_graph.extend(parameters.getLimitBytes() - path_graph.bytes());
   }
   if(Verbosity::level >= Verbosity::EXTENDED)
   {
@@ -505,7 +505,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   {
     std::cerr << "GCSA::GCSA(): Merging the paths" << std::endl;
   }
-  MergedGraph merged_graph(path_graph, mapper, lcp, parameters.size_limit - path_graph.bytes());
+  MergedGraph merged_graph(path_graph, mapper, lcp, parameters.getLimitBytes() - path_graph.bytes());
   this->header.path_nodes = merged_graph.size();
   this->header.order = merged_graph.k();
   path_graph.clear();
@@ -613,7 +613,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
     if(reader[0].paths[reader[0].path].hasPredecessor(Alphabet::SINK_COMP)) { sample_this = true; }
     for(size_type k = 0; k < curr_from.size(); k++)
     {
-      if(curr_from[k] % parameters.sample_period == 0) { sample_this = true; break; }
+      if(curr_from[k] % parameters.getSamplePeriod() == 0) { sample_this = true; break; }
     }
 
     // Sample if the start nodes cannot be derived from the only predecessor.

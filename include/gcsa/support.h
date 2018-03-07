@@ -61,6 +61,11 @@ struct ConstructionParameters
   void setSamplePeriod(size_type period);
   void setLCPBranching(size_type factor);
 
+  size_type getSteps() const { return this->doubling_steps; }
+  size_type getLimitBytes() const { return this->size_limit; }
+  size_type getSamplePeriod() const { return this->sample_period; }
+  size_type getLCPBranching() const { return this->lcp_branching; }
+
   size_type doubling_steps;
   size_type size_limit;
   size_type sample_period;
