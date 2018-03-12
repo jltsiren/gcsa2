@@ -90,6 +90,10 @@ std::array<size_type, 3> compareKMers(const GCSA& left, const GCSA& right, size_
 
 //------------------------------------------------------------------------------
 
+void printStatistics(const GCSA& gcsa, const LCPArray& lcp_array);
+
+//------------------------------------------------------------------------------
+
 } // namespace gcsa
 
 #endif // GCSA_ALGORITHMS_H

@@ -22,8 +22,7 @@
   SOFTWARE.
 */
 
-#include <gcsa/gcsa.h>
-#include <gcsa/lcp.h>
+#include <gcsa/algorithms.h>
 
 using namespace gcsa;
 
@@ -34,30 +33,40 @@ size_type filter(std::vector<std::string>& patterns);
 int
 main(int argc, char** argv)
 {
-  if(argc < 3)
+  if(argc < 2)
   {
     Version::print(std::cerr, "GCSA2 query benchmark");
-    std::cerr << "usage: query_gcsa base_name patterns" << std::endl;
+    std::cerr << "usage: query_gcsa base_name [patterns]" << std::endl;
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
 
   std::string base_name = argv[1];
-  std::string pattern_name = argv[2];
+  std::string pattern_name;
+  if(argc > 2) { pattern_name = argv[2]; }
   Version::print(std::cout, "GCSA2 query benchmark");
   printHeader("Base name"); std::cout << base_name << std::endl;
-  printHeader("Pattern file"); std::cout << pattern_name << std::endl;
+  if(!(pattern_name.empty())) { printHeader("Pattern file"); std::cout << pattern_name << std::endl; }
   std::cout << std::endl;
 
   GCSA index;
   std::string gcsa_name = base_name + GCSA::EXTENSION;
   sdsl::load_from_file(index, gcsa_name);
-  printHeader("GCSA"); std::cout << inMegabytes(sdsl::size_in_bytes(index)) << " MB" << std::endl;
 
   LCPArray lcp;
   std::string lcp_name = base_name + LCPArray::EXTENSION;
   sdsl::load_from_file(lcp, lcp_name);
-  printHeader("LCP"); std::cout << inMegabytes(sdsl::size_in_bytes(lcp)) << " MB" << std::endl;
+
+  if(pattern_name.empty())
+  {
+    printStatistics(index, lcp);
+    std::exit(EXIT_SUCCESS);
+  }
+  else
+  {
+    printHeader("GCSA"); std::cout << inMegabytes(sdsl::size_in_bytes(index)) << " MB" << std::endl;
+    printHeader("LCP"); std::cout << inMegabytes(sdsl::size_in_bytes(lcp)) << " MB" << std::endl;
+  }
 
   std::vector<std::string> patterns;
   size_type pattern_total = readRows(pattern_name, patterns, true);

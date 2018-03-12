@@ -560,4 +560,33 @@ compareKMers(const GCSA& left, const GCSA& right, size_type k, const KMerSearchP
 
 //------------------------------------------------------------------------------
 
+void
+printStatistics(const GCSA& gcsa, const LCPArray& lcp_array)
+{
+  printHeader("Paths"); std::cout << gcsa.size() << std::endl;
+  printHeader("Edges"); std::cout << gcsa.edgeCount() << std::endl;
+  printHeader("Samples");
+  std::cout << gcsa.sampleCount() << " (at " << gcsa.sampledPositions() << " positions, "
+            << gcsa.sampleBits() << " bits each)" << std::endl;
+  printHeader("Max query"); std::cout << gcsa.order() << std::endl;
+  std::cout << std::endl;
+
+  size_type index_bytes = sdsl::size_in_bytes(gcsa);
+  size_type sample_bytes =
+    sdsl::size_in_bytes(gcsa.sampled_paths) + sdsl::size_in_bytes(gcsa.sampled_path_rank) +
+    sdsl::size_in_bytes(gcsa.stored_samples) +
+    sdsl::size_in_bytes(gcsa.samples) + sdsl::size_in_bytes(gcsa.sample_select);
+  size_type counter_bytes =
+    sdsl::size_in_bytes(gcsa.extra_pointers) + sdsl::size_in_bytes(gcsa.redundant_pointers);
+  size_type lcp_bytes = sdsl::size_in_bytes(lcp_array);
+  printHeader("Core index"); std::cout << inMegabytes(index_bytes - sample_bytes - counter_bytes) << " MB" << std::endl;
+  printHeader("Samples"); std::cout << inMegabytes(sample_bytes) << " MB" << std::endl;
+  printHeader("Counter"); std::cout << inMegabytes(counter_bytes) << " MB" << std::endl;
+  printHeader("LCP array"); std::cout << inMegabytes(lcp_bytes) << " MB" << std::endl;
+  printHeader("Total size"); std::cout << inMegabytes(index_bytes + lcp_bytes) << " MB" << std::endl;
+  std::cout << std::endl;
+}
+
+//------------------------------------------------------------------------------
+
 } // namespace gcsa
