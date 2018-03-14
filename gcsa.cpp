@@ -839,7 +839,7 @@ GCSA::locate(range_type range, size_type positions, std::vector<node_type>& resu
   positions = std::min(positions, total_positions);
 
   std::mt19937_64 rng(reinterpret_cast<size_type>(this));
-  if(positions >= total_positions / 3)  // Just locate everything.
+  if(positions >= total_positions / 2)  // Just locate everything.
   {
     this->locate(range, results);
   }
