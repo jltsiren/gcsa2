@@ -300,6 +300,8 @@ struct PathGraph
 
   size_type unique, redundant, unsorted, nondeterministic;
 
+  bool delete_files;
+
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // gcsa
 

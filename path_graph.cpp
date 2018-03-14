@@ -667,6 +667,7 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
   this->order = source.k(); this->doubling_steps = 0;
   this->unique = UNKNOWN; this->redundant = UNKNOWN;
   this->unsorted = UNKNOWN; this->nondeterministic = UNKNOWN;
+  this->delete_files = true;
 
   sdsl::sd_vector<>::rank_1_type key_rank(&key_exists);
   for(size_type file = 0; file < source.files(); file++)
@@ -710,7 +711,8 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
 PathGraph::PathGraph(size_type file_count, size_type path_order, size_type steps) :
   path_names(file_count), rank_names(file_count), path_counts(file_count, 0), rank_counts(file_count, 0),
   path_count(0), rank_count(0), range_count(0), order(path_order), doubling_steps(steps),
-  unique(0), redundant(0), unsorted(0), nondeterministic(0)
+  unique(0), redundant(0), unsorted(0), nondeterministic(0),
+  delete_files(true)
 {
   for(size_type file = 0; file < this->files(); file++)
   {
@@ -725,6 +727,7 @@ PathGraph::PathGraph(const std::string& path_name, const std::string& rank_name)
   this->order = 0; this->doubling_steps = 0;
   this->unique = 0; this->redundant = 0;
   this->unsorted = 0; this->nondeterministic = 0;
+  this->delete_files = false;
 
   this->path_names.push_back(path_name);
   std::ifstream path_file(path_name, std::ios_base::binary);
@@ -757,10 +760,13 @@ PathGraph::~PathGraph()
 void
 PathGraph::clear()
 {
-  for(size_type file = 0; file < this->files(); file++)
+  if(this->delete_files)
   {
-    TempFile::remove(this->path_names[file]);
-    TempFile::remove(this->rank_names[file]);
+    for(size_type file = 0; file < this->files(); file++)
+    {
+      TempFile::remove(this->path_names[file]);
+      TempFile::remove(this->rank_names[file]);
+    }
   }
   this->path_names.clear();
   this->rank_names.clear();
