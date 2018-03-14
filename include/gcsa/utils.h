@@ -167,27 +167,22 @@ bit_length(IntegerType val)
 
 //------------------------------------------------------------------------------
 
-const size_type FNV_OFFSET_BASIS = 0xcbf29ce484222325UL;
-const size_type FNV_PRIME        = 0x100000001b3UL;
+/*
+  Thomas Wang's integer hash function. In many implementations, std::hash
+  is identity function for integers, which leads to performance issues.
+*/
 
-inline size_type fnv1a_hash(byte_type b, size_type seed)
+inline size_type
+wang_hash_64(size_type key)
 {
-  return (seed ^ b) * FNV_PRIME;
-}
-
-inline size_type fnv1a_hash(size_type val, size_type seed)
-{
-  byte_type* chars = reinterpret_cast<byte_type*>(&val);
-  for(size_type i = 0; i < 8; i++) { seed = fnv1a_hash(chars[i], seed); }
-  return seed;
-}
-
-template<class ByteArray>
-size_type fnv1a_hash(ByteArray& array)
-{
-  size_type res = FNV_OFFSET_BASIS;
-  for(size_type i = 0; i < array.size(); i++) { res = fnv1a_hash((byte_type)(array[i]), res); }
-  return res;
+  key = (~key) + (key << 21); // key = (key << 21) - key - 1;
+  key = key ^ (key >> 24);
+  key = (key + (key << 3)) + (key << 8); // key * 265
+  key = key ^ (key >> 14);
+  key = (key + (key << 2)) + (key << 4); // key * 21
+  key = key ^ (key >> 28);
+  key = key + (key << 31);
+  return key;
 }
 
 //------------------------------------------------------------------------------

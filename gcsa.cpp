@@ -27,6 +27,9 @@
 #include <gcsa/internal.h>
 #include <gcsa/path_graph.h>
 
+#include <random>
+#include <unordered_set>
+
 namespace gcsa
 {
 
@@ -784,10 +787,21 @@ GCSA::LF_all(range_type range, std::vector<range_type>& results) const
 
 //------------------------------------------------------------------------------
 
+size_type
+GCSA::count(range_type range) const
+{
+  if(Range::empty(range) || range.second >= this->size()) { return 0; }
+  size_type res = this->extra_pointers.count(range.first, range.second) + Range::length(range);
+  if(range.second > range.first) { res -= this->redundant_pointers.count(range.first, range.second - 1); }
+  return res;
+}
+
+//------------------------------------------------------------------------------
+
 void
 GCSA::locate(size_type path_node, std::vector<node_type>& results, bool append, bool sort) const
 {
-  if(!append) { sdsl::util::clear(results); }
+  if(!append) { results.clear(); }
   if(path_node >= this->size())
   {
     if(sort) { removeDuplicates(results, false); }
@@ -801,7 +815,7 @@ GCSA::locate(size_type path_node, std::vector<node_type>& results, bool append, 
 void
 GCSA::locate(range_type range, std::vector<node_type>& results, bool append, bool sort) const
 {
-  if(!append) { sdsl::util::clear(results); }
+  if(!append) { results.clear(); }
   if(Range::empty(range) || range.second >= this->size())
   {
     if(sort) { removeDuplicates(results, false); }
@@ -813,6 +827,42 @@ GCSA::locate(range_type range, std::vector<node_type>& results, bool append, boo
     this->locateInternal(i, results);
   }
   if(sort) { removeDuplicates(results, false); }
+}
+
+void
+GCSA::locate(range_type range, size_type positions, std::vector<node_type>& results) const
+{
+  results.clear();
+
+  size_type total_positions = this->count(range);
+  if(total_positions <= 0) { return; }
+  positions = std::min(positions, total_positions);
+
+  std::mt19937_64 rng(reinterpret_cast<size_type>(this));
+  if(positions >= total_positions / 3)  // Just locate everything.
+  {
+    this->locate(range, results);
+  }
+  else  // Locate at random positions until we have enough distinct occurrences.
+  {
+    std::unordered_set<node_type, size_type(*)(size_type)> found(16, wang_hash_64);
+    while(found.size() < positions)
+    {
+      size_type pos = range.first + rng() % Range::length(range);
+      this->locateInternal(pos, results);
+      for(node_type node : results) { found.insert(node); }
+      results.clear();
+    }
+    for(node_type node : found) { results.push_back(node); }
+  }
+
+  // If there are too many results, select a random subset of them.
+  if(results.size() > positions)
+  {
+    std::shuffle(results.begin(), results.end(), rng);
+    results.resize(positions);
+  }
+  sequentialSort(results.begin(), results.end());
 }
 
 void

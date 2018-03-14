@@ -81,7 +81,7 @@ public:
 
   /*
     The high-level interface deals with path ranges and actual character values.
-    locate() stores the node identifiers in the given vector in sorted order.
+    locate() stores the node identifiers in the given vector.
     If append is true, the results are appended to the existing vector.
     If sort is true, the results are sorted and the duplicates are removed.
 
@@ -120,16 +120,11 @@ public:
     return this->find(pattern, pattern + length);
   }
 
-  inline size_type count(range_type range) const
-  {
-    if(Range::empty(range) || range.second >= this->size()) { return 0; }
-    size_type res = this->extra_pointers.count(range.first, range.second) + Range::length(range);
-    if(range.second > range.first) { res -= this->redundant_pointers.count(range.first, range.second - 1); }
-    return res;
-  }
+  size_type count(range_type range) const;
 
   void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;
   void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;
+  void locate(range_type range, size_type positions, std::vector<node_type>& results) const;
 
 //------------------------------------------------------------------------------
 

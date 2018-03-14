@@ -23,26 +23,12 @@
   SOFTWARE.
 */
 
-#include <map>
 #include <string>
 #include <unistd.h>
 
 #include <gcsa/algorithms.h>
 
 using namespace gcsa;
-
-//------------------------------------------------------------------------------
-
-/*
-  Various verification options for debugging purposes.
-*/
-
-#ifdef VERIFY_CONSTRUCTION
-//#define VERIFY_GRAPH
-//#define LOAD_INDEX
-#endif
-
-bool verifyGraph(const InputGraph& input_graph);
 
 //------------------------------------------------------------------------------
 
@@ -65,6 +51,7 @@ main(int argc, char** argv)
     std::cerr << "  -m X  Use node mapping from file X" << std::endl;
     std::cerr << "  -s N  Use sample period N (default " << ConstructionParameters::SAMPLE_PERIOD << ")" << std::endl;
     std::cerr << "  -B N  Set LCP branching factor to N (default " << ConstructionParameters::LCP_BRANCHING << ")" << std::endl;
+    std::cerr << "  -L    Load the index instead of building it" << std::endl;
     std::cerr << "  -v    Verify the index by querying it with the kmers" << std::endl;
     std::cerr << "Other options:" << std::endl;
     std::cerr << "  -D X  Use X as the directory for temporary files (default: " << TempFile::DEFAULT_TEMP_DIR << ")" << std::endl;
@@ -76,10 +63,10 @@ main(int argc, char** argv)
   }
 
   int c = 0;
-  bool binary = true, verify = false;
+  bool binary = true, load_index = false, verify = false;
   std::string index_file, lcp_file, mapping_file;
   ConstructionParameters parameters;
-  while((c = getopt(argc, argv, "bto:d:m:s:B:vD:l:T:V:")) != -1)
+  while((c = getopt(argc, argv, "bto:d:m:s:B:LvD:l:T:V:")) != -1)
   {
     switch(c)
     {
@@ -99,6 +86,8 @@ main(int argc, char** argv)
       parameters.setSamplePeriod(std::stoul(optarg)); break;
     case 'B':
       parameters.setLCPBranching(std::stoul(optarg)); break;
+    case 'L':
+      load_index = true; break;
     case 'v':
       verify = true; break;
     case 'D':
@@ -139,31 +128,28 @@ main(int argc, char** argv)
     printHeader("Node mapping", INDENT); std::cout << mapping_file << std::endl;
   }
   printHeader("Output", INDENT); std::cout << index_file << ", " << lcp_file << std::endl;
-  printHeader("Doubling steps", INDENT); std::cout << parameters.doubling_steps << std::endl;
-  printHeader("Sample period", INDENT); std::cout << parameters.sample_period << std::endl;
-  printHeader("Branching factor", INDENT); std::cout << parameters.lcp_branching << std::endl;
-  printHeader("Temp directory", INDENT); std::cout << TempFile::temp_dir << std::endl;
-  printHeader("Size limit", INDENT); std::cout << inGigabytes(parameters.size_limit) << " GB" << std::endl;
-  printHeader("Threads", INDENT); std::cout << omp_get_max_threads() << std::endl;
-  printHeader("Verbosity", INDENT); std::cout << Verbosity::levelName() << std::endl;
+  if(!load_index)
+  {
+    printHeader("Doubling steps", INDENT); std::cout << parameters.doubling_steps << std::endl;
+    printHeader("Sample period", INDENT); std::cout << parameters.sample_period << std::endl;
+    printHeader("Branching factor", INDENT); std::cout << parameters.lcp_branching << std::endl;
+    printHeader("Temp directory", INDENT); std::cout << TempFile::temp_dir << std::endl;
+    printHeader("Size limit", INDENT); std::cout << inGigabytes(parameters.size_limit) << " GB" << std::endl;
+    printHeader("Threads", INDENT); std::cout << omp_get_max_threads() << std::endl;
+    printHeader("Verbosity", INDENT); std::cout << Verbosity::levelName() << std::endl;
+  }
   std::cout << std::endl;
 
   InputGraph graph(argc - optind, argv + optind, binary, Alphabet(), mapping_file);
 
-#ifdef VERIFY_GRAPH
-  if(!(verifyGraph(graph))) { std::exit(EXIT_FAILURE); }
-#endif
-
-#ifdef VERIFY_MAPPER
-  verifyMapper(graph);
-#endif
-
   GCSA index;
   LCPArray lcp;
-#ifdef LOAD_INDEX
-  sdsl::load_from_file(index, index_file);
-  sdsl::load_from_file(lcp, lcp_file);
-#else
+  if(load_index)
+  {
+    sdsl::load_from_file(index, index_file);
+    sdsl::load_from_file(lcp, lcp_file);
+  }
+  else
   {
     double start = readTimer();
     index = GCSA(graph, parameters);
@@ -177,7 +163,6 @@ main(int argc, char** argv)
     sdsl::store_to_file(index, index_file);
     sdsl::store_to_file(lcp, lcp_file);
   }
-#endif
 
   printStatistics(index, lcp);
 
@@ -188,93 +173,5 @@ main(int argc, char** argv)
 
   return 0;
 }
-
-//------------------------------------------------------------------------------
-
-#ifdef VERIFY_GRAPH
-
-bool
-verifyGraph(const InputGraph& input_graph)
-{
-  std::vector<KMer> kmers;
-  input_graph.read(kmers);
-
-  std::map<std::string, std::pair<byte_type, byte_type>> graph;
-  bool ok = true;
-  for(size_type i = 0; i < kmers.size(); i++)
-  {
-    // We don't verify the edge from the sink to the source.
-    std::string kmer = Key::decode(kmers[i].key, input_graph.k(), input_graph.alpha);
-    byte_type pred = (kmer[input_graph.k() - 1] == '#' ? 0 : Key::predecessors(kmers[i].key));
-    byte_type succ = (kmer[0] == '$' ? 0 : Key::successors(kmers[i].key));
-    if(graph.find(kmer) == graph.end())
-    {
-      graph[kmer] = std::make_pair(pred, succ);
-    }
-    else
-    {
-      graph[kmer].first |= pred;
-      graph[kmer].second |= succ;
-    }
-  }
-
-  for(auto iter = graph.begin(); iter != graph.end(); ++iter)
-  {
-    for(size_type i = 1; i < input_graph.alpha.sigma; i++)
-    {
-      if(iter->second.first & (1 << i))
-      {
-        std::string backward_pattern =
-          std::string(1, (char)(input_graph.alpha.comp2char[i])) + iter->first.substr(0, input_graph.k() - 1);
-        if(graph.find(backward_pattern) == graph.end())
-        {
-          std::cerr << "build_gcsa: verifyGraph(): Node " << iter->first << " is missing predecessor("
-                    << (char)(input_graph.alpha.comp2char[i]) << "): "
-                    << backward_pattern << std::endl;
-          ok = false;
-        }
-        else
-        {
-          comp_type last = input_graph.alpha.char2comp[iter->first[input_graph.k() - 1]];
-          if((graph[backward_pattern].second & (1 << last)) == 0)
-          {
-            std::cerr << "build_gcsa: verifyGraph(): Reverse: Node " << backward_pattern << " is missing successor("
-                      << (char)(input_graph.alpha.comp2char[last]) << "): "
-                      << iter->first << std::endl;
-            ok = false;
-          }
-        }
-      }
-      if(iter->second.second & (1 << i))
-      {
-        std::string forward_pattern = iter->first.substr(1) + (char)(input_graph.alpha.comp2char[i]);
-        if(graph.find(forward_pattern) == graph.end())
-        {
-          std::cerr << "build_gcsa: verifyGraph(): Node " << iter->first << " is missing successor("
-                    << (char)(input_graph.alpha.comp2char[i]) << "): "
-                    << forward_pattern << std::endl;
-          ok = false;
-        }
-        else
-        {
-          comp_type first = input_graph.alpha.char2comp[iter->first[0]];
-          if((graph[forward_pattern].first & (1 << first)) == 0)
-          {
-            std::cerr << "build_gcsa: verifyGraph(): Reverse: Node " << forward_pattern << " is missing predecessor("
-                      << (char)(input_graph.alpha.comp2char[first]) << "): "
-                      << iter->first << std::endl;
-            ok = false;
-          }
-        }
-      }
-    }
-  }
-
-  std::cout << "Graph verification " << (ok ? "complete" : "failed") << std::endl;
-  std::cout << std::endl;
-  return ok;
-}
-
-#endif
 
 //------------------------------------------------------------------------------

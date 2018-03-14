@@ -76,6 +76,8 @@ struct KMerSplitComparator
     }
 };
 
+const size_type RANDOM_LOCATE_SIZE = 10;  // Number of occurrences to locate.
+
 bool
 verifyIndex(const GCSA& index, const LCPArray* lcp, const InputGraph& graph)
 {
@@ -215,6 +217,46 @@ verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, si
               }
             }
             break;
+          }
+        }
+
+        // Random occurrences.
+        std::vector<node_type> random_occs;
+        index.locate(range, RANDOM_LOCATE_SIZE, random_occs);
+        size_type expected_occs = std::min(RANDOM_LOCATE_SIZE, static_cast<size_type>(occs.size()));
+        if(random_occs.size() != expected_occs)
+        {
+          #pragma omp critical
+          {
+            if(printFailure(fails))
+            {
+              std::cerr << "verifyIndex(): locate(" << kmer << ") failed: Expected "
+                        << expected_occs << " random occurrences, got " << random_occs.size() << std::endl;
+            }
+          }
+        }
+        else
+        {
+          bool is_subset = true;
+          for(size_type i = 0, j = 0; i < random_occs.size(); i++)
+          {
+            while(occs[j] < random_occs[i] && j + 1 < occs.size()) { j++; }
+            if(random_occs[i] != occs[j]) { is_subset = false; break; }
+            j++;
+          }
+          if(!is_subset)
+          {
+            #pragma omp critical
+            {
+              if(printFailure(fails))
+              {
+                std::cerr << "verifyIndex(): locate(" << kmer << ") failed: ";
+                printOccs(random_occs, std::cerr);
+                std::cerr << " is not a subset of ";
+                printOccs(occs, std::cerr);
+                std::cerr << std::endl;
+              }
+            }
           }
         }
       }
