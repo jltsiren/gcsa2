@@ -3,10 +3,12 @@
 
 build_gcsa
 convert_graph
-count_kmers
 gcsa_format
-query_gcsa
 
+try_extend
+
+count_kmers
+query_gcsa
 csa_builder
 csa_query
 

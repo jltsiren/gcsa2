@@ -305,6 +305,7 @@ struct PathGraph
 
   PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists);
   PathGraph(size_type file_count, size_type path_order, size_type steps);
+  PathGraph(const std::string& path_name, const std::string& rank_name);  // For debugging.
   ~PathGraph();
 
   void clear();
@@ -332,6 +333,8 @@ struct PathGraph
   */
   void prune(const LCP& lcp, size_type size_limit);
   void extend(size_type size_limit);
+
+  void debugExtend();
 
   void read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type file) const;
 

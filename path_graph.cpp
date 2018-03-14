@@ -719,6 +719,36 @@ PathGraph::PathGraph(size_type file_count, size_type path_order, size_type steps
   }
 }
 
+PathGraph::PathGraph(const std::string& path_name, const std::string& rank_name)
+{
+  this->path_count = 0; this->rank_count = 0; this->range_count = 0;
+  this->order = 0; this->doubling_steps = 0;
+  this->unique = 0; this->redundant = 0;
+  this->unsorted = 0; this->nondeterministic = 0;
+
+  this->path_names.push_back(path_name);
+  std::ifstream path_file(path_name, std::ios_base::binary);
+  if(!path_file)
+  {
+    std::cerr << "PathGraph::PathGraph(): Cannot open path file " << path_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  this->path_count = fileSize(path_file) / sizeof(PathNode);
+  this->path_counts.push_back(this->path_count);
+  path_file.close();
+
+  this->rank_names.push_back(rank_name);
+  std::ifstream rank_file(rank_name, std::ios_base::binary);
+  if(!rank_file)
+  {
+    std::cerr << "PathGraph::PathGraph(): Cannot open rank file " << rank_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
+  this->rank_count = fileSize(rank_file) / sizeof(PathNode::rank_type);
+  this->rank_counts.push_back(this->rank_count);
+  rank_file.close();
+}
+
 PathGraph::~PathGraph()
 {
   this->clear();
@@ -958,6 +988,54 @@ PathGraph::extend(size_type size_limit)
               << this->ranks() << " ranks)" << std::endl;
     std::cerr << "PathGraph::extend(): " << inGigabytes(this->bytes()) << " GB in "
               << this->files() << " file(s)" << std::endl;
+  }
+}
+
+void
+PathGraph::debugExtend()
+{
+  for(size_type file = 0; file < this->files(); file++)
+  {
+    // Read the current file.
+    std::vector<PathNode> paths;
+    std::vector<PathNode::rank_type> labels;
+    this->read(paths, labels, file);
+
+    // Initialization.
+    PathFromComparator from_c;  // Sort the paths by from.
+    parallelQuickSort(paths.begin(), paths.end(), from_c);
+    ValueIndex<PathNode, FromGetter> from_index(paths);
+
+    // Count the paths in the next generation.
+    size_type sorted_paths = 0, unsorted_paths = 0;
+    for(size_type i = 0; i < paths.size(); i++)
+    {
+      if(paths[i].sorted())
+      {
+        sorted_paths++;
+      }
+      else
+      {
+        size_type start = from_index.find(paths[i].to);
+        size_type limit = start;
+        while(limit < paths.size() && paths[limit].from == paths[i].to) { limit++; }
+        unsorted_paths += limit - start;
+        if(limit - start >= 100 && Verbosity::level >= Verbosity::FULL)
+        {
+          std::cerr << "PathGraph::debugExtend(): File " << file << ", path " << i
+                    << " has " << (limit - start) << " extensions" << std::endl;
+          std::cerr << "PathGraph::debugExtend(): The path is: ";
+          paths[i].print(std::cerr, labels); std::cerr << std::endl;
+        }
+      }
+    }
+
+    if(Verbosity::level >= Verbosity::EXTENDED)
+    {
+      std::cerr << "PathGraph::debugExtend(): File " << file << ": " << this->size() << " -> "
+                << (sorted_paths + unsorted_paths) << " paths ("
+                << sorted_paths << " sorted, " << unsorted_paths << " unsorted)" << std::endl;
+    }
   }
 }
 

@@ -39,5 +39,8 @@ gcsa_format:gcsa_format.o $(LIBRARY)
 convert_graph:convert_graph.o $(LIBRARY)
 	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
+try_extend:try_extend.o $(LIBRARY)
+	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
+
 clean:
 	rm -f $(PROGRAMS) $(OBJS) $(LIBRARY)
