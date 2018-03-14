@@ -830,23 +830,23 @@ GCSA::locate(range_type range, std::vector<node_type>& results, bool append, boo
 }
 
 void
-GCSA::locate(range_type range, size_type positions, std::vector<node_type>& results) const
+GCSA::locate(range_type range, size_type max_positions, std::vector<node_type>& results) const
 {
   results.clear();
 
   size_type total_positions = this->count(range);
   if(total_positions <= 0) { return; }
-  positions = std::min(positions, total_positions);
+  max_positions = std::min(max_positions, total_positions);
 
-  std::mt19937_64 rng(reinterpret_cast<size_type>(this));
-  if(positions >= total_positions / 2)  // Just locate everything.
+  std::mt19937_64 rng(range.first ^ range.second);
+  if(max_positions >= total_positions / 2)  // Just locate everything.
   {
     this->locate(range, results);
   }
   else  // Locate at random positions until we have enough distinct occurrences.
   {
     std::unordered_set<node_type, size_type(*)(size_type)> found(16, wang_hash_64);
-    while(found.size() < positions)
+    while(found.size() < max_positions)
     {
       size_type pos = range.first + rng() % Range::length(range);
       this->locateInternal(pos, results);
@@ -857,10 +857,10 @@ GCSA::locate(range_type range, size_type positions, std::vector<node_type>& resu
   }
 
   // If there are too many results, select a random subset of them.
-  if(results.size() > positions)
+  if(results.size() > max_positions)
   {
     std::shuffle(results.begin(), results.end(), rng);
-    results.resize(positions);
+    results.resize(max_positions);
   }
   sequentialSort(results.begin(), results.end());
 }

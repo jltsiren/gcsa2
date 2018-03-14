@@ -124,7 +124,7 @@ public:
 
   void locate(size_type path, std::vector<node_type>& results, bool append = false, bool sort = true) const;
   void locate(range_type range, std::vector<node_type>& results, bool append = false, bool sort = true) const;
-  void locate(range_type range, size_type positions, std::vector<node_type>& results) const;
+  void locate(range_type range, size_type max_positions, std::vector<node_type>& results) const;
 
 //------------------------------------------------------------------------------
 
