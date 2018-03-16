@@ -3,12 +3,8 @@ SDSL_DIR=../sdsl-lite
 # This enables various debugging options in build_gcsa.
 #VERIFY_FLAGS=-DVERIFY_CONSTRUCTION
 
-# Multithreading with OpenMP and libstdc++ Parallel Mode.
+# Multithreading with OpenMP.
 PARALLEL_FLAGS=-fopenmp -pthread
-# Turn off libstdc++ parallel mode for clang
-ifneq (clang,$(findstring clang,$(shell $(CXX) --version)))
-PARALLEL_FLAGS+=-D_GLIBCXX_PARALLEL
-endif
 
 OTHER_FLAGS=$(VERIFY_FLAGS) $(PARALLEL_FLAGS)
 

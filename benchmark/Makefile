@@ -3,10 +3,6 @@ GCSA_DIR=..
 
 # Multithreading with OpenMP and libstdc++ Parallel Mode.
 PARALLEL_FLAGS=-fopenmp -pthread
-# Turn off libstdc++ parallel mode for clang
-ifneq (clang,$(findstring clang,$(shell $(CXX) --version)))
-PARALLEL_FLAGS+=-D_GLIBCXX_PARALLEL
-endif
 
 include $(SDSL_DIR)/Make.helper
 CXX_FLAGS=$(MY_CXX_FLAGS) $(PARALLEL_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(INC_DIR) -I$(GCSA_DIR)/include
