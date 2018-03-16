@@ -202,7 +202,10 @@ public:
   bool empty() const { return (this->size() == 0); }
   size_type begin() const { return this->first_node; }
   size_type end() const { return this->next_node; }
-  size_type operator() (size_type i) const { return (i < this->begin() ? i : this->mapping[i - this->begin()]); }
+  size_type operator() (size_type i) const
+  {
+    return (i >= this->begin() && i < this->end() ? this->mapping[i - this->begin()] : i);
+  }
 
   // Adds a mapping from the return value to 'node_id'.
   size_type insert(size_type node_id);

@@ -20,7 +20,7 @@ HEADERS=$(wildcard include/gcsa/*.h)
 OBJS=$(SOURCES:.cpp=.o)
 LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
 LIBRARY=libgcsa2.a
-PROGRAMS=build_gcsa convert_graph gcsa_format
+PROGRAMS=build_gcsa convert_graph gcsa_format try_extend
 
 all: $(LIBRARY) $(PROGRAMS)
 
