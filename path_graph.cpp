@@ -661,7 +661,7 @@ PathRange::PathRange(size_type start, size_type stop, range_type _left_lcp, Path
 
 const std::string PathGraph::PREFIX = "gcsa";
 
-PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
+PathGraph::PathGraph(const InputGraph& source, sdsl::int_vector<0>& distinct_labels)
 {
   this->path_count = 0; this->rank_count = 0; this->range_count = 0;
   this->order = source.k(); this->doubling_steps = 0;
@@ -669,7 +669,6 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
   this->unsorted = UNKNOWN; this->nondeterministic = UNKNOWN;
   this->delete_files = true;
 
-  sdsl::sd_vector<>::rank_1_type key_rank(&key_exists);
   for(size_type file = 0; file < source.files(); file++)
   {
     std::string path_name = TempFile::getName(PREFIX);
@@ -681,10 +680,11 @@ PathGraph::PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists)
     std::vector<KMer> kmers;
     source.read(kmers, file);
     parallelQuickSort(kmers.begin(), kmers.end());
-    #pragma omp parallel for schedule(static)
+    size_type current_rank = 0;
     for(size_type i = 0; i < kmers.size(); i++)
     {
-      kmers[i].key = Key::replace(kmers[i].key, key_rank(Key::label(kmers[i].key)));
+      while(Key::label(kmers[i].key) > distinct_labels[current_rank]) { current_rank++; }
+      kmers[i].key = Key::replace(kmers[i].key, current_rank);
     }
 
     // Convert the KMers to PathNodes.

@@ -305,7 +305,7 @@ struct PathGraph
   const static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // gcsa
 
-  PathGraph(const InputGraph& source, sdsl::sd_vector<>& key_exists);
+  PathGraph(const InputGraph& source, sdsl::int_vector<0>& distinct_labels);
   PathGraph(size_type file_count, size_type path_order, size_type steps);
   PathGraph(const std::string& path_name, const std::string& rank_name);  // For debugging.
   ~PathGraph();

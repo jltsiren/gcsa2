@@ -453,9 +453,8 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   LCP lcp(keys, graph.k());
   sdsl::int_vector<0> last_char;
   Key::lastChars(keys, last_char);
-  sdsl::sd_vector_builder builder(Key::label(keys[keys.size() - 1]) + 1, keys.size());
-  for(size_type i = 0; i < keys.size(); i++) { builder.set(Key::label(keys[i])); }
-  sdsl::sd_vector<> key_exists(builder);
+  sdsl::int_vector<0> distinct_labels(keys.size(), 0, bit_length(Key::label(keys.back())));
+  for(size_type i = 0; i < keys.size(); i++) { distinct_labels[i] = Key::label(keys[i]); }
   sdsl::util::clear(keys);
 
   // Determine the existing start nodes. Because the information is only used for index
@@ -470,8 +469,8 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
   sdsl::util::clear(from_node_buffer);
 
   // Create the initial PathGraph.
-  PathGraph path_graph(graph, key_exists);
-  sdsl::util::clear(key_exists);
+  PathGraph path_graph(graph, distinct_labels);
+  sdsl::util::clear(distinct_labels);
   if(Verbosity::level >= Verbosity::EXTENDED)
   {
     double stop = readTimer();

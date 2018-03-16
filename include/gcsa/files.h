@@ -103,7 +103,10 @@ struct InputGraph
   void read(std::vector<KMer>& kmers) const;
   void read(std::vector<KMer>& kmers, size_type file, bool append = false) const;
 
+  // Get the keys for distinct labels with merged predecessors / successors in sorted order.
   void readKeys(std::vector<key_type>& keys) const;
+
+  // Get the distinct start nodes in sorted order.
   void readFrom(std::vector<node_type>& from_nodes, bool use_mapping = false) const;
 
   InputGraph(const InputGraph&) = delete;
