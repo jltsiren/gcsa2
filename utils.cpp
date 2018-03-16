@@ -251,4 +251,15 @@ fileSize(std::ofstream& file)
 
 //------------------------------------------------------------------------------
 
+size_type
+getChunkSize(size_type n, size_type min_size)
+{
+  size_type threads = omp_get_max_threads();
+  size_type chunks = std::max(threads, (size_type)8) * threads;
+  size_type chunk_size = n / chunks;
+  return std::max(chunk_size, min_size);
+}
+
+//------------------------------------------------------------------------------
+
 } // namespace gcsa

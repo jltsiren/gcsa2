@@ -374,6 +374,9 @@ getBounds(const std::vector<Element>& vec, size_type threads, const Comparator& 
   return bounds;
 }
 
+// Get a good chunk size for dynamic scheduling.
+size_type getChunkSize(size_type n, size_type min_size);
+
 //------------------------------------------------------------------------------
 
 /*

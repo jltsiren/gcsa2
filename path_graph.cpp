@@ -945,7 +945,8 @@ PathGraph::extend(size_type size_limit)
     }
 
     // Create the next generation.
-    #pragma omp parallel for schedule(static)
+    size_type chunk_size = getChunkSize(paths.size(), MEGABYTE);
+    #pragma omp parallel for schedule(dynamic, chunk_size)
     for(size_type i = 0; i < paths.size(); i++)
     {
       size_type thread = omp_get_thread_num();
