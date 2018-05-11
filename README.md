@@ -25,3 +25,6 @@ IEEE/ACM Transactions on Computational Biology and Bioinformatics 11(2):375-388,
 Alexander Bowe, Taku Onodera, Kunihiko Sadakane, and Tetsuo Shibuya: **Succinct de Bruijn Graphs**.
 Proc. WABI 2012, Springer LNCS 7534, pp. 225-235, Ljubljana, Slovenia, September 10-12, 2012.
 [DOI: 10.1007/978-3-642-33122-0_18](https://doi.org/10.1007/978-3-642-33122-0_18)
+
+Jouni Sirén, Erik Garrison, Adam M. Novak, Benedict Paten, and Richard Durbin: **Haplotype-aware graph indexes**.
+[arXiv:1805.03834](https://arxiv.org/abs/1805.03834), 2018.
