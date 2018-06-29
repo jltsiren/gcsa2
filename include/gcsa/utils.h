@@ -349,6 +349,19 @@ removeDuplicates(std::vector<Element>& vec, bool parallel)
   vec.resize(std::unique(vec.begin(), vec.end()) - vec.begin());
 }
 
+template<class Element, class Random>
+void
+deterministicShuffle(std::vector<Element>& vec, Random& rng, bool parallel)
+{
+  // We sort to get a deterministic shuffle of the elements instead of the offsets.
+  if(parallel) { parallelQuickSort(vec.begin(), vec.end()); }
+  else         { sequentialSort(vec.begin(), vec.end()); }
+  for(size_type i = vec.size(); i > 0; i--)
+  {
+    std::swap(vec[i - 1], vec[rng() % i]);
+  }
+}
+
 //------------------------------------------------------------------------------
 
 /*

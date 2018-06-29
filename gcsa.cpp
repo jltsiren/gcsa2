@@ -858,7 +858,7 @@ GCSA::locate(range_type range, size_type max_positions, std::vector<node_type>& 
   // If there are too many results, select a random subset of them.
   if(results.size() > max_positions)
   {
-    std::shuffle(results.begin(), results.end(), rng);
+    deterministicShuffle(results, rng, false);
     results.resize(max_positions);
   }
   sequentialSort(results.begin(), results.end());
