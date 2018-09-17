@@ -11,7 +11,7 @@ LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
 ifeq ($(shell uname -s),Darwin)
     # Our compiler might be clang that lacks -fopenmp support.
     # Sniff that
-    ifeq ($(shell $(MY_CXX) -fopenmp /dev/null -o/dev/null 2>&1 | grep fopenmp | wc -l), 1)
+    ifeq ($(strip $(shell $(MY_CXX) -fopenmp /dev/null -o/dev/null 2>&1 | grep fopenmp | wc -l)), 1)
 		# The compiler complained about fopenmp instead of its nonsense input file.
         # We need to use the hard way of getting OpenMP not bundled with the compiler.
         
