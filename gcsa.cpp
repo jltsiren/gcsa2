@@ -37,7 +37,14 @@ namespace gcsa
 
 const std::string GCSA::EXTENSION = ".gcsa";
 
-GCSA::GCSA()
+GCSA::GCSA() :
+  header(), alpha(),
+  fast_bwt(this->alpha.sigma), fast_rank(this->alpha.sigma),
+  sparse_bwt(this->alpha.sigma), sparse_rank(this->alpha.sigma),
+  edges(), edge_rank(),
+  sampled_paths(), sampled_path_rank(),
+  stored_samples(), samples(), sample_select(),
+  extra_pointers(), redundant_pointers()
 {
 }
 

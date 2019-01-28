@@ -134,12 +134,17 @@ public:
   */
 
   inline size_type size() const { return this->header.path_nodes; }
+  inline bool empty() const { return (this->size() == 0); }
   inline size_type edgeCount() const { return this->header.edges; }
   inline size_type order() const { return this->header.order; }
 
   inline size_type sampleCount() const { return this->stored_samples.size(); }
   inline size_type sampleBits() const { return this->stored_samples.width(); }
-  inline size_type sampledPositions() const { return this->sampled_path_rank(this->sampled_paths.size()); }
+  inline size_type sampledPositions() const
+  {
+    if(this->empty()) { return 0; }
+    return this->sampled_path_rank(this->sampled_paths.size());
+  }
 
   inline range_type charRange(comp_type comp) const
   {
