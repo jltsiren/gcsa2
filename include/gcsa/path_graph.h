@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -44,11 +44,11 @@ struct PathLabel
   typedef std::uint32_t rank_type;
 
   // This should be at least 1 << ConstructionParameters::MAX_STEPS.
-  const static size_type LABEL_LENGTH = 16;
+  constexpr static size_type LABEL_LENGTH = 16;
 
   // Labels starting with NO_RANK will be after real labels in lexicographic order.
   // We also use NO_RANK for padding last labels.
-  const static rank_type NO_RANK = ~(rank_type)0;
+  constexpr static rank_type NO_RANK = ~(rank_type)0;
 
   rank_type label[LABEL_LENGTH];
   bool      first;
@@ -94,7 +94,7 @@ struct PathNode
 {
   typedef PathLabel::rank_type rank_type;
 
-  const static size_type LABEL_LENGTH = PathLabel::LABEL_LENGTH;
+  constexpr static size_type LABEL_LENGTH = PathLabel::LABEL_LENGTH;
 
   node_type from, to;
 
@@ -302,7 +302,7 @@ struct PathGraph
 
   bool delete_files;
 
-  const static size_type UNKNOWN = ~(size_type)0;
+  constexpr static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // gcsa
 
   PathGraph(const InputGraph& source, sdsl::int_vector<0>& distinct_labels);
@@ -362,7 +362,7 @@ struct MergedGraph
   std::vector<size_type> next;      // paths[next[comp]] is the first path starting with comp.
   std::vector<size_type> next_from; // Where to find the corresponding additional start nodes.
 
-  const static size_type UNKNOWN = ~(size_type)0;
+  constexpr static size_type UNKNOWN = ~(size_type)0;
   const static std::string PREFIX;  // gcsa
 
   /*

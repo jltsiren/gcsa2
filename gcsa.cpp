@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -35,7 +35,11 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+// Other class variables
+
 const std::string GCSA::EXTENSION = ".gcsa";
+
+//------------------------------------------------------------------------------
 
 GCSA::GCSA() :
   header(), alpha(),
@@ -384,10 +388,9 @@ inline PathLabel
 firstLabel(const PathNode& path, ReadBuffer<PathNode::rank_type>& labels)
 {
   PathLabel res; res.first = true;
-  size_type label_length = PathLabel::LABEL_LENGTH;  // avoid direct use of static const
-  size_type limit = std::min(path.order(), label_length);
+  size_type limit = std::min(path.order(), PathLabel::LABEL_LENGTH);
   for(size_type i = 0; i < limit; i++) { res.label[i] = path.firstLabel(i, labels); }
-  for(size_type i = limit; i < label_length; i++) { res.label[i] = 0; }
+  for(size_type i = limit; i < PathLabel::LABEL_LENGTH; i++) { res.label[i] = 0; }
   return res;
 }
 
@@ -395,10 +398,9 @@ inline PathLabel
 lastLabel(const PathNode& path, ReadBuffer<PathNode::rank_type>& labels)
 {
   PathLabel res; res.first = false;
-  size_type label_length = PathLabel::LABEL_LENGTH;  // avoid direct use of static const
-  size_type limit = std::min(path.order(), label_length);
+  size_type limit = std::min(path.order(), PathLabel::LABEL_LENGTH);
   for(size_type i = 0; i < limit; i++) { res.label[i] = path.lastLabel(i, labels); }
-  for(size_type i = limit; i < label_length; i++) { res.label[i] = PathLabel::NO_RANK; }
+  for(size_type i = limit; i < PathLabel::LABEL_LENGTH; i++) { res.label[i] = PathLabel::NO_RANK; }
   return res;
 }
 

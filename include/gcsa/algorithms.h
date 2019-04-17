@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2019 Jouni Sirén
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -62,7 +63,7 @@ struct KMerSearchParameters
   bool force;             // Force searching for kmers longer than the order of the index.
   std::string output;     // Base name for output.
 
-  const static size_type SEED_LENGTH = 5;
+  constexpr static size_type SEED_LENGTH = 5;
   const static std::string LEFT_EXTENSION;  // .left
   const static std::string RIGHT_EXTENSION; // .right
 

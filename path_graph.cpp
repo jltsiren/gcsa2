@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -29,6 +29,27 @@
 
 namespace gcsa
 {
+
+//------------------------------------------------------------------------------
+
+// Numerical class constants.
+
+constexpr size_type PathLabel::LABEL_LENGTH;
+constexpr PathLabel::rank_type PathLabel::NO_RANK;
+
+constexpr size_type PathNode::LABEL_LENGTH;
+
+constexpr size_type PathGraph::UNKNOWN;
+
+constexpr size_type MergedGraph::UNKNOWN;
+
+//------------------------------------------------------------------------------
+
+// Other class variables.
+
+const std::string PathGraph::PREFIX = "gcsa";
+
+const std::string MergedGraph::PREFIX = "gcsa";
 
 //------------------------------------------------------------------------------
 
@@ -243,8 +264,8 @@ struct PriorityNode
 {
   typedef PathLabel::rank_type rank_type;
 
-  const static size_type LABEL_LENGTH = PathLabel::LABEL_LENGTH;
-  const static rank_type NO_RANK = PathLabel::NO_RANK;
+  constexpr static size_type LABEL_LENGTH = PathLabel::LABEL_LENGTH;
+  constexpr static rank_type NO_RANK = PathLabel::NO_RANK;
 
   rank_type file;
   rank_type label[LABEL_LENGTH + 1];
@@ -268,6 +289,9 @@ struct PriorityNode
   inline size_type bytes() const { return this->node.bytes(); }
 };
 
+constexpr size_type PriorityNode::LABEL_LENGTH;
+constexpr PriorityNode::rank_type PriorityNode::NO_RANK;
+
 //------------------------------------------------------------------------------
 
 /*
@@ -282,7 +306,7 @@ struct PathGraphBuilder
   std::vector<WriteBuffer<PathNode::rank_type>> rank_files;
   size_type limit;  // Bytes of disk space.
 
-  const static size_type WRITE_BUFFER_SIZE = MEGABYTE;  // PathNodes per thread.
+  constexpr static size_type WRITE_BUFFER_SIZE = MEGABYTE;  // PathNodes per thread.
 
   PathGraphBuilder(size_type file_count, size_type path_order, size_type step, size_type size_limit);
   void close();
@@ -296,6 +320,8 @@ struct PathGraphBuilder
 
   void sort(size_type file);
 };
+
+constexpr size_type PathGraphBuilder::WRITE_BUFFER_SIZE;
 
 PathGraphBuilder::PathGraphBuilder(size_type file_count, size_type path_order, size_type step, size_type size_limit) :
   graph(file_count, path_order, step),
@@ -658,8 +684,6 @@ PathRange::PathRange(size_type start, size_type stop, range_type _left_lcp, Path
 }
 
 //------------------------------------------------------------------------------
-
-const std::string PathGraph::PREFIX = "gcsa";
 
 PathGraph::PathGraph(const InputGraph& source, sdsl::int_vector<0>& distinct_labels)
 {
@@ -1076,8 +1100,6 @@ PathGraph::read(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& 
 }
 
 //------------------------------------------------------------------------------
-
-const std::string MergedGraph::PREFIX = "gcsa";
 
 struct SameFromSet
 {

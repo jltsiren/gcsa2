@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -54,7 +54,7 @@ namespace gcsa
 struct DiskIO
 {
   static std::atomic<size_type> read_volume, write_volume;
-  const static size_type block_size;
+  constexpr static size_type block_size = MEGABYTE;
 
   template<class Element>
   static bool read(std::istream& in, Element* data, size_type n = 1, bool update = true)
@@ -375,10 +375,10 @@ struct ReadBuffer
   std::thread             reader_thread;
 
   // Read this many elements at once.
-  const static size_type READ_BUFFER_SIZE = MEGABYTE;
+  constexpr static size_type READ_BUFFER_SIZE = MEGABYTE;
 
   // Refill the buffer if its size falls below this threshold.
-  const static size_type MINIMUM_SIZE = READ_BUFFER_SIZE / 2;
+  constexpr static size_type MINIMUM_SIZE = READ_BUFFER_SIZE / 2;
 
   ReadBuffer();
   ~ReadBuffer();

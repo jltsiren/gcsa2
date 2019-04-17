@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2019 Jouni Sirén
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -93,7 +94,7 @@ struct GCSAHeader_0
   uint64_t path_nodes;
   uint64_t order;
 
-  const static uint32_t VERSION = 0;
+  constexpr static uint32_t VERSION = 0;
 
   GCSAHeader_0();
 
@@ -101,6 +102,8 @@ struct GCSAHeader_0
   void load(std::istream& in);
   bool check() const;
 };
+
+constexpr uint32_t GCSAHeader_0::VERSION;
 
 GCSAHeader_0::GCSAHeader_0() :
   path_nodes(0), order(0)
@@ -210,7 +213,7 @@ struct LCPHeader_0
   uint64_t lcp_size;
   uint64_t branching_factor;
 
-  const static uint32_t VERSION = 0;
+  constexpr static uint32_t VERSION = 0;
 
   LCPHeader_0();
 
@@ -218,6 +221,8 @@ struct LCPHeader_0
   void load(std::istream& in);
   bool check() const;
 };
+
+constexpr uint32_t LCPHeader_0::VERSION;
 
 LCPHeader_0::LCPHeader_0() :
   lcp_size(0), branching_factor(0)

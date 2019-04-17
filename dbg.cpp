@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2019 Jouni Sirén
   Copyright (c) 2015 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -29,7 +30,11 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+// Other class variables.
+
 const std::string DeBruijnGraph::EXTENSION = ".dbg";
+
+//------------------------------------------------------------------------------
 
 DeBruijnGraph::DeBruijnGraph()
 {

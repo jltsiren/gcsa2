@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -40,7 +40,27 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+// Numerical class constants.
+
+constexpr size_type Verbosity::SILENT;
+constexpr size_type Verbosity::BASIC;
+constexpr size_type Verbosity::EXTENDED;
+constexpr size_type Verbosity::DEFAULT;
+constexpr size_type Verbosity::FULL;
+
+constexpr size_type Version::MAJOR_VERSION;
+constexpr size_type Version::MINOR_VERSION;
+constexpr size_type Version::PATCH_VERSION;
+constexpr size_type Version::GCSA_VERSION;
+constexpr size_type Version::LCP_VERSION;
+
+//------------------------------------------------------------------------------
+
+// Other class variables.
+
 size_type Verbosity::level = Verbosity::DEFAULT;
+
+//------------------------------------------------------------------------------
 
 void
 Verbosity::set(size_type new_level)

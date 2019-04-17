@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2019 Jouni Sirén
   Copyright (c) 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -31,7 +32,7 @@ namespace gcsa
 {
 
 /*
-  dbg.h: Specialization of GCSA for de Bruijn graphs.
+  lcp.h: LCP array that provides additional functionality to a GCSA index.
 */
 
 //------------------------------------------------------------------------------
@@ -42,7 +43,7 @@ struct STNode
   size_type left_lcp, right_lcp; // lcp[sp], lcp[ep + 1]
   size_type node_lcp;            // Can be UNKNOWN.
 
-  const static size_type UNKNOWN = ~(size_type)0;
+  constexpr static size_type UNKNOWN = ~(size_type)0;
 
   STNode() : sp(0), ep(0), left_lcp(0), right_lcp(0), node_lcp(0) {}
 

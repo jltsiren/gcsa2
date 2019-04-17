@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -80,7 +80,7 @@ struct InputGraph
   bool binary;
   size_type kmer_count, kmer_length;
 
-  const static size_type UNKNOWN = ~(size_type)0;
+  constexpr static size_type UNKNOWN = ~(size_type)0;
   const static std::string BINARY_EXTENSION;  // .graph
   const static std::string TEXT_EXTENSION;    // .gcsa2
 
@@ -141,11 +141,9 @@ struct GCSAHeader
   uint64_t order;
   uint64_t flags;
 
-  const static uint32_t TAG = 0x6C5A6C5A;
-  const static uint32_t VERSION = Version::GCSA_VERSION;
-  const static uint32_t MIN_VERSION = 1;
-
-  const static uint64_t COMPRESSED = 0x1; // Not in use.
+  constexpr static uint32_t TAG = 0x6C5A6C5A;
+  constexpr static uint32_t VERSION = Version::GCSA_VERSION;
+  constexpr static uint32_t MIN_VERSION = 1;
 
   GCSAHeader();
 
@@ -177,9 +175,9 @@ struct LCPHeader
   uint64_t branching;
   uint64_t flags;
 
-  const static uint32_t TAG = 0x6C5A7C94;
-  const static uint32_t VERSION = Version::LCP_VERSION;
-  const static uint32_t MIN_VERSION = 1;
+  constexpr static uint32_t TAG = 0x6C5A7C94;
+  constexpr static uint32_t VERSION = Version::LCP_VERSION;
+  constexpr static uint32_t MIN_VERSION = 1;
 
   LCPHeader();
 

@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2019 Jouni Sirén
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -29,9 +30,19 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
+// Numerical class constants.
+
+constexpr size_type DiskIO::block_size;
+
+template<class Element> constexpr size_type ReadBuffer<Element>::READ_BUFFER_SIZE;
+template<class Element> constexpr size_type ReadBuffer<Element>::MINIMUM_SIZE;
+
+//------------------------------------------------------------------------------
+
+// Other class variables.
+
 std::atomic<size_type> DiskIO::read_volume(0);
 std::atomic<size_type> DiskIO::write_volume(0);
-const size_type DiskIO::block_size = MEGABYTE;
 
 //------------------------------------------------------------------------------
 

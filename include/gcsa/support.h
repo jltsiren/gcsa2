@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -46,12 +46,12 @@ namespace gcsa
 
 struct ConstructionParameters
 {
-  const static size_type DOUBLING_STEPS = 4;
-  const static size_type MAX_STEPS      = 4;
-  const static size_type SIZE_LIMIT     = 2048;   // Gigabytes.
-  const static size_type ABSOLUTE_LIMIT = 16384;  // Gigabytes.
-  const static size_type SAMPLE_PERIOD  = 64;
-  const static size_type LCP_BRANCHING  = 64;
+  constexpr static size_type DOUBLING_STEPS = 4;
+  constexpr static size_type MAX_STEPS      = 4;
+  constexpr static size_type SIZE_LIMIT     = 2048;   // Gigabytes.
+  constexpr static size_type ABSOLUTE_LIMIT = 16384;  // Gigabytes.
+  constexpr static size_type SAMPLE_PERIOD  = 64;
+  constexpr static size_type LCP_BRANCHING  = 64;
 
   ConstructionParameters();
   void setSteps(size_type steps);
@@ -87,14 +87,14 @@ class Alphabet
 {
 public:
   typedef gcsa::size_type size_type;
-  const static size_type MAX_SIGMA = 256;
+  constexpr static size_type MAX_SIGMA = 256;
 
   // Comp values for source/sink markers in the default alphabet.
-  const static size_type SOURCE_COMP = 6;
-  const static size_type SINK_COMP = 0;
+  constexpr static size_type SOURCE_COMP = 6;
+  constexpr static size_type SINK_COMP = 0;
 
   // By default, comp values 1 to 4 should be encoded using the fast encoding.
-  const static size_type FAST_CHARS = 4;
+  constexpr static size_type FAST_CHARS = 4;
 
   const static sdsl::int_vector<8> DEFAULT_CHAR2COMP;
   const static sdsl::int_vector<8> DEFAULT_COMP2CHAR;
@@ -370,10 +370,10 @@ typedef std::uint64_t key_type;
 
 struct Key
 {
-  const static size_type GCSA_CHAR_WIDTH = 3;
-  const static key_type  CHAR_MASK = 0x7;
-  const static size_type MAX_LENGTH = 16;
-  const static key_type  PRED_SUCC_MASK = 0xFFFF;
+  constexpr static size_type GCSA_CHAR_WIDTH = 3;
+  constexpr static key_type  CHAR_MASK = 0x7;
+  constexpr static size_type MAX_LENGTH = 16;
+  constexpr static key_type  PRED_SUCC_MASK = 0xFFFF;
 
   static key_type encode(const Alphabet& alpha, const std::string& kmer,
     byte_type pred, byte_type succ)
@@ -437,9 +437,9 @@ typedef std::uint64_t node_type;
 
 struct Node
 {
-  const static size_type ID_OFFSET        = 11;
-  const static size_type ORIENTATION_MASK = 0x400;
-  const static size_type OFFSET_MASK      = 0x3FF;
+  constexpr static size_type ID_OFFSET        = 11;
+  constexpr static size_type ORIENTATION_MASK = 0x400;
+  constexpr static size_type OFFSET_MASK      = 0x3FF;
 
   static node_type encode(size_type node_id, size_type node_offset)
   {

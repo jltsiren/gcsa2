@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -28,6 +28,65 @@
 
 namespace gcsa
 {
+
+//------------------------------------------------------------------------------
+
+// Numerical class constants.
+
+constexpr size_type ConstructionParameters::DOUBLING_STEPS;
+constexpr size_type ConstructionParameters::MAX_STEPS;
+constexpr size_type ConstructionParameters::SIZE_LIMIT;
+constexpr size_type ConstructionParameters::ABSOLUTE_LIMIT;
+constexpr size_type ConstructionParameters::SAMPLE_PERIOD;
+constexpr size_type ConstructionParameters::LCP_BRANCHING;
+
+constexpr Alphabet::size_type Alphabet::MAX_SIGMA;
+constexpr Alphabet::size_type Alphabet::SOURCE_COMP;
+constexpr Alphabet::size_type Alphabet::SINK_COMP;
+constexpr Alphabet::size_type Alphabet::FAST_CHARS;
+
+constexpr size_type Key::GCSA_CHAR_WIDTH;
+constexpr key_type Key::CHAR_MASK;
+constexpr size_type Key::MAX_LENGTH;
+constexpr key_type Key::PRED_SUCC_MASK;
+
+constexpr size_type Node::ID_OFFSET;
+constexpr size_type Node::ORIENTATION_MASK;
+constexpr size_type Node::OFFSET_MASK;
+
+//------------------------------------------------------------------------------
+
+// Other class variables.
+
+/*
+  The default alphabet interprets \0 and $ as endmarkers, ACGT and acgt as ACGT,
+  # as a the label of the source node, and the and the remaining characters as N.
+*/
+
+const sdsl::int_vector<8> Alphabet::DEFAULT_CHAR2COMP =
+{
+  0, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 6,  0, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+
+  5, 1, 5, 2,  5, 5, 5, 3,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 5,  4, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 1, 5, 2,  5, 5, 5, 3,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 5,  4, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+
+  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+
+  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
+  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5
+};
+
+const sdsl::int_vector<8> Alphabet::DEFAULT_COMP2CHAR = { '$', 'A', 'C', 'G', 'T', 'N', '#' };
 
 //------------------------------------------------------------------------------
 
@@ -73,38 +132,6 @@ ConstructionParameters::setLCPBranching(size_type factor)
 {
   this->lcp_branching = std::max((size_type)2, factor);
 }
-
-//------------------------------------------------------------------------------
-
-/*
-  The default alphabet interprets \0 and $ as endmarkers, ACGT and acgt as ACGT,
-  # as a the label of the source node, and the and the remaining characters as N.
-*/
-
-const sdsl::int_vector<8> Alphabet::DEFAULT_CHAR2COMP =
-{
-  0, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 6,  0, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-
-  5, 1, 5, 2,  5, 5, 5, 3,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  4, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 1, 5, 2,  5, 5, 5, 3,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  4, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-
-  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-
-  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,
-  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5,  5, 5, 5, 5
-};
-
-const sdsl::int_vector<8> Alphabet::DEFAULT_COMP2CHAR = { '$', 'A', 'C', 'G', 'T', 'N', '#' };
 
 //------------------------------------------------------------------------------
 
@@ -497,8 +524,7 @@ std::string
 Key::decode(key_type key, size_type kmer_length, const Alphabet& alpha)
 {
   key = label(key);
-  size_type max_length = Key::MAX_LENGTH;  // avoid direct use of static const
-  kmer_length = std::min(kmer_length, max_length);
+  kmer_length = std::min(kmer_length, Key::MAX_LENGTH);
 
   std::string res(kmer_length, '\0');
   for(size_type i = 1; i <= kmer_length; i++)

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -31,6 +31,19 @@
 
 namespace gcsa
 {
+
+//------------------------------------------------------------------------------
+
+// Numerical class constants.
+
+constexpr size_type STNode::UNKNOWN;
+
+//------------------------------------------------------------------------------
+
+// Other class variables.
+
+const std::string LCPArray::EXTENSION = ".lcp";
+
 //------------------------------------------------------------------------------
 
 std::ostream&
@@ -42,8 +55,6 @@ operator<< (std::ostream& out, const STNode& node)
 }
 
 //------------------------------------------------------------------------------
-
-const std::string LCPArray::EXTENSION = ".lcp";
 
 LCPArray::LCPArray()
 {

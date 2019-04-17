@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -28,6 +28,27 @@
 
 namespace gcsa
 {
+
+//------------------------------------------------------------------------------
+
+// Numerical class constants.
+
+constexpr size_type InputGraph::UNKNOWN;
+
+constexpr uint32_t GCSAHeader::TAG;
+constexpr uint32_t GCSAHeader::VERSION;
+constexpr uint32_t GCSAHeader::MIN_VERSION;
+
+constexpr uint32_t LCPHeader::TAG;
+constexpr uint32_t LCPHeader::VERSION;
+constexpr uint32_t LCPHeader::MIN_VERSION;
+
+//------------------------------------------------------------------------------
+
+// Other class variables.
+
+const std::string InputGraph::BINARY_EXTENSION = ".graph";
+const std::string InputGraph::TEXT_EXTENSION = ".gcsa2";
 
 //------------------------------------------------------------------------------
 
@@ -220,8 +241,7 @@ range_type
 parseKMer(const std::string& kmer_line)
 {
   std::string extensions;
-  size_type unknown = InputGraph::UNKNOWN;  // avoid direct use of static const
-  range_type result(unknown, 0);
+  range_type result(InputGraph::UNKNOWN, 0);
   {
     std::string token;
     std::istringstream ss(kmer_line);
@@ -261,9 +281,6 @@ markSourceSinkNodes(std::vector<KMer>& kmers)
 }
 
 //------------------------------------------------------------------------------
-
-const std::string InputGraph::BINARY_EXTENSION = ".graph";
-const std::string InputGraph::TEXT_EXTENSION = ".gcsa2";
 
 InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format, const Alphabet& alphabet, const std::string& mapping_name) :
   filenames(files), lcp_name(), alpha(alphabet), binary(binary_format)

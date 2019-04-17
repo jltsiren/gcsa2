@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -57,18 +57,18 @@ typedef std::uint8_t  char_type;
 typedef std::uint8_t  comp_type;
 typedef std::uint8_t  byte_type;
 
-const size_type BYTE_BITS = 8;
-const size_type WORD_BITS = 64;
+constexpr size_type BYTE_BITS = 8;
+constexpr size_type WORD_BITS = 64;
 
-const size_type KILOBYTE     = 1024;
-const size_type MILLION      = 1000000;
-const size_type MEGABYTE     = KILOBYTE * KILOBYTE;
-const size_type GIGABYTE     = KILOBYTE * MEGABYTE;
+constexpr size_type KILOBYTE     = 1024;
+constexpr size_type MILLION      = 1000000;
+constexpr size_type MEGABYTE     = KILOBYTE * KILOBYTE;
+constexpr size_type GIGABYTE     = KILOBYTE * MEGABYTE;
 
-const double KILOBYTE_DOUBLE = 1024.0;
-const double MILLION_DOUBLE  = 1000000.0;
-const double MEGABYTE_DOUBLE = KILOBYTE_DOUBLE * KILOBYTE_DOUBLE;
-const double GIGABYTE_DOUBLE = KILOBYTE_DOUBLE * MEGABYTE_DOUBLE;
+constexpr double KILOBYTE_DOUBLE = 1024.0;
+constexpr double MILLION_DOUBLE  = 1000000.0;
+constexpr double MEGABYTE_DOUBLE = KILOBYTE_DOUBLE * KILOBYTE_DOUBLE;
+constexpr double GIGABYTE_DOUBLE = KILOBYTE_DOUBLE * MEGABYTE_DOUBLE;
 
 //------------------------------------------------------------------------------
 
@@ -139,11 +139,11 @@ struct Verbosity
   static void set(size_type new_level);
   static std::string levelName();
 
-  const static size_type SILENT   = 0;
-  const static size_type BASIC    = 1;
-  const static size_type EXTENDED = 2;
-  const static size_type DEFAULT  = 3;
-  const static size_type FULL     = 3;
+  constexpr static size_type SILENT   = 0;
+  constexpr static size_type BASIC    = 1;
+  constexpr static size_type EXTENDED = 2;
+  constexpr static size_type DEFAULT  = 3;
+  constexpr static size_type FULL     = 3;
 };
 
 //------------------------------------------------------------------------------
@@ -153,12 +153,12 @@ struct Version
   static std::string str(bool verbose = false);
   static void print(std::ostream& out, const std::string& tool_name, bool verbose = false, size_type new_lines = 2);
 
-  const static size_type MAJOR_VERSION = 1;
-  const static size_type MINOR_VERSION = 2;
-  const static size_type PATCH_VERSION = 0;
+  constexpr static size_type MAJOR_VERSION = 1;
+  constexpr static size_type MINOR_VERSION = 2;
+  constexpr static size_type PATCH_VERSION = 0;
 
-  const static size_type GCSA_VERSION  = 3;
-  const static size_type LCP_VERSION   = 1;
+  constexpr static size_type GCSA_VERSION  = 3;
+  constexpr static size_type LCP_VERSION   = 1;
 };
 
 //------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -34,7 +34,20 @@ namespace gcsa
 
 //------------------------------------------------------------------------------
 
-const size_type MAX_ERRORS = 100; // Suppress further error messages.
+// Numerical class constants.
+
+constexpr size_type KMerSearchParameters::SEED_LENGTH;
+
+//------------------------------------------------------------------------------
+
+// Other class variables.
+
+const std::string KMerSearchParameters::LEFT_EXTENSION = ".left";
+const std::string KMerSearchParameters::RIGHT_EXTENSION = ".right";
+
+//------------------------------------------------------------------------------
+
+constexpr size_type MAX_ERRORS = 100; // Suppress further error messages.
 
 std::ostream&
 printOccs(const std::vector<node_type>& occs, std::ostream& out)
@@ -283,9 +296,6 @@ verifyIndex(const GCSA& index, const LCPArray* lcp, std::vector<KMer>& kmers, si
 
 //------------------------------------------------------------------------------
 
-const std::string KMerSearchParameters::LEFT_EXTENSION = ".left";
-const std::string KMerSearchParameters::RIGHT_EXTENSION = ".right";
-
 template<class State>
 struct KMerSeedCollector
 {
@@ -432,10 +442,10 @@ struct KMerComparisonState
     this->set(successor.k, comp);
   }
 
-  const static size_type MAX_K     = 64;
-  const static size_type COMP_BITS = 3;
-  const static size_type OFFSET    = 6;
-  const static size_type MASK      = 0x3F;
+  constexpr static size_type MAX_K     = 64;
+  constexpr static size_type COMP_BITS = 3;
+  constexpr static size_type OFFSET    = 6;
+  constexpr static size_type MASK      = 0x3F;
 
   inline void set(size_type i, size_type comp)
   {
@@ -445,6 +455,11 @@ struct KMerComparisonState
     this->kmer[offset + 1] |= comp >> (WORD_BITS - bit);  // This is |= 0 if the comp does not overflow.
   }
 };
+
+constexpr size_type KMerComparisonState::MAX_K;
+constexpr size_type KMerComparisonState::COMP_BITS;
+constexpr size_type KMerComparisonState::OFFSET;
+constexpr size_type KMerComparisonState::MASK;
 
 struct KMerSymmetricDifference
 {
