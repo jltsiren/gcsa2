@@ -35,7 +35,7 @@ endif
 
 OTHER_FLAGS=$(VERIFY_FLAGS) $(PARALLEL_FLAGS)
 
-CXX_FLAGS=$(MY_CXX_FLAGS) $(OTHER_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(INC_DIR) -Iinclude
+CXX_FLAGS=$(MY_CXX_FLAGS) $(OTHER_FLAGS) $(MY_CXX_OPT_FLAGS) -Iinclude -I$(INC_DIR)
 LIBOBJS=algorithms.o dbg.o files.o gcsa.o internal.o lcp.o path_graph.o support.o utils.o
 SOURCES=$(wildcard *.cpp)
 HEADERS=$(wildcard include/gcsa/*.h)

@@ -31,7 +31,7 @@ ifeq ($(shell uname -s),Darwin)
     endif
 endif
 
-CXX_FLAGS=$(MY_CXX_FLAGS) $(PARALLEL_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(INC_DIR) -I$(GCSA_DIR)/include
+CXX_FLAGS=$(MY_CXX_FLAGS) $(PARALLEL_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(GCSA_DIR)/include -I$(INC_DIR)
 LIBOBJS=algorithms.o dbg.o files.o gcsa.o internal.o lcp.o path_graph.o support.o utils.o
 SOURCES=$(wildcard *.cpp)
 OBJS=$(SOURCES:.cpp=.o)
