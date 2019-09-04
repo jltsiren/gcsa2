@@ -18,6 +18,8 @@ The implementation is based on the [Succinct Data Structures Library 2.0](https:
 
 To compile, set `SDSL_DIR` in the Makefile to point to your SDSL directory (the default is `../sdsl-lite`). GCSA2 will take its compiler options from SDSL. Use `make` to compile the library or `install.sh` to compile it and install the headers and the library to your home directory. Another installation directory can be specified as `install.sh prefix`.
 
+GCSA2 is compiled with `-DNDEBUG` by default. Using this option is highly recommended. There are several cases, where SDSL code works correctly but the assertions are incorrect. As SDSL 2.0 is no longer actively supported, we have to wait until the release of SDSL 3.0 to fix these issues.
+
 ## Citing GCSA2
 
 Jouni Sirén: **Indexing Variation Graphs**.
