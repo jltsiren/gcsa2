@@ -1,14 +1,22 @@
 # GCSA2
 
-This is a reimplementation of the Generalized Compressed Suffix Array (GCSA), a BWT-based index for directed graphs. The implementation is based on the [Succinct Data Structures Library 2.0](https://github.com/simongog/sdsl-lite) (SDSL). To compile, set `SDSL_DIR` in the Makefile to point to your SDSL directory. As the implementation uses C++11, OpenMP, and libstdc++ parallel mode, g++ 4.9 or newer is required. On Apple systems, GCSA2 can also be built with Apple Clang 9.1, but libomp must be installed via Macports or Homebrew, and the lack of libstdc++'s parallel mode extensions will result in slower index construction.
+This is a reimplementation of the Generalized Compressed Suffix Array (GCSA), a BWT-based index for directed graphs.
 
-[The old implementation](https://jltsiren.kapsi.fi/gcsa) indexed all paths in a directed acyclic graph, which had to be determinized before index construction. This implementation indexes paths of length up to 256 in any graph. The upper bound on path length should limit the combinatorial explosion often occurring in graphs containing regions with a lot of branching.
+See [the wiki](https://github.com/jltsiren/gcsa2/wiki) for further documentation.
+
+## Overview
+
+[The old implementation](https://jltsiren.kapsi.fi/gcsa) indexed all paths in a directed acyclic graph, which had to be determinized before index construction. GCSA2 approximates the graph with a de Bruijn graph (with *k = 256* or less), allowing it to index more complex graphs as well as graphs containing cycles. The order of the de Bruijn graph limits the length of the queries the index is able to answer correctly. Longer queries may result in false positives (but no false negatives).
 
 The input to index construction is a set of paths of length *k* in the input graph. The prefix-doubling algorithm transforms the input into an order-*8k* (order-*2k*, order-*4k*, order-*16k*) pruned de Bruijn graph for paths in the input graph. A pruned de Bruijn graph differs from a de Bruijn graph in that its nodes may have shorter labels than the order of the graph, if the shorter labels uniquely determine the start nodes of the corresponding paths in the input graph. As such, pruned de Bruijn graphs are usually smaller than proper de Bruijn graphs.
 
 GCSA2 is being developed as a part of [vg](https://github.com/vgteam/vg). The only implemented construction option is based on extracting *k*-mers from vg.
 
-See [the wiki](https://github.com/jltsiren/gcsa2/wiki) for further documentation.
+## Compiling GCSA2
+
+The implementation is based on the [Succinct Data Structures Library 2.0](https://github.com/simongog/sdsl-lite) (SDSL). As the implementation uses C++11, OpenMP, and libstdc++ parallel mode, g++ 4.9 or newer is required. On Apple systems, GCSA2 can also be built with Apple Clang 9.1, but libomp must be installed via Macports or Homebrew, and the lack of libstdc++'s parallel mode extensions will result in slower index construction.
+
+To compile, set `SDSL_DIR` in the Makefile to point to your SDSL directory (the default is `../sdsl-lite`). GCSA2 will take its compiler options from SDSL. Use `make` to compile the library or `install.sh` to compile it and install the headers and the library to your home directory. Another installation directory can be specified as `install.sh prefix`.
 
 ## Citing GCSA2
 
