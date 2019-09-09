@@ -35,11 +35,11 @@
 
 #include <sdsl/wavelet_trees.hpp>
 
-// FIXME Later: Get rid of OpenMP.
+// TODO Later: Get rid of OpenMP.
 #include <omp.h>
 
-// Parallel sorting is only available with GCC.
-#if (defined(__GNUC__) && !defined(__clang__))
+// Parallel sorting is only available with libstdc++ parallel mode.
+#ifdef __GLIBCXX__
 #include <parallel/algorithm>
 #endif
 
@@ -272,7 +272,7 @@ template<class Iterator, class Comparator>
 void
 parallelQuickSort(Iterator first, Iterator last, const Comparator& comp)
 {
-#if (defined(__GNUC__) && !defined(__clang__))
+#ifdef __GLIBCXX__
   int nested = omp_get_nested();
   omp_set_nested(1);
   __gnu_parallel::sort(first, last, comp, __gnu_parallel::balanced_quicksort_tag());
@@ -286,7 +286,7 @@ template<class Iterator>
 void
 parallelQuickSort(Iterator first, Iterator last)
 {
-#if (defined(__GNUC__) && !defined(__clang__))
+#ifdef __GLIBCXX__
   int nested = omp_get_nested();
   omp_set_nested(1);
   __gnu_parallel::sort(first, last, __gnu_parallel::balanced_quicksort_tag());
@@ -300,7 +300,7 @@ template<class Iterator, class Comparator>
 void
 parallelMergeSort(Iterator first, Iterator last, const Comparator& comp)
 {
-#if (defined(__GNUC__) && !defined(__clang__))
+#ifdef __GLIBCXX__
   __gnu_parallel::sort(first, last, comp, __gnu_parallel::multiway_mergesort_tag());
 #else
   std::sort(first, last, comp);
@@ -311,7 +311,7 @@ template<class Iterator>
 void
 parallelMergeSort(Iterator first, Iterator last)
 {
-#if (defined(__GNUC__) && !defined(__clang__))
+#ifdef __GLIBCXX__
   __gnu_parallel::sort(first, last, __gnu_parallel::multiway_mergesort_tag());
 #else
   std::sort(first, last);
@@ -322,7 +322,7 @@ template<class Iterator, class Comparator>
 void
 sequentialSort(Iterator first, Iterator last, const Comparator& comp)
 {
-#if (defined(__GNUC__) && !defined(__clang__))
+#ifdef __GLIBCXX__
   __gnu_parallel::sort(first, last, comp, __gnu_parallel::sequential_tag());
 #else
   std::sort(first, last, comp);
@@ -333,7 +333,7 @@ template<class Iterator>
 void
 sequentialSort(Iterator first, Iterator last)
 {
-#if (defined(__GNUC__) && !defined(__clang__))
+#ifdef __GLIBCXX__
   __gnu_parallel::sort(first, last, __gnu_parallel::sequential_tag());
 #else
   std::sort(first, last);
