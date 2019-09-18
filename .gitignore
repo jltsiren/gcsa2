@@ -1,3 +1,5 @@
+# Dependencies, objects, and libraries
+*.d
 *.o
 *.a
 
