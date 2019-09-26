@@ -50,6 +50,7 @@ constexpr key_type Key::CHAR_MASK;
 constexpr size_type Key::MAX_LENGTH;
 constexpr key_type Key::PRED_SUCC_MASK;
 
+constexpr size_type Node::OFFSET_BITS;
 constexpr size_type Node::ID_OFFSET;
 constexpr size_type Node::ORIENTATION_MASK;
 constexpr size_type Node::OFFSET_MASK;
