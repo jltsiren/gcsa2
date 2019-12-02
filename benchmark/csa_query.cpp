@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2019 Jouni Siren
   Copyright (c) 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -107,7 +108,11 @@ benchmark(const std::string& file_name, const std::string& header,
   const std::vector<std::string>& patterns, size_type pattern_total)
 {
   IndexType index;
-  sdsl::load_from_file(index, file_name);
+  if(!sdsl::load_from_file(index, file_name))
+  {
+    std::cerr << "benchmark(): Cannot load the index from " << file_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   printHeader(header);
   std::cout << inMegabytes(sdsl::size_in_bytes(index)) << " MB ("
             << inBPC(sdsl::size_in_bytes(index), index.size()) << " bpc)" << std::endl;

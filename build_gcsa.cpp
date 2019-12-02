@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018 Jouni Siren
+  Copyright (c) 2018, 2019 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -146,8 +146,16 @@ main(int argc, char** argv)
   LCPArray lcp;
   if(load_index)
   {
-    sdsl::load_from_file(index, index_file);
-    sdsl::load_from_file(lcp, lcp_file);
+    if(!sdsl::load_from_file(index, index_file))
+    {
+      std::cerr << "build_gcsa: Cannot load the index from " << index_file << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    if(!sdsl::load_from_file(lcp, lcp_file))
+    {
+      std::cerr << "build_gcsa: Cannot load the LCP array from " << lcp_file << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
   }
   else
   {
@@ -160,8 +168,16 @@ main(int argc, char** argv)
     std::cout << "I/O volume: " << inGigabytes(readVolume()) << " GB read, "
               << inGigabytes(writeVolume()) << " GB write" << std::endl;
     std::cout << std::endl;
-    sdsl::store_to_file(index, index_file);
-    sdsl::store_to_file(lcp, lcp_file);
+    if(!sdsl::store_to_file(index, index_file))
+    {
+      std::cerr << "build_gcsa: Cannot write the index to " << index_file << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+    if(!sdsl::store_to_file(lcp, lcp_file))
+    {
+      std::cerr << "build_gcsa: Cannot write the LCP array to " << lcp_file << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
   }
 
   printStatistics(index, lcp);

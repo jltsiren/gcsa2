@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2019 Jouni Siren
   Copyright (c) 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -119,7 +120,11 @@ void
 countKmers(const std::string& base_name, size_type k, const KMerSearchParameters& parameters)
 {
   GCSA index;
-  sdsl::load_from_file(index, base_name + GCSA::EXTENSION);
+  if(!sdsl::load_from_file(index, base_name + GCSA::EXTENSION))
+  {
+    std::cerr << "countKmers(): Cannot load the index from " << (base_name + GCSA::EXTENSION) << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   std::cout << "GCSA:        " << index.size() << " paths, order " << index.order() << std::endl;
 
   double start = readTimer();
@@ -136,9 +141,17 @@ void
 compareKmers(const std::string& left_name, const std::string& right_name, size_type k, const KMerSearchParameters& parameters)
 {
   GCSA left, right;
-  sdsl::load_from_file(left, left_name + GCSA::EXTENSION);
+  if(!sdsl::load_from_file(left, left_name + GCSA::EXTENSION))
+  {
+    std::cerr << "compareKmers(): Cannot load the first index from " << (left_name + GCSA::EXTENSION) << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   std::cout << "Left:        " << left.size() << " paths, order " << left.order() << std::endl;
-  sdsl::load_from_file(right, right_name + GCSA::EXTENSION);
+  if(!sdsl::load_from_file(right, right_name + GCSA::EXTENSION))
+  {
+    std::cerr << "compareKmers(): Cannot load the second index from " << (right_name + GCSA::EXTENSION) << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
   std::cout << "Right:       " << right.size() << " paths, order " << right.order() << std::endl;
 
   double start = readTimer();

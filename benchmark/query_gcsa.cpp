@@ -1,4 +1,5 @@
 /*
+  Copyright (c) 2019 Jouni Siren
   Copyright (c) 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -51,11 +52,19 @@ main(int argc, char** argv)
 
   GCSA index;
   std::string gcsa_name = base_name + GCSA::EXTENSION;
-  sdsl::load_from_file(index, gcsa_name);
+  if(!sdsl::load_from_file(index, gcsa_name))
+  {
+    std::cerr << "query_gcsa: Cannot load the index from " << gcsa_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
 
   LCPArray lcp;
   std::string lcp_name = base_name + LCPArray::EXTENSION;
-  sdsl::load_from_file(lcp, lcp_name);
+  if(!sdsl::load_from_file(lcp, lcp_name))
+  {
+    std::cerr << "query_gcsa: Cannot load the LCP array from " << lcp_name << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
 
   if(pattern_name.empty())
   {
