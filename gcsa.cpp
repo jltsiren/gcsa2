@@ -441,7 +441,8 @@ MergedGraphReader::fromNodes(std::vector<node_type>& results, const NodeMapping&
 
 //------------------------------------------------------------------------------
 
-GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters)
+GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters) :
+  GCSA()
 {
   double start = readTimer();
 
