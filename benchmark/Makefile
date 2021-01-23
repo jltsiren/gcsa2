@@ -4,7 +4,7 @@ include $(SDSL_DIR)/Make.helper
 
 # Multithreading with OpenMP and libstdc++ Parallel Mode.
 PARALLEL_FLAGS=-fopenmp -pthread
-LIBS=-L$(LIB_DIR) -L$(GCSA_DIR) -lgcsa2 -lsdsl -ldivsufsort -ldivsufsort64
+LIBS=-L$(LIB_DIR) ../libgcsa2.a -lsdsl -ldivsufsort -ldivsufsort64
 
 ifeq ($(shell uname -s),Darwin)
     # Our compiler might be clang that lacks -fopenmp support.
@@ -32,7 +32,6 @@ ifeq ($(shell uname -s),Darwin)
 endif
 
 CXX_FLAGS=$(MY_CXX_FLAGS) $(PARALLEL_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(GCSA_DIR)/include -I$(INC_DIR)
-LIBOBJS=algorithms.o dbg.o files.o gcsa.o internal.o lcp.o path_graph.o support.o utils.o
 SOURCES=$(wildcard *.cpp)
 OBJS=$(SOURCES:.cpp=.o)
 
