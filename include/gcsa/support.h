@@ -348,7 +348,7 @@ SadaSparse::SadaSparse(const Container& source)
   sdsl::sd_vector_builder builder(total, filtered_values);
   for(size_type i = 0, tail = 0; i < source.size(); i++)
   {
-    if(source[i] > 0) { tail += source[i]; builder.set(tail - 1); }
+    if(source[i] > 0) { tail += source[i]; builder.set_unsafe(tail - 1); }
   }
   this->values = sd_vector(builder);
 
