@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019 Jouni Siren
+  Copyright (c) 2018, 2019, 2021 Jouni Siren
   Copyright (c) 2015, 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -110,49 +110,31 @@ directConstruct(Type& structure, const sdsl::int_vector<8>& data)
 
 //------------------------------------------------------------------------------
 
+/*
+  An index over array of `ValueType` with non-decreasing keys returned by `Getter::get()`.
+*/
 template<class ValueType, class Getter>
 struct ValueIndex
 {
-  sdsl::sd_vector<>               values;     // Marks the values that are present.
-  sdsl::sd_vector<>::rank_1_type  value_rank;
-
-  sdsl::bit_vector                first_occ;  // Marks the first occurrence of each rank.
-  sdsl::bit_vector::select_1_type first_select;
+  // Multiset of values.
+  sdsl::sd_vector<> values;
 
   ValueIndex(const std::vector<ValueType>& input)
   {
-    std::vector<size_type> buffer;
-    this->first_occ = sdsl::bit_vector(input.size(), 0);
+    if(input.empty()) { return; }
 
-    size_type prev = ~(size_type)0;
-    for(size_type i = 0; i < input.size(); i++)
-    {
-      size_type curr = Getter::get(input[i]);
-      if(curr != prev)
-      {
-        buffer.push_back(curr);
-        this->first_occ[i] = 1;
-        prev = curr;
-      }
-    }
-
-    // Fills in values, but only works if there are any values to fill
-    if(buffer.size() > 0)
-    {
-      sdsl::sd_vector<> temp(buffer.begin(), buffer.end());
-      this->values.swap(temp);
-      sdsl::util::clear(buffer);
-    }
-
-    sdsl::util::init_support(this->value_rank, &(this->values));
-    sdsl::util::init_support(this->first_select, &(this->first_occ));
+    sdsl::sd_vector_builder builder(Getter::get(input.back()) + 1, input.size(), true);
+    for(const ValueType& value : input) { builder.set_unsafe(Getter::get(value)); }
+    this->values = sdsl::sd_vector<>(builder);
   }
 
   // Finds the first occurrence of the value.
   size_type find(size_type value) const
   {
-    if(value >= this->values.size() || this->values[value] == 0) { return this->first_occ.size(); }
-    return this->first_select(this->value_rank(value) + 1);
+    // If the value is present, the successor is the first occurrence and the predecessor
+    // is the last occurrence.
+    auto iter = this->values.successor(value);
+    return (iter->second == value ? iter->first : this->values.ones());
   }
 
   ValueIndex(const ValueIndex&) = delete;
