@@ -6,28 +6,25 @@ include $(SDSL_DIR)/Make.helper
 PARALLEL_FLAGS=-fopenmp -pthread
 LIBS=-L$(LIB_DIR) ../libgcsa2.a -lsdsl -ldivsufsort -ldivsufsort64
 
-ifeq ($(shell uname -s),Darwin)
-    # Our compiler might be clang that lacks -fopenmp support.
-    # Sniff that
+# Apple Clang does not support OpenMP directly, so we need special handling.
+ifeq ($(shell uname -s), Darwin)
+    # The compiler complains about -fopenmp instead of missing input.
     ifeq ($(strip $(shell $(MY_CXX) -fopenmp /dev/null -o/dev/null 2>&1 | grep fopenmp | wc -l)), 1)
-		# The compiler complained about fopenmp instead of its nonsense input file.
-        # We need to use the hard way of getting OpenMP not bundled with the compiler.
-        
-		# The compiler only needs to do the preprocessing
+        # The compiler only needs to do the preprocessing.
         PARALLEL_FLAGS = -Xpreprocessor -fopenmp -pthread
 
-		ifeq ($(shell if [ -d /opt/local/lib/libomp ];then echo 1;else echo 0;fi), 1)
-            # Use /opt/local/lib/libomp if present, because Macports installs libomp there.
-			# Brew is supposed to put it somewhere the compiler can find it by default.
-            LIBS += -L/opt/local/lib/libomp
-            # And we need to find the includes. Homebrew puts them in the normal place
-            # but Macports hides them in "libomp"
+        # If HOMEBREW_PREFIX is specified, libomp probably cannot be found automatically.
+        ifdef HOMEBREW_PREFIX
+            PARALLEL_FLAGS += -I$(HOMEBREW_PREFIX)/include
+            LIBS += -L$(HOMEBREW_PREFIX)/lib
+        # Macports installs libomp to /opt/local/lib/libomp
+        else ifeq ($(shell if [ -d /opt/local/lib/libomp ]; then echo 1; else echo 0; fi), 1)
             PARALLEL_FLAGS += -I/opt/local/include/libomp
+            LIBS += -L/opt/local/lib/libomp
         endif
 
-        # We also need to link it
+        # We also need to link it.
         LIBS += -lomp
-
     endif
 endif
 
