@@ -1,6 +1,11 @@
 SDSL_DIR=../sdsl-lite
 include $(SDSL_DIR)/Make.helper
 
+BUILD_BIN=bin
+BUILD_LIB=lib
+BUILD_OBJ=obj
+SOURCE_DIR=src
+
 # This enables various debugging options in build_gcsa.
 #VERIFY_FLAGS=-DVERIFY_CONSTRUCTION
 
@@ -30,36 +35,39 @@ ifeq ($(shell uname -s), Darwin)
     endif
 endif
 
-OTHER_FLAGS=$(VERIFY_FLAGS) $(PARALLEL_FLAGS)
+CXX_FLAGS=$(MY_CXX_FLAGS) $(VERIFY_FLAGS) $(PARALLEL_FLAGS) $(MY_CXX_OPT_FLAGS) -Iinclude -I$(INC_DIR)
 
-CXX_FLAGS=$(MY_CXX_FLAGS) $(OTHER_FLAGS) $(MY_CXX_OPT_FLAGS) -Iinclude -I$(INC_DIR)
-LIBOBJS=algorithms.o dbg.o files.o gcsa.o internal.o lcp.o path_graph.o support.o utils.o
-SOURCES=$(wildcard *.cpp)
 HEADERS=$(wildcard include/gcsa/*.h)
-OBJS=$(SOURCES:.cpp=.o)
+LIBOBJS=$(addprefix $(BUILD_OBJ)/,algorithms.o dbg.o files.o gcsa.o internal.o lcp.o path_graph.o support.o utils.o)
+LIBRARY=$(BUILD_LIB)/libgcsa2.a
 
-LIBRARY=libgcsa2.a
-PROGRAMS=build_gcsa convert_graph gcsa_format try_extend
+PROGRAMS=$(addprefix $(BUILD_BIN)/,build_gcsa convert_graph gcsa_format try_extend)
+OBSOLETE=build_gcsa convert_graph gcsa_format try_extend
 
-all: $(LIBRARY) $(PROGRAMS)
+.PHONY: all clean directories test
+all: directories $(LIBRARY) $(PROGRAMS)
 
-%.o:%.cpp $(HEADERS)
-	$(MY_CXX) $(CXX_FLAGS) -c $<
+directories: $(BUILD_BIN) $(BUILD_LIB) $(BUILD_OBJ)
+
+$(BUILD_BIN):
+	mkdir -p $@
+
+$(BUILD_LIB):
+	mkdir -p $@
+
+$(BUILD_OBJ):
+	mkdir -p $@
+
+$(BUILD_OBJ)/%.o:$(SOURCE_DIR)/%.cpp $(HEADERS)
+	$(MY_CXX) $(CPPFLAGS) $(CXXFLAGS) $(CXX_FLAGS) -c -o $@ $<
 
 $(LIBRARY):$(LIBOBJS)
 	ar rcs $@ $(LIBOBJS)
 
-build_gcsa:build_gcsa.o $(LIBRARY)
-	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
-
-gcsa_format:gcsa_format.o $(LIBRARY)
-	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
-
-convert_graph:convert_graph.o $(LIBRARY)
-	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
-
-try_extend:try_extend.o $(LIBRARY)
-	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
+$(BUILD_BIN)/%:$(BUILD_OBJ)/%.o $(LIBRARY)
+	$(MY_CXX) $(LDFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
 clean:
-	rm -f $(PROGRAMS) $(OBJS) $(LIBRARY)
+	rm -rf $(BUILD_BIN) $(BUILD_LIB) $(BUILD_OBJ)
+	rm -f *.o *.a $(OBSOLETE)
+	cd benchmark && $(MAKE) clean

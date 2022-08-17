@@ -1,10 +1,12 @@
 SDSL_DIR=../../sdsl-lite
-GCSA_DIR=..
 include $(SDSL_DIR)/Make.helper
+
+GCSA_DIR=..
+LIBRARY=$(GCSA_DIR)/lib/libgcsa2.a
 
 # Multithreading with OpenMP and libstdc++ Parallel Mode.
 PARALLEL_FLAGS=-fopenmp -pthread
-LIBS=-L$(LIB_DIR) ../libgcsa2.a -lsdsl -ldivsufsort -ldivsufsort64
+LIBS=-L$(LIB_DIR) -lsdsl -ldivsufsort -ldivsufsort64
 
 # Apple Clang does not support OpenMP directly, so we need special handling.
 ifeq ($(shell uname -s), Darwin)
@@ -29,27 +31,18 @@ ifeq ($(shell uname -s), Darwin)
 endif
 
 CXX_FLAGS=$(MY_CXX_FLAGS) $(PARALLEL_FLAGS) $(MY_CXX_OPT_FLAGS) -I$(GCSA_DIR)/include -I$(INC_DIR)
-SOURCES=$(wildcard *.cpp)
-OBJS=$(SOURCES:.cpp=.o)
 
+HEADERS=$(wildcard $(GCSA_DIR)/include/gcsa/*.h)
 PROGRAMS=count_kmers query_gcsa csa_builder csa_query
 
-all: $(PROGRAMS)
+.PHONY: all clean test
+all:$(PROGRAMS)
 
-%.o:%.cpp
+%.o:%.cpp $(HEADERS)
 	$(MY_CXX) $(CXX_FLAGS) -c $<
 
-count_kmers:count_kmers.o $(LIBRARY)
-	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBS)
-
-query_gcsa:query_gcsa.o $(LIBRARY)
-	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBS)
-
-csa_builder:csa_builder.o $(LIBRARY)
-	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBS)
-
-csa_query:csa_query.o $(LIBRARY)
-	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBS)
+$(PROGRAMS):%:%.o $(LIBRARY)
+	$(MY_CXX) $(CXX_FLAGS) -o $@ $< $(LIBRARY) $(LIBS)
 
 clean:
-	rm -f $(PROGRAMS) $(OBJS)
+	rm -f $(PROGRAMS) *.o

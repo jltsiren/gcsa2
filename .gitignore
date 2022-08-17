@@ -3,6 +3,13 @@
 *.o
 *.a
 
+# Build directories
+bin
+lib
+obj
+build
+
+# Tools
 build_gcsa
 convert_graph
 gcsa_format
@@ -16,11 +23,13 @@ csa_query
 
 convert_gcsa
 
+# Paper
 paper.pdf
 gcsa2_text_indexes.pdf
 gcsa2_graph_dbg.pdf
 gcsa2_pruned_index.pdf
 
+# LaTeX
 *.aux
 *.bak
 *.bbl
@@ -29,5 +38,8 @@ gcsa2_pruned_index.pdf
 *.out
 *.vtc
 
+# Mac
 .DS_Store
 
+# vscode
+.vscode
