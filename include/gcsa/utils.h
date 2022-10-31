@@ -253,6 +253,8 @@ namespace TempFile
   void setDirectory(const std::string& directory);
   std::string getName(const std::string& name_part);
   void remove(std::string& filename);  // Also clears the filename.
+  // Forget about current temporary files so that they aren't deleted.
+  void forget();
 }
 
 // Returns the total length of the rows, excluding line ends.
