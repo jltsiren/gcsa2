@@ -218,9 +218,8 @@ namespace TempFile
 
   void
   forget() {
-    std::lock_guard<std::mutex> lock(tempfile_lock);
     handler.filenames.clear();
-    handler.counter = 0;
+    counter = 0;
   }
 } // namespace TempFile
 
