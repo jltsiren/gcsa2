@@ -215,6 +215,12 @@ namespace TempFile
       filename.clear();
     }
   }
+
+  void
+  forget() {
+    handler.filenames.clear();
+    counter = 0;
+  }
 } // namespace TempFile
 
 size_type
