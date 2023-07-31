@@ -452,7 +452,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters) :
   {
     std::cerr << "GCSA::GCSA(): The input is too large: " << (bytes_required / GIGABYTE_DOUBLE) << " GB" << std::endl;
     std::cerr << "GCSA::GCSA(): Construction aborted" << std::endl;
-    std::exit(EXIT_FAILURE);
+    std::exit(EXIT_SIZE_LIMIT_EXCEEDED);
   }
 
   // Extract the keys and build the necessary support structures.
