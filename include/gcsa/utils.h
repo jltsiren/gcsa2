@@ -70,6 +70,9 @@ constexpr double MILLION_DOUBLE  = 1000000.0;
 constexpr double MEGABYTE_DOUBLE = KILOBYTE_DOUBLE * KILOBYTE_DOUBLE;
 constexpr double GIGABYTE_DOUBLE = KILOBYTE_DOUBLE * MEGABYTE_DOUBLE;
 
+// Exit code for exceeding parameter-defined size limit.
+constexpr int EXIT_SIZE_LIMIT_EXCEEDED = 0x2BAD512E;
+
 //------------------------------------------------------------------------------
 
 /*

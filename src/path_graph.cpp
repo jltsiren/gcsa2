@@ -364,7 +364,7 @@ PathGraphBuilder::write(PriorityNode& path)
   if(this->graph.bytes() + path.bytes() > this->limit)
   {
     std::cerr << "PathGraphBuilder::write(): Size limit exceeded, construction aborted" << std::endl;
-    std::exit(EXIT_FAILURE);
+    std::exit(EXIT_SIZE_LIMIT_EXCEEDED);
   }
   writePath(path.node, path.label, this->path_files[path.file], this->rank_files[path.file]);
 
@@ -382,7 +382,7 @@ PathGraphBuilder::write(std::vector<PathNode>& paths, std::vector<PathNode::rank
     if(bytes_required + this->graph.bytes() > this->limit)
     {
       std::cerr << "PathGraphBuilder::write(): Size limit exceeded, construction aborted" << std::endl;
-      std::exit(EXIT_FAILURE);
+      std::exit(EXIT_SIZE_LIMIT_EXCEEDED);
     }
     for(size_type i = 0; i < paths.size(); i++)
     {
@@ -1185,7 +1185,7 @@ MergedGraph::MergedGraph(const PathGraph& source, const DeBruijnGraph& mapper, c
     if(bytes > size_limit)
     {
       std::cerr << "MergedGraph::MergedGraph(): Size limit exceeded, construction aborted" << std::endl;
-      std::exit(EXIT_FAILURE);
+      std::exit(EXIT_SIZE_LIMIT_EXCEEDED);
     }
     writePath(curr.node, curr.label, path_file, rank_file);
     for(size_type i = 1; i < same_from_set.nodes.size(); i++)
