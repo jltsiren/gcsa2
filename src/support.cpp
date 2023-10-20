@@ -38,6 +38,7 @@ constexpr size_type ConstructionParameters::MAX_STEPS;
 constexpr size_type ConstructionParameters::SIZE_LIMIT;
 constexpr size_type ConstructionParameters::ABSOLUTE_LIMIT;
 constexpr size_type ConstructionParameters::MEMORY_LIMIT;
+constexpr size_type ConstructionParameters::ABSOLUTE_MEMORY_LIMIT;
 constexpr size_type ConstructionParameters::SAMPLE_PERIOD;
 constexpr size_type ConstructionParameters::LCP_BRANCHING;
 
