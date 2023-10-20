@@ -25,6 +25,7 @@
 
 #include <gcsa/files.h>
 #include <gcsa/internal.h>
+#include <gcsa/utils.h>
 
 namespace gcsa
 {
@@ -282,13 +283,13 @@ markSourceSinkNodes(std::vector<KMer>& kmers)
 
 //------------------------------------------------------------------------------
 
-InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format, const Alphabet& alphabet, const std::string& mapping_name) :
+InputGraph::InputGraph(const std::vector<std::string>& files, bool binary_format, const ConstructionParameters& parameters, const Alphabet& alphabet, const std::string& mapping_name) :
   filenames(files), lcp_name(), alpha(alphabet), binary(binary_format)
 {
-  this->build(mapping_name);
+  this->build(parameters, mapping_name);
 }
 
-InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format, const Alphabet& alphabet, const std::string& mapping_name) :
+InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_format, const ConstructionParameters& parameters, const Alphabet& alphabet, const std::string& mapping_name) :
   lcp_name(), alpha(alphabet), binary(binary_format)
 {
   for(size_type file = 0; file < file_count; file++)
@@ -296,7 +297,7 @@ InputGraph::InputGraph(size_type file_count, char** base_names, bool binary_form
     std::string filename = std::string(base_names[file]) + (this->binary ? BINARY_EXTENSION : TEXT_EXTENSION);
     this->filenames.push_back(filename);
   }
-  this->build(mapping_name);
+  this->build(parameters, mapping_name);
 }
 
 InputGraph::~InputGraph()
@@ -305,7 +306,7 @@ InputGraph::~InputGraph()
 }
 
 void
-InputGraph::build(const std::string& mapping_name)
+InputGraph::build(const ConstructionParameters& parameters, const std::string& mapping_name)
 {
   this->kmer_count = 0; this->kmer_length = UNKNOWN;
   this->sizes = std::vector<size_type>(this->files(), 0);
@@ -340,6 +341,11 @@ InputGraph::build(const std::string& mapping_name)
 
     }
     input.close();
+  }
+  
+  if (this->size() * sizeof(KMer) > parameters.getMemoryLimitBytes()) {
+    std::cerr << "InputGraph::InputGraph(): Memory use of input kmers (" << inGigabytes(this->size() * sizeof(KMer)) << " GB) exceeds memory limit (" << inGigabytes(parameters.getMemoryLimitBytes()) << " GB)" << std::endl;
+    std::exit(EXIT_SIZE_LIMIT_EXCEEDED);
   }
 
   if(!(mapping_name.empty()))

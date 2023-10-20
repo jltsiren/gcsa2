@@ -41,7 +41,8 @@ main(int argc, char** argv)
   else
   {
     Version::print(std::cout, "GCSA2 input graph converter");
-    InputGraph graph(argc - 1, argv + 1, false);
+    ConstructionParameters parameters;
+    InputGraph graph(argc - 1, argv + 1, false, parameters);
     for(size_type i = 0; i < graph.files(); i++)
     {
       std::string base_name = argv[i + 1];

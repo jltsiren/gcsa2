@@ -46,28 +46,35 @@ namespace gcsa
 
 struct ConstructionParameters
 {
-  constexpr static size_type DOUBLING_STEPS = 4;
-  constexpr static size_type MAX_STEPS      = 4;
-  constexpr static size_type SIZE_LIMIT     = 2048;   // Gigabytes.
-  constexpr static size_type ABSOLUTE_LIMIT = 16384;  // Gigabytes.
-  constexpr static size_type SAMPLE_PERIOD  = 64;
-  constexpr static size_type LCP_BRANCHING  = 64;
+  constexpr static size_type DOUBLING_STEPS        = 4;
+  constexpr static size_type MAX_STEPS             = 4;
+  constexpr static size_type SIZE_LIMIT            = 2048;   // Gigabytes.
+  constexpr static size_type ABSOLUTE_LIMIT        = 16384;  // Gigabytes.
+  constexpr static size_type MEMORY_LIMIT          = 1024;   // Gigabytes.
+  constexpr static size_type ABSOLUTE_MEMORY_LIMIT = 8192;   // Gigabytes.
+  constexpr static size_type SAMPLE_PERIOD         = 64;
+  constexpr static size_type LCP_BRANCHING         = 64;
+  
 
   ConstructionParameters();
   void setSteps(size_type steps);
   void setLimit(size_type gigabytes);
   void setLimitBytes(size_type bytes);
   void reduceLimit(size_type bytes);
+  void setMemoryLimit(size_type gigabytes);
+  void setMemoryLimitBytes(size_type bytes);
   void setSamplePeriod(size_type period);
   void setLCPBranching(size_type factor);
 
   size_type getSteps() const { return this->doubling_steps; }
   size_type getLimitBytes() const { return this->size_limit; }
+  size_type getMemoryLimitBytes() const { return this->memory_limit; }
   size_type getSamplePeriod() const { return this->sample_period; }
   size_type getLCPBranching() const { return this->lcp_branching; }
 
   size_type doubling_steps;
   size_type size_limit;
+  size_type memory_limit;
   size_type sample_period;
   size_type lcp_branching;
 };

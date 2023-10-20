@@ -334,7 +334,7 @@ struct PathGraph
       path_graph.prune(lcp, total_size_limit - path_graph.bytes())
   */
   void prune(const LCP& lcp, size_type size_limit);
-  void extend(size_type size_limit);
+  void extend(size_type size_limit, size_type memory_limit);
 
   void debugExtend();
 
