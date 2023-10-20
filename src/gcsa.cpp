@@ -502,7 +502,7 @@ GCSA::GCSA(InputGraph& graph, const ConstructionParameters& parameters) :
                 << (2 * path_graph.k()) << ")" << std::endl;
     }
     path_graph.prune(lcp, parameters.getLimitBytes() - path_graph.bytes());
-    path_graph.extend(parameters.getLimitBytes() - path_graph.bytes());
+    path_graph.extend(parameters.getLimitBytes() - path_graph.bytes(), parameters.getMemoryLimitBytes());
   }
   if(Verbosity::level >= Verbosity::EXTENDED)
   {

@@ -37,6 +37,7 @@ constexpr size_type ConstructionParameters::DOUBLING_STEPS;
 constexpr size_type ConstructionParameters::MAX_STEPS;
 constexpr size_type ConstructionParameters::SIZE_LIMIT;
 constexpr size_type ConstructionParameters::ABSOLUTE_LIMIT;
+constexpr size_type ConstructionParameters::MEMORY_LIMIT;
 constexpr size_type ConstructionParameters::SAMPLE_PERIOD;
 constexpr size_type ConstructionParameters::LCP_BRANCHING;
 
@@ -93,7 +94,8 @@ const sdsl::int_vector<8> Alphabet::DEFAULT_COMP2CHAR = { '$', 'A', 'C', 'G', 'T
 
 ConstructionParameters::ConstructionParameters() :
   doubling_steps(DOUBLING_STEPS), size_limit(SIZE_LIMIT * GIGABYTE),
-  sample_period(SAMPLE_PERIOD), lcp_branching(LCP_BRANCHING)
+  memory_limit(MEMORY_LIMIT * GIGABYTE), sample_period(SAMPLE_PERIOD),
+  lcp_branching(LCP_BRANCHING)
 {
 }
 
@@ -120,6 +122,18 @@ ConstructionParameters::reduceLimit(size_type bytes)
 {
   if(bytes > this->size_limit) { this->size_limit = 0; }
   else { this->size_limit -= bytes; }
+}
+
+void
+ConstructionParameters::setMemoryLimit(size_type gigabytes)
+{
+  this->memory_limit = Range::bound(gigabytes, 1, ABSOLUTE_MEMORY_LIMIT) * GIGABYTE;
+}
+
+void
+ConstructionParameters::setMemoryLimitBytes(size_type bytes)
+{
+  this->memory_limit = Range::bound(bytes, 1, ABSOLUTE_MEMORY_LIMIT * GIGABYTE);
 }
 
 void

@@ -84,8 +84,8 @@ struct InputGraph
   const static std::string BINARY_EXTENSION;  // .graph
   const static std::string TEXT_EXTENSION;    // .gcsa2
 
-  InputGraph(const std::vector<std::string>& files, bool binary_format, const Alphabet& alphabet = Alphabet(), const std::string& mapping_name = "");
-  InputGraph(size_type file_count, char** base_names, bool binary_format, const Alphabet& alphabet = Alphabet(), const std::string& mapping_name = "");
+  InputGraph(const std::vector<std::string>& files, bool binary_format, const ConstructionParameters& parameters, const Alphabet& alphabet = Alphabet(), const std::string& mapping_name = "");
+  InputGraph(size_type file_count, char** base_names, bool binary_format, const ConstructionParameters& parameters, const Alphabet& alphabet = Alphabet(), const std::string& mapping_name = "");
   ~InputGraph();
 
   void open(std::ifstream& input, size_type file) const;
@@ -113,7 +113,7 @@ struct InputGraph
   InputGraph& operator= (const InputGraph&) = delete;
 
 private:
-  void build(const std::string& mapping_name);
+  void build(const ConstructionParameters& parameters, const std::string& mapping_name);
 };
 
 //------------------------------------------------------------------------------

@@ -316,7 +316,7 @@ struct PathGraphBuilder
     The first call is not thread safe, while the bulk write() is.
   */
   void write(PriorityNode& path);
-  void write(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type file);
+  void write(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type memory_limit, size_type file);
 
   void sort(size_type file);
 };
@@ -374,7 +374,7 @@ PathGraphBuilder::write(PriorityNode& path)
 }
 
 void
-PathGraphBuilder::write(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type file)
+PathGraphBuilder::write(std::vector<PathNode>& paths, std::vector<PathNode::rank_type>& labels, size_type memory_limit, size_type file)
 {
   size_type bytes_required = paths.size() * sizeof(PathNode) + labels.size() * sizeof(PathNode::rank_type);
   #pragma omp critical
@@ -391,6 +391,15 @@ PathGraphBuilder::write(std::vector<PathNode>& paths, std::vector<PathNode::rank
     this->graph.path_counts[file] += paths.size(); this->graph.path_count += paths.size();
     this->graph.rank_counts[file] += labels.size(); this->graph.rank_count += labels.size();
   }
+  
+  // Check if this file will violate the RAM limit parameter when it is loaded
+  size_type future_memory = this->graph.path_counts[file] * sizeof(PathNode) + this->graph.rank_counts[file] * sizeof(PathNode::rank_type);
+  if (future_memory > memory_limit) {
+    std::cerr << "PathGraphBuilder::write(): Memory use of file " << file << " of kmer paths ("
+      << inGigabytes(future_memory) << " GB) exceeds memory limit (" << inGigabytes(memory_limit) << " GB)" << std::endl;
+    std::exit(EXIT_SIZE_LIMIT_EXCEEDED);
+  }
+  
   paths.clear(); labels.clear();
 }
 
@@ -941,7 +950,7 @@ PathGraph::prune(const LCP& lcp, size_type size_limit)
 //------------------------------------------------------------------------------
 
 void
-PathGraph::extend(size_type size_limit)
+PathGraph::extend(size_type size_limit, size_type memory_limit)
 {
   size_type old_path_count = this->size();
 
@@ -979,7 +988,7 @@ PathGraph::extend(size_type size_limit)
         temp_nodes[thread].push_back(PathNode(paths[i], labels, temp_labels[thread]));
         if(temp_nodes[thread].size() >= PathGraphBuilder::WRITE_BUFFER_SIZE)
         {
-          builder.write(temp_nodes[thread], temp_labels[thread], file);
+          builder.write(temp_nodes[thread], temp_labels[thread], memory_limit, file);
         }
       }
       else
@@ -990,14 +999,14 @@ PathGraph::extend(size_type size_limit)
           temp_nodes[thread].push_back(PathNode(paths[i], paths[j], labels, temp_labels[thread]));
           if(temp_nodes[thread].size() >= PathGraphBuilder::WRITE_BUFFER_SIZE)
           {
-            builder.write(temp_nodes[thread], temp_labels[thread], file);
+            builder.write(temp_nodes[thread], temp_labels[thread], memory_limit, file);
           }
         }
       }
     }
     for(size_type thread = 0; thread < threads; thread++)
     {
-      builder.write(temp_nodes[thread], temp_labels[thread], file);
+      builder.write(temp_nodes[thread], temp_labels[thread], memory_limit, file);
     }
     sdsl::util::clear(paths); sdsl::util::clear(labels);
 

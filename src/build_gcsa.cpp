@@ -140,7 +140,7 @@ main(int argc, char** argv)
   }
   std::cout << std::endl;
 
-  InputGraph graph(argc - optind, argv + optind, binary, Alphabet(), mapping_file);
+  InputGraph graph(argc - optind, argv + optind, binary, parameters, Alphabet(), mapping_file);
 
   GCSA index;
   LCPArray lcp;
