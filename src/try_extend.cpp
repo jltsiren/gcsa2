@@ -38,6 +38,7 @@ main(int argc, char** argv)
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
+  Verbosity::set(Verbosity::FULL);
 
   std::string path_file = argv[1], rank_file = argv[2];
 

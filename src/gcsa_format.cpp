@@ -48,6 +48,7 @@ main(int argc, char** argv)
     std::cerr << std::endl;
     std::exit(EXIT_SUCCESS);
   }
+  Verbosity::set(Verbosity::FULL);
 
   int c = 0;
   bool lcp = false;

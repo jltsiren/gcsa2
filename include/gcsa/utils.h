@@ -145,8 +145,10 @@ struct Verbosity
   constexpr static size_type SILENT   = 0;
   constexpr static size_type BASIC    = 1;
   constexpr static size_type EXTENDED = 2;
-  constexpr static size_type DEFAULT  = 3;
   constexpr static size_type FULL     = 3;
+
+  // The default is now SILENT, as it's more convenient for users.
+  constexpr static size_type DEFAULT = SILENT;
 };
 
 //------------------------------------------------------------------------------

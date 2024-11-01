@@ -32,6 +32,7 @@ using namespace gcsa;
 int
 main(int argc, char** argv)
 {
+  Verbosity::set(Verbosity::FULL);
   if(argc < 2)  // From stdin to stdout.
   {
     std::vector<KMer> kmers;
