@@ -14,7 +14,7 @@ GCSA2 is being developed as a part of [vg](https://github.com/vgteam/vg). The on
 
 ## Compiling GCSA2
 
-The implementation is based on the [vgteam fork](https://github.com/vgteam/sdsl-lite) of the Succinct Data Structures Library 2.0 (SDSL). As the implementation uses C++14, OpenMP, and libstdc++ parallel mode, g++ 6.1 or newer is required. On Apple systems, GCSA2 can also be built with Apple Clang, but libomp must be installed via Macports or Homebrew, and the lack of libstdc++'s parallel mode extensions will result in slower index construction.
+This library is designed to take the compiler options from the [vgteam fork](https://github.com/vgteam/sdsl-lite) of the Succinct Data Structures Library 2.0 (SDSL). It currently requires a recent C++ compiler supporting C++17 and OpenMP. GCC is recommended, as the multithreaded `std::sort` the from libstdc++ parallel mode significantly speeds up index construction. On Apple systems, GCSA2 can be built with Apple Clang, but libomp must be installed via Macports or Homebrew.
 
 GCSA2 is frequently tested in the following environments:
 
@@ -22,7 +22,7 @@ GCSA2 is frequently tested in the following environments:
 * Intel macOS with GCC and Apple Clang.
 * ARM macOS with Apple Clang.
 
-To compile, set `SDSL_DIR` in the Makefile to point to your SDSL directory (the default is `../sdsl-lite`). GCSA2 will take its compiler options from SDSL. Use `make` to compile the library or `install.sh` to compile it and install the headers and the library to your home directory. Another installation directory can be specified as `install.sh prefix`.
+To compile, set `SDSL_DIR` in the Makefile to point to your SDSL directory (the default is `../sdsl-lite`). Use `make` to compile the library or `install.sh` to compile it and install the headers and the library to your home directory. Another installation directory can be specified as `install.sh prefix`.
 
 ## Citing GCSA2
 
