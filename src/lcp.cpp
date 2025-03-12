@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019 Jouni Siren
+  Copyright (c) 2018, 2019, 2025 Jouni Siren
   Copyright (c) 2016, 2017 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -26,6 +26,7 @@
 #include <gcsa/lcp.h>
 
 #include <stack>
+#include <sstream>
 
 #include <gcsa/internal.h>
 
@@ -132,7 +133,9 @@ LCPArray::load(std::istream& in)
   this->header.load(in);
   if(!(this->header.check()))
   {
-    std::cerr << "LCP::load(): Invalid header: " << this->header << std::endl;
+    std::stringstream ss;
+    ss << "LCP::load(): Invalid header: " << this->header;
+    throw std::runtime_error(ss.str());
   }
 
   this->data.load(in);

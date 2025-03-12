@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019 Jouni Siren
+  Copyright (c) 2018, 2019, 2025 Jouni Siren
   Copyright (c) 2015, 2016 Genome Research Ltd.
 
   Author: Jouni Siren <jouni.siren@iki.fi>
@@ -28,6 +28,7 @@
 #include <gcsa/path_graph.h>
 
 #include <random>
+#include <sstream>
 #include <unordered_set>
 
 namespace gcsa
@@ -186,7 +187,9 @@ GCSA::load(std::istream& in)
   this->header.load(in);
   if(!(this->header.check()))
   {
-    std::cerr << "GCSA::load(): Invalid header: " << this->header << std::endl;
+    std::stringstream ss;
+    ss << "GCSA::load(): Invalid header: " << this->header;
+    throw std::runtime_error(ss.str());
   }
   this->alpha.load(in);
 
